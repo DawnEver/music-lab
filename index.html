@@ -17,17 +17,47 @@
           <h1>音调与和弦侦测器</h1>
         </div>
       </div>
-      <div class="status-pill" id="statusPill" data-state="idle" role="status" aria-live="polite">
-        <span class="status-dot" aria-hidden="true"></span>
-        <span id="statusText">未启动</span>
+
+      <div class="topbar-tools">
+        <div class="button-row source-actions">
+          <button class="btn primary" id="micButton" type="button">
+            <span class="btn-icon" aria-hidden="true">●</span>
+            <span>启动麦克风</span>
+          </button>
+          <label class="file-btn" for="fileInput" tabindex="0">
+            <span class="btn-icon" aria-hidden="true">↗</span>
+            <span>打开音频</span>
+          </label>
+          <input id="fileInput" type="file" accept="audio/*" hidden />
+          <button class="btn ghost" id="stopButton" type="button" disabled>
+            <span class="btn-icon" aria-hidden="true">■</span>
+            <span>停止</span>
+          </button>
+        </div>
+
+        <div class="source-device">
+          <span class="source-device-label">麦克风</span>
+          <select id="deviceSelect" aria-label="选择麦克风" disabled>
+            <option value="">默认麦克风</option>
+          </select>
+        </div>
+
+        <div class="source-info" id="sourceInfo">所有分析都在浏览器本地完成，不上传音频。</div>
+
+        <div class="status-pill" id="statusPill" data-state="idle" role="status" aria-live="polite">
+          <span class="status-dot" aria-hidden="true"></span>
+          <span id="statusText">未启动</span>
+        </div>
       </div>
+
+      <div class="audio-host" id="audioHost"></div>
     </header>
 
     <div class="notice" id="secureNotice">
       <span aria-hidden="true">⚠</span>
       <div>
         <strong>当前页面无法直接读取麦克风。</strong>
-        请通过 HTTPS 或 localhost 打开；也可以使用下方“打开音频”分析本地文件。
+        请通过 HTTPS 或 localhost 打开；也可以使用“打开音频”分析本地文件。
       </div>
     </div>
 
@@ -123,35 +153,7 @@
         </div>
       </section>
 
-      <section class="card control-card" aria-label="分析控制">
-        <div class="control-group">
-          <p class="control-group-title">输入源</p>
-          <div class="button-row">
-            <button class="btn primary" id="micButton" type="button">
-              <span class="btn-icon" aria-hidden="true">●</span>
-              <span>启动麦克风</span>
-            </button>
-            <label class="file-btn" for="fileInput" tabindex="0">
-              <span class="btn-icon" aria-hidden="true">↗</span>
-              <span>打开音频</span>
-            </label>
-            <input id="fileInput" type="file" accept="audio/*" hidden />
-            <button class="btn ghost" id="stopButton" type="button" disabled>
-              <span class="btn-icon" aria-hidden="true">■</span>
-              <span>停止</span>
-            </button>
-          </div>
-          <div class="source-info" id="sourceInfo">所有分析都在浏览器本地完成，不上传音频。</div>
-        </div>
-
-        <div class="control-group">
-          <p class="control-group-title">麦克风设备</p>
-          <select id="deviceSelect" aria-label="选择麦克风" disabled>
-            <option value="">默认麦克风</option>
-          </select>
-          <div class="audio-host" id="audioHost"></div>
-        </div>
-
+      <section class="card control-card" aria-label="分析参数">
         <div class="control-group">
           <p class="control-group-title">分析参数</p>
           <div class="sliders">

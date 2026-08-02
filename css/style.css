@@ -78,10 +78,63 @@
 
     .topbar {
       display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 20px;
+      flex-direction: column;
+      gap: 16px;
       margin-bottom: 22px;
+    }
+
+    .topbar-tools {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 10px 14px;
+    }
+
+    .topbar .btn,
+    .topbar .file-btn {
+      min-height: 36px;
+      padding: 0 12px;
+      font-size: 12px;
+      border-radius: 11px;
+    }
+
+    .source-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .source-device {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .source-device-label {
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .source-device select {
+      width: auto;
+      min-width: 150px;
+      height: 36px;
+      padding-left: 10px;
+    }
+
+    .topbar-tools .source-info {
+      margin: 0;
+      flex: 1 1 160px;
+      min-width: 0;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .topbar .audio-host {
+      margin-top: 0;
     }
 
     .brand {
@@ -138,6 +191,7 @@
       font-size: 13px;
       font-weight: 700;
       backdrop-filter: blur(14px);
+      margin-left: auto;
     }
 
     .status-dot {
@@ -674,9 +728,7 @@
       grid-column: 1 / -1;
       padding: 20px;
       display: grid;
-      grid-template-columns: minmax(260px, 0.8fr) minmax(210px, 0.75fr) minmax(420px, 1.45fr);
-      gap: 18px;
-      align-items: stretch;
+      grid-template-columns: 1fr;
     }
 
     .control-group {
@@ -935,13 +987,6 @@
         grid-column: 1;
       }
 
-      .control-card {
-        grid-template-columns: 1fr 1fr;
-      }
-
-      .control-card .control-group:last-child {
-        grid-column: 1 / -1;
-      }
     }
 
     @media (max-width: 720px) {
@@ -951,7 +996,11 @@
       }
 
       .topbar {
-        align-items: flex-start;
+        align-items: stretch;
+      }
+
+      .topbar-tools .source-info {
+        flex-basis: 100%;
       }
 
       .brand-mark {
