@@ -18,6 +18,7 @@
 - 🎸 和弦识别：大三 / 小三 / 减三 / 增三 / sus2 / sus4 / 五度 / 属七 / 大七 / 小七
 - 🎹 十二音色度能量图，高亮根音与和弦组成音
 - ⚙️ 可调 A4 基准音、噪声门与识别稳定度
+- 🌐 中英双语界面，顶栏一键切换，并记住你的选择
 - 📱 桌面端与移动端响应式界面
 
 ## 快速开始 · Quick Start
@@ -41,6 +42,7 @@ npx serve .
 - **单音检测**：`YIN` 时域算法（`detectPitchYin`）与谐波频谱打分（`analyzeSpectrum`）并行运行，按置信度自动切换；多音时优先频谱主导音，避免 YIN 把共同次谐波当作基频。
 - **和弦识别**：从频谱峰值提取 12 维色度向量（`buildChromaFromPeaks`），与和弦模板做余弦匹配（`detectChord`），并用连续帧稳定（`stabilizeChord`）。
 - **公共 API**：`window.ToneChordLab` 暴露 `detectPitchYin`、`analyzeSpectrum`、`detectChord`、`frequencyToNote`。
+- **国际化**：`js/i18n.js` 提供 `t()` / `getLang()` / `setLang()` / `applyStaticI18n()`，词典覆盖 zh/en 全量文案；检测方法返回稳定键（`yin` / `spectral`），和弦类型返回 `descriptionKey`，由显示层翻译。
 
 ## 项目结构 · Structure
 
@@ -54,6 +56,7 @@ tone-chord-lab/
 │   ├── dsp.js            # YIN 音高、RMS、频谱峰值、色度提取
 │   ├── chord.js          # 和弦识别
 │   ├── draw.js           # 频谱画布渲染
+│   ├── i18n.js           # 中英词典与翻译函数
 │   └── app.js            # 控制器：状态 / 事件 / 音频图 / 渲染循环
 ├── test/                 # Node 内置测试（零依赖）
 ├── package.json

@@ -4,7 +4,8 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="color-scheme" content="dark" />
-  <title>音调与和弦侦测器</title>
+  <title data-i18n="appTitle">音调与和弦侦测器</title>
+  <link rel="icon" href="https://oss.hi-motor.site/web/logo/favicon.ico" />
   <link rel="stylesheet" href="css/style.css" />
 </head>
 <body>
@@ -13,8 +14,8 @@
       <div class="brand">
         <div class="brand-mark" aria-hidden="true">♫</div>
         <div>
-          <p class="eyebrow">Local audio analysis</p>
-          <h1>音调与和弦侦测器</h1>
+          <p class="eyebrow" data-i18n="eyebrow">Local audio analysis</p>
+          <h1 data-i18n="appTitle">音调与和弦侦测器</h1>
         </div>
       </div>
 
@@ -22,31 +23,36 @@
         <div class="button-row source-actions">
           <button class="btn primary" id="micButton" type="button">
             <span class="btn-icon" aria-hidden="true">●</span>
-            <span>启动麦克风</span>
+            <span data-i18n="micButton">启动麦克风</span>
           </button>
           <label class="file-btn" for="fileInput" tabindex="0">
             <span class="btn-icon" aria-hidden="true">↗</span>
-            <span>打开音频</span>
+            <span data-i18n="openAudio">打开音频</span>
           </label>
           <input id="fileInput" type="file" accept="audio/*" hidden />
           <button class="btn ghost" id="stopButton" type="button" disabled>
             <span class="btn-icon" aria-hidden="true">■</span>
-            <span>停止</span>
+            <span data-i18n="stop">停止</span>
           </button>
         </div>
 
         <div class="source-device">
-          <span class="source-device-label">麦克风</span>
-          <select id="deviceSelect" aria-label="选择麦克风" disabled>
-            <option value="">默认麦克风</option>
+          <span class="source-device-label" data-i18n="micDevice">麦克风</span>
+          <select id="deviceSelect" aria-label="选择麦克风" data-i18n-aria="selectMic" disabled>
+            <option value="" data-i18n="defaultMic">默认麦克风</option>
           </select>
         </div>
 
-        <div class="source-info" id="sourceInfo">所有分析都在浏览器本地完成，不上传音频。</div>
+        <div class="source-info" id="sourceInfo" data-i18n="sourceInfoDefault">所有分析都在浏览器本地完成，不上传音频。</div>
+
+        <div class="lang-toggle" id="langToggle" role="group" aria-label="切换语言" data-i18n-aria="languageAria">
+          <button type="button" data-lang="zh" class="is-active">中</button>
+          <button type="button" data-lang="en">EN</button>
+        </div>
 
         <div class="status-pill" id="statusPill" data-state="idle" role="status" aria-live="polite">
           <span class="status-dot" aria-hidden="true"></span>
-          <span id="statusText">未启动</span>
+          <span id="statusText" data-i18n="statusIdle">未启动</span>
         </div>
       </div>
 
@@ -56,8 +62,8 @@
     <div class="notice" id="secureNotice">
       <span aria-hidden="true">⚠</span>
       <div>
-        <strong>当前页面无法直接读取麦克风。</strong>
-        请通过 HTTPS 或 localhost 打开；也可以使用“打开音频”分析本地文件。
+        <strong data-i18n="secureNoticeTitle">当前页面无法直接读取麦克风。</strong>
+        <span data-i18n="secureNoticeBody">请通过 HTTPS 或 localhost 打开；也可以使用“打开音频”分析本地文件。</span>
       </div>
     </div>
 
@@ -65,10 +71,10 @@
       <section class="card metric-card pitch" aria-labelledby="pitchTitle">
         <div class="card-head">
           <div>
-            <p class="section-label">Dominant pitch</p>
-            <h2 class="section-title" id="pitchTitle">主导音高</h2>
+            <p class="section-label" data-i18n="pitchSectionLabel">Dominant pitch</p>
+            <h2 class="section-title" id="pitchTitle" data-i18n="pitchTitle">主导音高</h2>
           </div>
-          <div class="micro-badge" id="pitchMethod">等待信号</div>
+          <div class="micro-badge" id="pitchMethod" data-i18n="pitchMethodWaiting">等待信号</div>
         </div>
 
         <div class="pitch-main">
@@ -79,14 +85,14 @@
             </div>
             <div class="pitch-subline">
               <span class="frequency" id="frequencyValue">— Hz</span>
-              <span class="detector-label" id="pitchHint">启动输入后开始分析</span>
+              <span class="detector-label" id="pitchHint" data-i18n="pitchHintIdle">启动输入后开始分析</span>
             </div>
           </div>
 
           <div class="pitch-side">
             <div class="stat-box">
               <div class="stat-top">
-                <span class="stat-name">检测置信度</span>
+                <span class="stat-name" data-i18n="confidence">检测置信度</span>
                 <span class="stat-value" id="pitchConfidenceText">0%</span>
               </div>
               <div class="progress" aria-hidden="true">
@@ -96,7 +102,7 @@
 
             <div class="tuner">
               <div class="tuner-readout">
-                <span class="stat-name">音准偏差</span>
+                <span class="stat-name" data-i18n="cents">音准偏差</span>
                 <span class="cents-value" id="centsValue">0 cent</span>
               </div>
               <div class="tuner-track" aria-hidden="true">
@@ -113,53 +119,53 @@
       <section class="card metric-card chord" aria-labelledby="chordTitle">
         <div class="card-head">
           <div>
-            <p class="section-label">Chord recognition</p>
-            <h2 class="section-title" id="chordTitle">和弦识别</h2>
+            <p class="section-label" data-i18n="chordSectionLabel">Chord recognition</p>
+            <h2 class="section-title" id="chordTitle" data-i18n="chordTitle">和弦识别</h2>
           </div>
-          <div class="micro-badge" id="chordConfidence">0% 匹配</div>
+          <div class="micro-badge" id="chordConfidence" data-i18n="chordConfidence0">0% 匹配</div>
         </div>
 
         <div class="chord-main">
           <div class="chord-title-row">
             <div class="chord-name" id="chordName" aria-live="polite">…</div>
-            <div class="chord-description" id="chordDescription">等待稳定的多音信号</div>
+            <div class="chord-description" id="chordDescription" data-i18n="chordDescriptionWaiting">等待稳定的多音信号</div>
           </div>
-          <div class="chroma" id="chroma" aria-label="十二平均律色度能量"></div>
+          <div class="chroma" id="chroma" aria-label="十二平均律色度能量" data-i18n-aria="chromaAria"></div>
         </div>
       </section>
 
       <section class="card spectrum-card" aria-labelledby="spectrumTitle">
         <div class="spectrum-head">
           <div>
-            <p class="section-label">Real-time spectrum</p>
-            <h2 class="section-title" id="spectrumTitle">实时频谱</h2>
+            <p class="section-label" data-i18n="spectrumSectionLabel">Real-time spectrum</p>
+            <h2 class="section-title" id="spectrumTitle" data-i18n="spectrumTitle">实时频谱</h2>
           </div>
           <div class="spectrum-meta" aria-hidden="true">
             <span>FFT 16384</span>
             <span id="sampleRateMeta">— kHz</span>
-            <span>LOG SCALE</span>
+            <span data-i18n="logScale">LOG SCALE</span>
           </div>
         </div>
 
         <div class="spectrum-wrap" id="spectrumWrap">
           <canvas id="spectrumCanvas"></canvas>
-          <div class="spectrum-empty" id="spectrumEmpty">选择麦克风或本地音频开始</div>
+          <div class="spectrum-empty" id="spectrumEmpty" data-i18n="spectrumEmpty">选择麦克风或本地音频开始</div>
         </div>
 
         <div class="level-row">
-          <span class="level-label">INPUT</span>
+          <span class="level-label" data-i18n="inputLabel">INPUT</span>
           <div class="level-meter" aria-hidden="true"><span id="levelBar"></span></div>
           <span class="level-db" id="levelDb">−∞ dB</span>
         </div>
       </section>
 
-      <section class="card control-card" aria-label="分析参数">
+      <section class="card control-card" aria-label="分析参数" data-i18n-aria="settingsAria">
         <div class="control-group">
-          <p class="control-group-title">分析参数</p>
+          <p class="control-group-title" data-i18n="settingsTitle">分析参数</p>
           <div class="sliders">
             <div class="slider-field">
               <div class="slider-head">
-                <span class="slider-label">基准音 A4</span>
+                <span class="slider-label" data-i18n="tuning">基准音 A4</span>
                 <output class="slider-output" id="tuningOutput">440 Hz</output>
               </div>
               <input id="tuningRange" type="range" min="432" max="446" step="1" value="440" />
@@ -167,7 +173,7 @@
 
             <div class="slider-field">
               <div class="slider-head">
-                <span class="slider-label">噪声门</span>
+                <span class="slider-label" data-i18n="noiseGate">噪声门</span>
                 <output class="slider-output" id="gateOutput">−52 dB</output>
               </div>
               <input id="gateRange" type="range" min="-70" max="-28" step="1" value="-52" />
@@ -175,7 +181,7 @@
 
             <div class="slider-field">
               <div class="slider-head">
-                <span class="slider-label">稳定度</span>
+                <span class="slider-label" data-i18n="stability">稳定度</span>
                 <output class="slider-output" id="stabilityOutput">72%</output>
               </div>
               <input id="stabilityRange" type="range" min="20" max="92" step="1" value="72" />
@@ -186,8 +192,14 @@
     </main>
 
     <p class="footnote">
-      <strong>提示：</strong>单音检测适合哼唱、乐器调音；和弦识别是实时启发式结果，清晰的持续和弦、较少环境噪声会更稳定。
+      <strong data-i18n="footnoteLabel">提示：</strong><span data-i18n="footnoteText">单音检测适合哼唱、乐器调音；和弦识别是实时启发式结果，清晰的持续和弦、较少环境噪声会更稳定。</span>
     </p>
+
+    <footer class="footer text-center">
+      <span data-i18n="copyrights">© 2026 Tone Chord Lab</span>
+      <br />
+      <a href="mailto:mingyangbob@gmail.com" rel="noreferrer" target="_blank">mingyangbob@gmail.com</a>
+    </footer>
   </div>
 
   <div class="toast" id="toast" role="alert"></div>

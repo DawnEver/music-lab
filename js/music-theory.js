@@ -6,16 +6,16 @@
 export const NOTE_NAMES = ["C", "C♯", "D", "D♯", "E", "F", "F♯", "G", "G♯", "A", "A♯", "B"];
 
 export const CHORD_TYPES = [
-  { suffix: "", name: "大三和弦", intervals: [0, 4, 7], weights: [1, 0.90, 0.78] },
-  { suffix: "m", name: "小三和弦", intervals: [0, 3, 7], weights: [1, 0.90, 0.78] },
-  { suffix: "dim", name: "减三和弦", intervals: [0, 3, 6], weights: [1, 0.88, 0.75] },
-  { suffix: "aug", name: "增三和弦", intervals: [0, 4, 8], weights: [1, 0.88, 0.78] },
-  { suffix: "sus2", name: "挂二和弦", intervals: [0, 2, 7], weights: [1, 0.82, 0.78] },
-  { suffix: "sus4", name: "挂四和弦", intervals: [0, 5, 7], weights: [1, 0.82, 0.78] },
-  { suffix: "5", name: "五度和弦", intervals: [0, 7], weights: [1, 0.85] },
-  { suffix: "7", name: "属七和弦", intervals: [0, 4, 7, 10], weights: [1, 0.88, 0.75, 0.62] },
-  { suffix: "maj7", name: "大七和弦", intervals: [0, 4, 7, 11], weights: [1, 0.88, 0.75, 0.62] },
-  { suffix: "m7", name: "小七和弦", intervals: [0, 3, 7, 10], weights: [1, 0.88, 0.75, 0.62] }
+  { key: "major", suffix: "", name: "大三和弦", intervals: [0, 4, 7], weights: [1, 0.90, 0.78] },
+  { key: "minor", suffix: "m", name: "小三和弦", intervals: [0, 3, 7], weights: [1, 0.90, 0.78] },
+  { key: "dim", suffix: "dim", name: "减三和弦", intervals: [0, 3, 6], weights: [1, 0.88, 0.75] },
+  { key: "aug", suffix: "aug", name: "增三和弦", intervals: [0, 4, 8], weights: [1, 0.88, 0.78] },
+  { key: "sus2", suffix: "sus2", name: "挂二和弦", intervals: [0, 2, 7], weights: [1, 0.82, 0.78] },
+  { key: "sus4", suffix: "sus4", name: "挂四和弦", intervals: [0, 5, 7], weights: [1, 0.82, 0.78] },
+  { key: "fifth", suffix: "5", name: "五度和弦", intervals: [0, 7], weights: [1, 0.85] },
+  { key: "dom7", suffix: "7", name: "属七和弦", intervals: [0, 4, 7, 10], weights: [1, 0.88, 0.75, 0.62] },
+  { key: "maj7", suffix: "maj7", name: "大七和弦", intervals: [0, 4, 7, 11], weights: [1, 0.88, 0.75, 0.62] },
+  { key: "m7", suffix: "m7", name: "小七和弦", intervals: [0, 3, 7, 10], weights: [1, 0.88, 0.75, 0.62] }
 ];
 
 /** Convert a MIDI note number to a frequency in Hz. */

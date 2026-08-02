@@ -135,7 +135,7 @@ export function detectPitchYin(buffer, sampleRate, gateDb) {
     pitch: {
       frequency,
       confidence,
-      method: "YIN 时域"
+      method: "yin"
     },
     rms,
     rmsDb
@@ -379,7 +379,7 @@ export function analyzeSpectrum(data, sampleRate, fftSize, config = {}) {
     dominantPitch = {
       frequency: best.frequency,
       confidence,
-      method: "谐波频谱"
+      method: "spectral"
     };
   }
 

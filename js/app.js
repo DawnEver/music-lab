@@ -9,6 +9,7 @@ import { NOTE_NAMES, frequencyToNote } from "./music-theory.js";
 import { clamp, detectPitchYin, analyzeSpectrum } from "./dsp.js";
 import { detectChord, hasPolyphonicEvidence } from "./chord.js";
 import { drawSpectrum, clearSpectrumCanvas, resizeCanvas } from "./draw.js";
+import { t, setLang, applyStaticI18n } from "./i18n.js";
 
 const FFT_SIZE = 16384;
 
@@ -78,7 +79,12 @@ const state = {
   gateDb: Number(els.gateRange.value),
   stability: Number(els.stabilityRange.value) / 100,
   toastTimer: 0,
-  isStarting: false
+  isStarting: false,
+  statusKey: "statusIdle",
+  statusMode: "idle",
+  sourceInfoKey: "sourceInfoDefault",
+  sourceInfoParams: {},
+  sourceInfoOverride: ""
 };
 
 const chromaColumns = [];
@@ -108,9 +114,27 @@ function createChromaBars() {
   els.chroma.appendChild(fragment);
 }
 
-function setStatus(text, mode = "idle") {
-  els.statusText.textContent = text;
+function setStatus(key, mode = "idle") {
+  state.statusKey = key;
+  state.statusMode = mode;
+  els.statusText.textContent = t(key);
   els.statusPill.dataset.state = mode;
+}
+
+function setSourceInfo(key, params = {}) {
+  state.sourceInfoKey = key;
+  state.sourceInfoParams = params;
+  state.sourceInfoOverride = "";
+  renderSourceInfo();
+}
+
+function setSourceInfoRaw(text) {
+  state.sourceInfoOverride = text;
+  renderSourceInfo();
+}
+
+function renderSourceInfo() {
+  els.sourceInfo.textContent = state.sourceInfoOverride || t(state.sourceInfoKey, state.sourceInfoParams);
 }
 
 function showToast(message) {
@@ -136,16 +160,16 @@ function resetReadouts(keepSpectrum = false) {
   els.noteName.textContent = "…";
   els.noteOctave.textContent = "";
   els.frequencyValue.textContent = "— Hz";
-  els.pitchHint.textContent = state.mode === "idle" ? "启动输入后开始分析" : "等待清晰信号";
-  els.pitchMethod.textContent = "等待信号";
+  els.pitchHint.textContent = state.mode === "idle" ? t("pitchHintIdle") : t("pitchHintAwait");
+  els.pitchMethod.textContent = t("pitchMethodWaiting");
   els.pitchConfidenceText.textContent = "0%";
   els.pitchConfidenceBar.style.width = "0%";
   els.centsValue.textContent = "0 cent";
   els.tunerNeedle.style.left = "50%";
 
   els.chordName.textContent = "…";
-  els.chordDescription.textContent = "等待稳定的多音信号";
-  els.chordConfidence.textContent = "0% 匹配";
+  els.chordDescription.textContent = t("chordDescriptionWaiting");
+  els.chordConfidence.textContent = t("chordConfidence0");
   updateChromaDisplay(new Float32Array(12), null);
 
   els.levelBar.style.width = "0%";
@@ -162,7 +186,7 @@ function updateControls() {
   els.stopButton.disabled = !active && !state.isStarting;
   els.micButton.disabled = state.isStarting || state.mode === "mic";
   els.micButton.querySelector("span:last-child").textContent =
-    state.mode === "file" ? "切换麦克风" : state.mode === "mic" ? "麦克风运行中" : "启动麦克风";
+    state.mode === "file" ? t("switchMic") : state.mode === "mic" ? t("micRunning") : t("micButton");
 }
 
 function updateLevel(rmsDb) {
@@ -273,7 +297,7 @@ function updatePitchDisplay(pitch) {
     els.noteName.textContent = "…";
     els.noteOctave.textContent = "";
     els.frequencyValue.textContent = "— Hz";
-    els.pitchMethod.textContent = "等待信号";
+    els.pitchMethod.textContent = t("pitchMethodWaiting");
     els.pitchConfidenceText.textContent = "0%";
     els.pitchConfidenceBar.style.width = "0%";
     els.centsValue.textContent = "0 cent";
@@ -290,8 +314,8 @@ function updatePitchDisplay(pitch) {
   els.noteName.textContent = note.name;
   els.noteOctave.textContent = String(note.octave);
   els.frequencyValue.textContent = `${pitch.frequency.toFixed(pitch.frequency < 100 ? 2 : 1)} Hz`;
-  els.pitchHint.textContent = Math.abs(note.cents) <= 5 ? "音准稳定" : note.cents < 0 ? "略低于目标音" : "略高于目标音";
-  els.pitchMethod.textContent = pitch.method;
+  els.pitchHint.textContent = Math.abs(note.cents) <= 5 ? t("pitchHintStable") : note.cents < 0 ? t("pitchHintFlat") : t("pitchHintSharp");
+  els.pitchMethod.textContent = t(`method.${pitch.method}`);
   els.pitchConfidenceText.textContent = `${confidencePercent}%`;
   els.pitchConfidenceBar.style.width = `${confidencePercent}%`;
   els.centsValue.textContent = `${centsPrefix}${Math.abs(centsRounded)} cent`;
@@ -301,8 +325,8 @@ function updatePitchDisplay(pitch) {
 function updateChordDisplay(chord) {
   if (!chord) {
     els.chordName.textContent = "…";
-    els.chordDescription.textContent = "等待稳定的多音信号";
-    els.chordConfidence.textContent = "0% 匹配";
+    els.chordDescription.textContent = t("chordDescriptionWaiting");
+    els.chordConfidence.textContent = t("chordConfidence0");
     updateChromaDisplay(state.latestChroma, null);
     return;
   }
@@ -311,8 +335,8 @@ function updateChordDisplay(chord) {
   const confidencePercent = Math.round(chord.confidence * 100);
 
   els.chordName.textContent = chord.symbol;
-  els.chordDescription.textContent = `${chord.description} · ${noteList}`;
-  els.chordConfidence.textContent = `${confidencePercent}% 匹配`;
+  els.chordDescription.textContent = `${t(`chordType.${chord.descriptionKey}`)} · ${noteList}`;
+  els.chordConfidence.textContent = `${confidencePercent}% ${t("match")}`;
   updateChromaDisplay(state.latestChroma, chord);
 }
 
@@ -446,7 +470,7 @@ function beginAnalysis() {
 async function createAudioGraph(mode) {
   const AudioContextClass = window.AudioContext || window.webkitAudioContext;
   if (!AudioContextClass) {
-    throw new Error("当前浏览器不支持 Web Audio API。");
+    throw new Error(t("errWebAudio"));
   }
 
   state.audioContext = new AudioContextClass({ latencyHint: "interactive" });
@@ -479,13 +503,13 @@ async function populateDevices() {
     els.deviceSelect.innerHTML = "";
     const defaultOption = document.createElement("option");
     defaultOption.value = "";
-    defaultOption.textContent = "默认麦克风";
+    defaultOption.textContent = t("defaultMic");
     els.deviceSelect.appendChild(defaultOption);
 
     microphones.forEach((device, index) => {
       const option = document.createElement("option");
       option.value = device.deviceId;
-      option.textContent = device.label || `麦克风 ${index + 1}`;
+      option.textContent = device.label || t("micNumber", { index: index + 1 });
       els.deviceSelect.appendChild(option);
     });
 
@@ -494,7 +518,7 @@ async function populateDevices() {
       els.deviceSelect.value = previousValue;
     }
   } catch (error) {
-    console.warn("无法枚举音频设备：", error);
+    console.warn(t("cannotEnumerate"), error);
   }
 }
 
@@ -544,8 +568,8 @@ async function stopAudio(resetUi = true) {
   state.mode = "idle";
 
   if (resetUi) {
-    setStatus("未启动", "idle");
-    els.sourceInfo.textContent = "所有分析都在浏览器本地完成，不上传音频。";
+    setStatus("statusIdle", "idle");
+    setSourceInfo("sourceInfoDefault");
     resetReadouts();
   }
 
@@ -557,14 +581,14 @@ async function startMicrophone() {
 
   if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
     els.secureNotice.classList.add("show");
-    setStatus("麦克风不可用", "error");
-    showToast("麦克风需要在 HTTPS 或 localhost 环境中使用。");
+    setStatus("statusMicUnavailable", "error");
+    showToast(t("toastMicSecure"));
     return;
   }
 
   state.isStarting = true;
   updateControls();
-  setStatus("请求权限", "idle");
+  setStatus("statusRequesting", "idle");
 
   try {
     await stopAudio(false);
@@ -595,9 +619,9 @@ async function startMicrophone() {
     els.secureNotice.classList.remove("show");
 
     const activeTrack = state.stream.getAudioTracks()[0];
-    const label = activeTrack && activeTrack.label ? activeTrack.label : "默认麦克风";
-    els.sourceInfo.textContent = `正在分析：${label}`;
-    setStatus("麦克风实时", "live");
+    const label = activeTrack && activeTrack.label ? activeTrack.label : t("defaultMic");
+    setSourceInfo("analyzing", { label });
+    setStatus("statusMicLive", "live");
     resetReadouts(true);
     beginAnalysis();
     await populateDevices();
@@ -605,16 +629,17 @@ async function startMicrophone() {
     console.error(error);
     await stopAudio(false);
     state.mode = "idle";
-    setStatus("启动失败", "error");
+    setStatus("statusStartFailed", "error");
 
+    const unknown = t("unknownError");
     const message = error && error.name === "NotAllowedError"
-      ? "未获得麦克风权限。请在浏览器地址栏中允许麦克风访问。"
+      ? t("toastMicDenied")
       : error && error.name === "NotFoundError"
-        ? "没有找到可用麦克风。"
-        : `无法启动麦克风：${error && error.message ? error.message : "未知错误"}`;
+        ? t("toastNoMic")
+        : t("toastMicStartFailed", { message: error && error.message ? error.message : unknown });
 
     showToast(message);
-    els.sourceInfo.textContent = message;
+    setSourceInfoRaw(message);
     resetReadouts();
   } finally {
     state.isStarting = false;
@@ -628,7 +653,7 @@ async function startAudioFile(file) {
 
   state.isStarting = true;
   updateControls();
-  setStatus("载入音频", "idle");
+  setStatus("statusLoadingFile", "idle");
 
   try {
     await stopAudio(false);
@@ -641,7 +666,7 @@ async function startAudioFile(file) {
     state.audioElement.controls = true;
     state.audioElement.preload = "metadata";
     state.audioElement.src = state.objectUrl;
-    state.audioElement.setAttribute("aria-label", `本地音频：${file.name}`);
+    state.audioElement.setAttribute("aria-label", t("localAudioAria", { name: file.name }));
     els.audioHost.replaceChildren(state.audioElement);
 
     state.sourceNode = state.audioContext.createMediaElementSource(state.audioElement);
@@ -652,38 +677,38 @@ async function startAudioFile(file) {
       if (state.audioContext && state.audioContext.state === "suspended") {
         await state.audioContext.resume();
       }
-      setStatus("文件播放中", "live");
+      setStatus("statusFilePlaying", "live");
     });
 
     state.audioElement.addEventListener("pause", () => {
-      if (state.mode === "file") setStatus("文件已暂停", "idle");
+      if (state.mode === "file") setStatus("statusFilePaused", "idle");
     });
 
     state.audioElement.addEventListener("ended", () => {
-      if (state.mode === "file") setStatus("播放完毕", "idle");
+      if (state.mode === "file") setStatus("statusFileEnded", "idle");
     });
 
     state.audioElement.addEventListener("error", () => {
-      showToast("浏览器无法解码这个音频文件，请尝试 WAV、MP3、M4A 或 OGG。");
+      showToast(t("toastDecodeFailed"));
     });
 
-    els.sourceInfo.textContent = `本地文件：${file.name}`;
+    setSourceInfo("localFile", { name: file.name });
     resetReadouts(true);
     beginAnalysis();
 
     try {
       await state.audioElement.play();
     } catch (_) {
-      setStatus("等待播放", "idle");
-      showToast("文件已载入，请点击播放器的播放按钮开始分析。");
+      setStatus("statusAwaitPlay", "idle");
+      showToast(t("toastFileLoaded"));
     }
   } catch (error) {
     console.error(error);
     await stopAudio(false);
     state.mode = "idle";
-    setStatus("载入失败", "error");
-    const message = `无法分析该音频文件：${error && error.message ? error.message : "未知错误"}`;
-    els.sourceInfo.textContent = message;
+    setStatus("statusLoadFailed", "error");
+    const message = t("toastFileFailed", { message: error && error.message ? error.message : t("unknownError") });
+    setSourceInfoRaw(message);
     showToast(message);
     resetReadouts();
   } finally {
@@ -707,8 +732,18 @@ function handleSettingsChange() {
   }
 }
 
+/** Re-render strings that are driven by app state (after a language switch). */
+function renderDynamicTexts() {
+  setStatus(state.statusKey, state.statusMode);
+  renderSourceInfo();
+  updatePitchDisplay(state.latestPitch);
+  updateChordDisplay(state.displayedChord);
+  updateControls();
+}
+
 function initialize() {
   createChromaBars();
+  applyStaticI18n();
   handleSettingsChange();
   resizeCanvas(els.spectrumCanvas, els.spectrumWrap);
   clearSpectrumCanvas(els.spectrumCanvas, els.spectrumWrap);
@@ -727,6 +762,14 @@ function initialize() {
 
   els.deviceSelect.addEventListener("change", () => {
     if (state.mode === "mic") startMicrophone();
+  });
+
+  document.querySelectorAll(".lang-toggle button").forEach((button) => {
+    button.addEventListener("click", () => {
+      setLang(button.dataset.lang);
+      applyStaticI18n();
+      renderDynamicTexts();
+    });
   });
 
   [els.tuningRange, els.gateRange, els.stabilityRange].forEach((input) => {

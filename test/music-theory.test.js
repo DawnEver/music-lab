@@ -50,5 +50,6 @@ test("chord templates are internally consistent", () => {
     assert.equal(type.intervals.length, type.weights.length, type.suffix);
     assert.ok(type.intervals.every((i) => i >= 0 && i <= 11), type.suffix);
     assert.ok(type.weights.every((w) => w > 0 && w <= 1), type.suffix);
+    assert.ok(typeof type.key === "string" && type.key.length > 0, type.suffix);
   }
 });

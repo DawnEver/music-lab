@@ -24,6 +24,7 @@ test("recognizes C major", () => {
   assert.ok(chord, "expected a chord match");
   assert.equal(chord.symbol, "C");
   assert.equal(chord.root, 0);
+  assert.equal(chord.descriptionKey, "major");
   assert.ok(chord.confidence > 0);
 });
 
@@ -32,6 +33,7 @@ test("recognizes A minor", () => {
   assert.ok(chord, "expected a chord match");
   assert.equal(chord.symbol, "Am");
   assert.equal(chord.root, 9);
+  assert.equal(chord.descriptionKey, "minor");
   assert.ok(chord.confidence > 0);
 });
 
@@ -40,6 +42,7 @@ test("recognizes G dominant seventh", () => {
   assert.ok(chord, "expected a chord match");
   assert.equal(chord.symbol, "G7");
   assert.equal(chord.root, 7);
+  assert.equal(chord.descriptionKey, "dom7");
   assert.ok(chord.confidence > 0);
 });
 

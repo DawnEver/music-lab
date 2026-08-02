@@ -98,6 +98,7 @@ export function detectChord(chroma) {
     confidence,
     symbol: `${NOTE_NAMES[best.root]}${best.type.suffix}`,
     description: best.type.name,
+    descriptionKey: best.type.key,
     alternate: second ? `${NOTE_NAMES[second.root]}${second.type.suffix}` : ""
   };
 }

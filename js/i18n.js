@@ -1,0 +1,236 @@
+/**
+ * Lightweight zh/en internationalization: a translation dictionary plus a
+ * tiny t() renderer. No DOM is touched at import time, so the module is
+ * importable in Node (getLang() falls back gracefully).
+ */
+
+const STORAGE_KEY = "tcl-lang";
+
+export const messages = {
+  zh: {
+    appTitle: "音调与和弦侦测器",
+    eyebrow: "本地音频分析",
+    statusIdle: "未启动",
+    statusRequesting: "请求权限",
+    statusMicLive: "麦克风实时",
+    statusMicUnavailable: "麦克风不可用",
+    statusStartFailed: "启动失败",
+    statusLoadFailed: "载入失败",
+    statusLoadingFile: "载入音频",
+    statusFilePlaying: "文件播放中",
+    statusFilePaused: "文件已暂停",
+    statusFileEnded: "播放完毕",
+    statusAwaitPlay: "等待播放",
+    secureNoticeTitle: "当前页面无法直接读取麦克风。",
+    secureNoticeBody: "请通过 HTTPS 或 localhost 打开；也可以使用“打开音频”分析本地文件。",
+    pitchTitle: "主导音高",
+    pitchSectionLabel: "主导音高",
+    chordTitle: "和弦识别",
+    chordSectionLabel: "和弦识别",
+    spectrumTitle: "实时频谱",
+    spectrumSectionLabel: "实时频谱",
+    pitchMethodWaiting: "等待信号",
+    pitchHintIdle: "启动输入后开始分析",
+    pitchHintAwait: "等待清晰信号",
+    pitchHintStable: "音准稳定",
+    pitchHintFlat: "略低于目标音",
+    pitchHintSharp: "略高于目标音",
+    confidence: "检测置信度",
+    cents: "音准偏差",
+    chordConfidence0: "0% 匹配",
+    chordDescriptionWaiting: "等待稳定的多音信号",
+    spectrumEmpty: "选择麦克风或本地音频开始",
+    micButton: "启动麦克风",
+    micRunning: "麦克风运行中",
+    switchMic: "切换麦克风",
+    openAudio: "打开音频",
+    stop: "停止",
+    micDevice: "麦克风",
+    defaultMic: "默认麦克风",
+    micNumber: "麦克风 {index}",
+    sourceInfoDefault: "所有分析都在浏览器本地完成，不上传音频。",
+    analyzing: "正在分析：{label}",
+    localFile: "本地文件：{name}",
+    localAudioAria: "本地音频：{name}",
+    settingsTitle: "分析参数",
+    tuning: "基准音 A4",
+    noiseGate: "噪声门",
+    stability: "稳定度",
+    footnoteLabel: "提示",
+    footnoteText: "单音检测适合哼唱、乐器调音；和弦识别是实时启发式结果，清晰的持续和弦、较少环境噪声会更稳定。",
+    copyrights: "© 2026 音调与和弦侦测器",
+    logScale: "对数刻度",
+    inputLabel: "输入",
+    match: "匹配",
+    toastMicSecure: "麦克风需要在 HTTPS 或 localhost 环境中使用。",
+    toastMicDenied: "未获得麦克风权限。请在浏览器地址栏中允许麦克风访问。",
+    toastNoMic: "没有找到可用麦克风。",
+    toastMicStartFailed: "无法启动麦克风：{message}",
+    toastDecodeFailed: "浏览器无法解码这个音频文件，请尝试 WAV、MP3、M4A 或 OGG。",
+    toastFileLoaded: "文件已载入，请点击播放器的播放按钮开始分析。",
+    toastFileFailed: "无法分析该音频文件：{message}",
+    unknownError: "未知错误",
+    errWebAudio: "当前浏览器不支持 Web Audio API。",
+    cannotEnumerate: "无法枚举音频设备",
+    "method.yin": "YIN 时域",
+    "method.spectral": "谐波频谱",
+    selectMic: "选择麦克风",
+    chromaAria: "十二平均律色度能量",
+    settingsAria: "分析参数",
+    languageAria: "切换语言",
+    "chordType.major": "大三和弦",
+    "chordType.minor": "小三和弦",
+    "chordType.dim": "减三和弦",
+    "chordType.aug": "增三和弦",
+    "chordType.sus2": "挂二和弦",
+    "chordType.sus4": "挂四和弦",
+    "chordType.fifth": "五度和弦",
+    "chordType.dom7": "属七和弦",
+    "chordType.maj7": "大七和弦",
+    "chordType.m7": "小七和弦"
+  },
+
+  en: {
+    appTitle: "Tone & Chord Detector",
+    eyebrow: "Local audio analysis",
+    statusIdle: "Idle",
+    statusRequesting: "Requesting access",
+    statusMicLive: "Mic live",
+    statusMicUnavailable: "Mic unavailable",
+    statusStartFailed: "Start failed",
+    statusLoadFailed: "Load failed",
+    statusLoadingFile: "Loading audio",
+    statusFilePlaying: "Playing",
+    statusFilePaused: "Paused",
+    statusFileEnded: "Finished",
+    statusAwaitPlay: "Waiting to play",
+    secureNoticeTitle: "The microphone cannot be accessed on this page.",
+    secureNoticeBody: "Open via HTTPS or localhost, or use “Open audio” to analyze a local file.",
+    pitchTitle: "Dominant Pitch",
+    pitchSectionLabel: "Dominant pitch",
+    chordTitle: "Chord Recognition",
+    chordSectionLabel: "Chord recognition",
+    spectrumTitle: "Real-time Spectrum",
+    spectrumSectionLabel: "Real-time spectrum",
+    pitchMethodWaiting: "Waiting",
+    pitchHintIdle: "Start an input to begin analysis",
+    pitchHintAwait: "Waiting for a clear signal",
+    pitchHintStable: "In tune",
+    pitchHintFlat: "Slightly flat",
+    pitchHintSharp: "Slightly sharp",
+    confidence: "Confidence",
+    cents: "Tuning offset",
+    chordConfidence0: "0% match",
+    chordDescriptionWaiting: "Waiting for a stable polyphonic signal",
+    spectrumEmpty: "Select a mic or local audio to begin",
+    micButton: "Start microphone",
+    micRunning: "Mic running",
+    switchMic: "Switch mic",
+    openAudio: "Open audio",
+    stop: "Stop",
+    micDevice: "Microphone",
+    defaultMic: "Default microphone",
+    micNumber: "Mic {index}",
+    sourceInfoDefault: "All analysis runs locally in your browser; audio is never uploaded.",
+    analyzing: "Analyzing: {label}",
+    localFile: "Local file: {name}",
+    localAudioAria: "Local audio: {name}",
+    settingsTitle: "Settings",
+    tuning: "Reference A4",
+    noiseGate: "Noise gate",
+    stability: "Stability",
+    footnoteLabel: "Tip",
+    footnoteText: "Monophonic detection suits humming and instrument tuning; chord recognition is a real-time heuristic and works best with clear sustained chords and low background noise.",
+    copyrights: "© 2026 Tone Chord Lab",
+    logScale: "LOG SCALE",
+    inputLabel: "INPUT",
+    match: "match",
+    toastMicSecure: "Microphone requires an HTTPS or localhost context.",
+    toastMicDenied: "Microphone access was denied. Allow it in the browser address bar.",
+    toastNoMic: "No microphone was found.",
+    toastMicStartFailed: "Could not start the microphone: {message}",
+    toastDecodeFailed: "Your browser cannot decode this audio. Try WAV, MP3, M4A, or OGG.",
+    toastFileLoaded: "File loaded — press play on the player to begin analysis.",
+    toastFileFailed: "Could not analyze this audio file: {message}",
+    unknownError: "Unknown error",
+    errWebAudio: "Your browser does not support the Web Audio API.",
+    cannotEnumerate: "Could not enumerate audio devices",
+    "method.yin": "YIN (time-domain)",
+    "method.spectral": "Harmonic spectrum",
+    selectMic: "Select microphone",
+    chromaAria: "Chroma energy",
+    settingsAria: "Settings",
+    languageAria: "Switch language",
+    "chordType.major": "Major triad",
+    "chordType.minor": "Minor triad",
+    "chordType.dim": "Diminished triad",
+    "chordType.aug": "Augmented triad",
+    "chordType.sus2": "Suspended 2nd",
+    "chordType.sus4": "Suspended 4th",
+    "chordType.fifth": "Power chord",
+    "chordType.dom7": "Dominant seventh",
+    "chordType.maj7": "Major seventh",
+    "chordType.m7": "Minor seventh"
+  }
+};
+
+let currentLang = null;
+
+export function getLang() {
+  try {
+    const stored = window.localStorage.getItem(STORAGE_KEY);
+    if (stored === "zh" || stored === "en") return stored;
+  } catch (_) {
+    // No localStorage in Node or blocked in the browser.
+  }
+  try {
+    if (typeof navigator !== "undefined" && navigator.language) {
+      return /^zh/i.test(navigator.language) ? "zh" : "en";
+    }
+  } catch (_) {
+    // No navigator in Node.
+  }
+  return "zh";
+}
+
+export function setLang(lang) {
+  const next = lang === "en" ? "en" : "zh";
+  currentLang = next;
+  try {
+    window.localStorage.setItem(STORAGE_KEY, next);
+  } catch (_) {
+    // Persistence is best-effort.
+  }
+  return next;
+}
+
+/** Translate a key, substituting {placeholder} params. Falls back to zh, then the key itself. */
+export function t(key, params = {}) {
+  const dict = messages[currentLang] || messages.zh;
+  let text = dict[key] ?? messages.zh[key] ?? key;
+  for (const [name, value] of Object.entries(params)) {
+    text = text.split(`{${name}}`).join(String(value));
+  }
+  return text;
+}
+
+/** Apply translations to all [data-i18n] / [data-i18n-aria] elements. Browser only. */
+export function applyStaticI18n() {
+  const lang = currentLang || getLang();
+  document.documentElement.lang = lang === "zh" ? "zh-CN" : "en";
+
+  document.querySelectorAll("[data-i18n]").forEach((el) => {
+    el.textContent = t(el.dataset.i18n);
+  });
+  document.querySelectorAll("[data-i18n-aria]").forEach((el) => {
+    el.setAttribute("aria-label", t(el.dataset.i18nAria));
+  });
+
+  document.querySelectorAll(".lang-toggle button[data-lang]").forEach((btn) => {
+    btn.classList.toggle("is-active", btn.dataset.lang === lang);
+  });
+}
+
+if (currentLang === null) {
+  currentLang = getLang();
+}
