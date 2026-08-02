@@ -1,0 +1,23 @@
+{
+  "name": "tone-chord-lab",
+  "version": "1.0.0",
+  "description": "Real-time pitch and chord detector for the browser — microphone input, log-frequency spectrum, YIN + harmonic-spectrum pitch detection, and chord recognition. Zero dependencies.",
+  "type": "module",
+  "private": false,
+  "license": "MIT",
+  "keywords": [
+    "pitch-detection",
+    "chord-recognition",
+    "yin",
+    "web-audio",
+    "spectrum-analyzer",
+    "tuner"
+  ],
+  "scripts": {
+    "test": "node --test",
+    "dev": "python3 -m http.server 8000"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
