@@ -11,11 +11,11 @@ test("zh and en define the same set of keys", () => {
 
 test("t returns the localized string for the current language", () => {
   setLang("zh");
-  assert.equal(t("appTitle"), "音调与和弦侦测器");
+  assert.equal(t("appTitle"), "调音实验室");
   assert.equal(t("defaultMic"), "默认麦克风");
 
   setLang("en");
-  assert.equal(t("appTitle"), "Tone & Chord Detector");
+  assert.equal(t("appTitle"), "Tuning Lab");
   assert.equal(t("statusIdle"), "Idle");
 });
 

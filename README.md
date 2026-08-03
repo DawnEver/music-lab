@@ -1,4 +1,4 @@
-# 音调与和弦侦测器 · Tone Chord Lab
+# 调音实验室 · Tuning Lab
 
 > 实时音高与和弦识别工具 — 麦克风输入、对数频谱、YIN 时域 + 谐波频谱双路音高检测、和弦识别。纯前端、零依赖、无后端、无 CDN，音频只在浏览器本地处理，**不会上传**。
 >
@@ -49,6 +49,8 @@ npx serve .
 ```
 tone-chord-lab/
 ├── index.html            # 页面壳
+├── favicon.ico           # 本地图标（多尺寸）
+├── favicon.png           # 图标母版（256px）
 ├── css/
 │   └── style.css         # 样式
 ├── js/

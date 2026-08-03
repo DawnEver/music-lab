@@ -1,5 +1,5 @@
 /**
- * Tone Chord Lab — application controller.
+ * 调音实验室 (Tuning Lab) — application controller.
  *
  * Wires the analysis modules to the DOM: owns element references, app state,
  * the Web Audio graph, the render loop, and all UI event handling.
