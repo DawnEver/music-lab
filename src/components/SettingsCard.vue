@@ -21,9 +21,8 @@ function onStability(value: number | null): void {
 <template>
   <CollapsibleCard
     panel-id="settings"
-    :label="t('settingsTitle')"
     :title="t('settingsTitle')"
-    panel-class="control-card"
+    panel-class="card--wide card--stack"
   >
     <div class="control-group">
       <div class="sliders">

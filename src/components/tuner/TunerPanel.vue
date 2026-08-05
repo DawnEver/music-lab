@@ -20,9 +20,8 @@ onBeforeUnmount(() => tuner.deactivateTuner());
 <template>
   <CollapsibleCard
     panel-id="tuner"
-    :label="t('navTuner')"
     :title="t('tunerTitle')"
-    panel-class="tuner-card"
+    panel-class="card--wide"
   >
     <InstrumentSelect />
 

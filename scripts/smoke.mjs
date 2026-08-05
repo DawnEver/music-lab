@@ -31,21 +31,59 @@ async function assertNoHOverflow(page, label) {
 async function walkWorkbench(page, label) {
   // All five panels render.
   await page.waitForSelector(".strings-panel", { timeout: 8000 });
-  await page.waitForSelector(".metric-card.pitch", { timeout: 8000 });
-  await page.waitForSelector(".metric-card.chord", { timeout: 8000 });
-  await page.waitForSelector("section.spectrum-card .spectrum-wrap canvas", { timeout: 8000 });
-  await page.waitForSelector("section.control-card .v-slider", { timeout: 8000 });
+  await page.waitForSelector('[data-panel="pitch"]', { timeout: 8000 });
+  await page.waitForSelector('[data-panel="chord"]', { timeout: 8000 });
+  await page.waitForSelector('[data-panel="spectrum"] .spectrum-wrap canvas', { timeout: 8000 });
+  await page.waitForSelector('[data-panel="settings"] .v-slider', { timeout: 8000 });
   console.log(`✓ ${label}: workbench renders all 5 panels`);
 
-  // Collapsing a panel unmounts its content.
-  await page.click("section.spectrum-card .card-toggle");
+  // Panel content must stay inside the card padding — overflow: hidden
+  // would otherwise clip text at the rounded corners (regression guard).
+  const insets = await page.evaluate(() => {
+    const results = [];
+    for (const card of document.querySelectorAll(".card")) {
+      const cardRect = card.getBoundingClientRect();
+      const body = card.querySelector(".panel-body") ?? card.querySelector(".card-toggle");
+      const rect = body.getBoundingClientRect();
+      results.push({
+        panel: card.dataset.panel ?? "?",
+        insetTop: rect.top - cardRect.top,
+        insetBottom: cardRect.bottom - rect.bottom
+      });
+    }
+    return results;
+  });
+  for (const inset of insets) {
+    if (inset.insetTop < 18 || inset.insetBottom < 18) {
+      throw new Error(
+        `${label}: panel "${inset.panel}" content escapes the card padding ` +
+          `(top ${Math.round(inset.insetTop)}px / bottom ${Math.round(inset.insetBottom)}px) — ` +
+          "it would be clipped by the rounded corners"
+      );
+    }
+  }
+  console.log(`✓ ${label}: all panels keep content inside the card padding`);
+
+  // Collapsing a panel unmounts its content AND its header badge
+  // (waiting / 0% match / FFT meta are content state, not titles).
+  await page.click('[data-panel="pitch"] .card-toggle');
   await page.waitForTimeout(250);
-  if ((await page.locator("section.spectrum-card canvas").count()) !== 0) {
+  if ((await page.locator('[data-panel="pitch"] .micro-badge').count()) !== 0) {
+    throw new Error(`${label}: pitch badge should hide when the panel collapses`);
+  }
+  await page.click('[data-panel="pitch"] .card-toggle');
+  await page.waitForSelector('[data-panel="pitch"] .micro-badge', { timeout: 5000 });
+  await page.click('[data-panel="spectrum"] .card-toggle');
+  await page.waitForTimeout(250);
+  if ((await page.locator('[data-panel="spectrum"] canvas').count()) !== 0) {
     throw new Error(`${label}: collapsed spectrum canvas did not unmount`);
   }
-  await page.click("section.spectrum-card .card-toggle");
-  await page.waitForSelector("section.spectrum-card canvas", { timeout: 5000 });
-  console.log(`✓ ${label}: panel collapse unmounts and re-expands`);
+  if ((await page.locator('[data-panel="spectrum"] .spectrum-meta').count()) !== 0) {
+    throw new Error(`${label}: spectrum meta should hide when the panel collapses`);
+  }
+  await page.click('[data-panel="spectrum"] .card-toggle');
+  await page.waitForSelector('[data-panel="spectrum"] canvas', { timeout: 5000 });
+  console.log(`✓ ${label}: collapse hides content and header badges`);
 
   // Guitar: 6 string cards in a multi-column grid.
   const guitarCards = await page.locator(".string-row").count();

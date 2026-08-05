@@ -4,9 +4,8 @@ import { isOpen, toggle, type PanelId } from "../stores/panels.js";
 
 const props = defineProps<{
   panelId: PanelId;
-  label: string;
   title: string;
-  /** Extra section class for the legacy card styling hooks (e.g. "metric-card pitch"). */
+  /** Card variant classes (card--wide / card--tall / card--stack / card--glow*). */
   panelClass?: string;
 }>();
 
@@ -25,7 +24,7 @@ function onKeydown(event: KeyboardEvent): void {
 </script>
 
 <template>
-  <section class="card" :class="[panelClass, { 'is-collapsed': !open }]" :aria-labelledby="`${panelId}Title`">
+  <section class="card" :class="[panelClass, { 'is-collapsed': !open }]" :data-panel="panelId" :aria-labelledby="`${panelId}Title`">
     <div
       class="card-toggle"
       role="button"
@@ -36,11 +35,10 @@ function onKeydown(event: KeyboardEvent): void {
       @keydown="onKeydown"
     >
       <div class="card-head">
-        <div>
-          <p class="section-label">{{ label }}</p>
-          <h2 class="section-title" :id="`${panelId}Title`">{{ title }}</h2>
-        </div>
-        <slot name="badge" />
+        <h2 class="section-title" :id="`${panelId}Title`">{{ title }}</h2>
+        <!-- The badge is content state (waiting/0% match/FFT meta), so it
+             collapses with the body instead of lingering in the header. -->
+        <slot v-if="open" name="badge" />
         <span class="card-chevron" :class="{ 'is-open': open }" aria-hidden="true">▾</span>
       </div>
     </div>

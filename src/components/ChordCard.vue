@@ -27,9 +27,8 @@ const chordConfidence = computed(() =>
 <template>
   <CollapsibleCard
     panel-id="chord"
-    :label="t('chordSectionLabel')"
     :title="t('chordTitle')"
-    panel-class="metric-card chord"
+    panel-class="card--tall card--glow card--glow-teal"
   >
     <template #badge>
       <div class="micro-badge">{{ chordConfidence }}</div>

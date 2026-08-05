@@ -16,9 +16,8 @@ const sampleRateText = computed(() =>
 <template>
   <CollapsibleCard
     panel-id="spectrum"
-    :label="t('spectrumSectionLabel')"
     :title="t('spectrumTitle')"
-    panel-class="spectrum-card"
+    panel-class="card--wide"
   >
     <template #badge>
       <div class="spectrum-meta" aria-hidden="true">

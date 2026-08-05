@@ -1,3 +1,5 @@
+import { readFileSync, readdirSync, statSync } from "node:fs";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { messages, t, getLang, setLang } from "../src/lib/i18n.js";
 
@@ -42,5 +44,34 @@ describe("dictionary", () => {
     expect(setLang("en")).toBe("en");
     expect(setLang("fr")).toBe("zh");
     expect(["zh", "en"]).toContain(getLang());
+  });
+
+  it("every static t() key used in src exists in the dictionary", () => {
+    const srcDir = join(import.meta.dirname, "..", "src");
+    const files: string[] = [];
+    const walk = (dir: string) => {
+      for (const entry of readdirSync(dir)) {
+        const full = join(dir, entry);
+        if (statSync(full).isDirectory()) walk(full);
+        else if (/\.(vue|ts)$/.test(entry)) files.push(full);
+      }
+    };
+    walk(srcDir);
+
+    const used = new Set<string>();
+    for (const file of files) {
+      const source = readFileSync(file, "utf8");
+      // Only fully static keys can be validated: t("key") or t(`key`).
+      // Template literals with ${expr} build their key at runtime, so the
+      // static prefix alone is not a dictionary key. The lookbehind keeps
+      // mount(...)/import(...) from matching their trailing "t(".
+      for (const match of source.matchAll(/(?<![A-Za-z])t\(\s*["`]([^"`]*?)["`]\s*\)/g)) {
+        const key = match[1].trim();
+        if (key && !key.includes("${")) used.add(key);
+      }
+    }
+
+    const missing = [...used].filter((key) => !(key in messages.zh)).sort();
+    expect(missing).toEqual([]);
   });
 });

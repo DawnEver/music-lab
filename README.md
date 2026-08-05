@@ -1,6 +1,6 @@
 # 调音实验室 · Tuning Lab
 
-> 浏览器内的实时音高/和弦分析 + **多乐器逐音校音器** — 吉他、贝斯、尤克里里、小提琴、二胡、古筝、古琴、布鲁斯口琴(含压音/超吹目标)。Vue 3 + Vuetify 构建,音频只在浏览器本地处理,**不会上传**。
+> 浏览器内的实时音高/和弦分析 + **多乐器调音器** — 吉他、贝斯、尤克里里、小提琴、二胡、古筝、古琴、布鲁斯口琴(含压音/超吹目标)。Vue 3 + Vuetify 构建,音频只在浏览器本地处理,**不会上传**。
 >
 > Real-time pitch & chord analysis plus a **multi-instrument per-note tuner** — guitar, bass, ukulele, violin, erhu, guzheng, guqin, and blues harmonica (with bend/overblow targets). Built with Vue 3 + Vuetify; audio never leaves your browser.
 
@@ -10,7 +10,7 @@
 ## 功能 · Features
 
 - 🎙️ 麦克风实时输入,支持切换麦克风设备;或打开本地音频文件分析
-- 🎸 **逐音校音器**:每种乐器一张弦位/孔位面板,逐音实时显示音准偏差(cent)
+- 🎸 **乐器调音**:每种乐器一张弦位/孔位面板,逐音实时显示音准偏差(cent)
   - 吉他(标准 / Drop D / Drop C / DADGAD / Open G / Open D / 半音降调)
   - 贝斯(四弦 / 五弦,含低音 B0)、尤克里里(高 G / Low G)、小提琴、二胡
   - 古筝(21 弦,D 调 / C 调)、古琴(正调 / 慢一弦 / 慢三弦 / 紧五弦 / 紧二五弦)
@@ -36,7 +36,7 @@ npm run build      # 类型检查 + 生产构建 → dist/
 ## 工作原理 · How It Works
 
 - **检测**:`Web Audio API` 16384 点 FFT;`YIN` 时域算法与谐波频谱打分并行,按置信度自动切换(`src/lib/dsp.ts`)。检测音域可按乐器参数化 — 贝斯低至 B0(30.9 Hz),口琴高至 F♯7(2960 Hz)。
-- **校音**:弦乐器用 `nearestString` 匹配最近弦;口琴用 `nearestPosition` 匹配全部 (孔×吹吸×压音/超吹/超吸) 位置,并列时按 标准 > 压音 > 超吹 > 超吸、孔号小者优先(`src/instruments/index.ts`)。
+- **调音**:弦乐器用 `nearestString` 匹配最近弦;口琴用 `nearestPosition` 匹配全部 (孔×吹吸×压音/超吹/超吸) 位置,并列时按 标准 > 压音 > 超吹 > 超吸、孔号小者优先(`src/instruments/index.ts`)。
 - **性能**:频谱绘制走命令式 canvas,不进 Vue 响应式;显示结果按分析节奏(~88–105 ms)以 `shallowRef` 更新;弦列面板变化时才写(`src/lib/analysis-loop.ts`)。
 - **国际化**:`src/lib/i18n.ts` 提供 `t()`/`getLang()`/`setLang()`,zh/en 键集一致性由测试强制。
 
@@ -104,7 +104,7 @@ npm run build && vercel
 ## 附注 · Notes
 
 - **八度命名**:采用严格科学音高记谱(SPN),midi 23 显示为 B0(五弦贝斯低音弦常称 B1,同音高)。
-- **逐音校准**:一次只演奏一个音;扫弦/和弦输入会交给和弦识别,校音器按主音处理。
+- **乐器调音**:一次只演奏一个音;扫弦/和弦输入会交给和弦识别,调音器按主音处理。
 - **古琴调式**:默认十二平均律;古琴传统用纯律/五度相生调弦,偏差通常小于 5 cent,后续可扩展律制支持。
 - 产物自包含、无运行时 CDN;依赖仅 `vue` / `vue-router` / `vuetify` / `@mdi/font`。
 

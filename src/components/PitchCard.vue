@@ -40,9 +40,8 @@ const frequencyText = computed(() =>
 <template>
   <CollapsibleCard
     panel-id="pitch"
-    :label="t('pitchSectionLabel')"
     :title="t('pitchTitle')"
-    panel-class="metric-card pitch"
+    panel-class="card--tall card--glow card--glow-accent"
   >
     <template #badge>
       <div class="micro-badge">{{ t(methodKey) }}</div>
