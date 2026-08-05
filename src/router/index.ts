@@ -1,22 +1,28 @@
 /**
- * App routes. Hash history keeps static hosting (Vercel, Pages) free of
- * rewrite rules. The tuner is the landing tool of the lab; the analyzer
- * view carries the original pitch/chord/spectrum dashboard.
+ * App routes. All three paths render the same workbench dashboard; the
+ * legacy #/tuner and #/analyzer links become focus modes that show only
+ * that tool. Hash history keeps static hosting free of rewrite rules.
  */
 
 import { createRouter, createWebHashHistory, type RouteRecordRaw } from "vue-router";
 
 const routes: RouteRecordRaw[] = [
-  { path: "/", redirect: "/tuner" },
+  {
+    path: "/",
+    name: "workbench",
+    component: () => import("../views/Dashboard.vue")
+  },
   {
     path: "/tuner",
     name: "tuner",
-    component: () => import("../views/TunerView.vue")
+    component: () => import("../views/Dashboard.vue"),
+    props: { focus: "tuner" }
   },
   {
     path: "/analyzer",
     name: "analyzer",
-    component: () => import("../views/AnalyzerView.vue")
+    component: () => import("../views/Dashboard.vue"),
+    props: { focus: "analyzer" }
   }
 ];
 

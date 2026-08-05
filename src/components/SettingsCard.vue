@@ -1,6 +1,9 @@
 <script setup lang="ts">
 import { audioStore, updateSettings } from "../stores/audio.js";
 import { useI18n } from "../composables/useI18n.js";
+import CollapsibleCard from "./CollapsibleCard.vue";
+
+const props = defineProps<{ focus?: boolean }>();
 
 const { t } = useI18n();
 
@@ -18,9 +21,14 @@ function onStability(value: number | null): void {
 </script>
 
 <template>
-  <section class="card control-card" :aria-label="t('settingsAria')">
+  <CollapsibleCard
+    panel-id="settings"
+    :label="t('settingsTitle')"
+    :title="t('settingsTitle')"
+    panel-class="control-card"
+    :focus="focus"
+  >
     <div class="control-group">
-      <p class="control-group-title">{{ t("settingsTitle") }}</p>
       <div class="sliders">
         <div class="slider-field">
           <div class="slider-head">
@@ -71,5 +79,5 @@ function onStability(value: number | null): void {
         </div>
       </div>
     </div>
-  </section>
+  </CollapsibleCard>
 </template>

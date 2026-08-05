@@ -3,7 +3,10 @@ import { computed } from "vue";
 import { useAnalysis } from "../composables/useAnalysis.js";
 import { useI18n } from "../composables/useI18n.js";
 import { NOTE_NAMES } from "../lib/music-theory.js";
+import CollapsibleCard from "./CollapsibleCard.vue";
 import ChromaBars from "./ChromaBars.vue";
+
+const props = defineProps<{ focus?: boolean }>();
 
 const { chord } = useAnalysis();
 const { t } = useI18n();
@@ -24,14 +27,16 @@ const chordConfidence = computed(() =>
 </script>
 
 <template>
-  <section class="card metric-card chord" aria-labelledby="chordTitle">
-    <div class="card-head">
-      <div>
-        <p class="section-label">{{ t("chordSectionLabel") }}</p>
-        <h2 class="section-title" id="chordTitle">{{ t("chordTitle") }}</h2>
-      </div>
+  <CollapsibleCard
+    panel-id="chord"
+    :label="t('chordSectionLabel')"
+    :title="t('chordTitle')"
+    panel-class="metric-card chord"
+    :focus="focus"
+  >
+    <template #badge>
       <div class="micro-badge">{{ chordConfidence }}</div>
-    </div>
+    </template>
 
     <div class="chord-main">
       <div class="chord-title-row">
@@ -40,5 +45,5 @@ const chordConfidence = computed(() =>
       </div>
       <ChromaBars />
     </div>
-  </section>
+  </CollapsibleCard>
 </template>

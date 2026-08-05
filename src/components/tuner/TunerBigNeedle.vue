@@ -1,10 +1,9 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { NOTE_NAMES } from "../../lib/music-theory.js";
-import { clamp } from "../../lib/dsp.js";
 import { useI18n } from "../../composables/useI18n.js";
 import { useTuner } from "../../composables/useTuner.js";
-import TunerNeedle from "../TunerNeedle.vue";
+import CentsGauge from "../CentsGauge.vue";
 
 const { t, lang } = useI18n();
 const tuner = useTuner();
@@ -15,13 +14,6 @@ const noteName = computed(() => {
   if (!target.value) return "—";
   const midi = target.value.midi;
   return `${NOTE_NAMES[midi % 12]}${Math.floor(midi / 12) - 1}`;
-});
-
-const centsText = computed(() => {
-  if (!target.value) return "0 cent";
-  const rounded = Math.round(target.value.cents);
-  const prefix = rounded > 0 ? "+" : rounded < 0 ? "−" : "";
-  return `${prefix}${Math.abs(rounded)} cent`;
 });
 
 const targetText = computed(() => {
@@ -62,9 +54,8 @@ const confidenceText = computed(() =>
     </div>
     <div class="tuner-big-readout">
       <span class="tuner-big-freq">{{ t("tunerActual") }} {{ frequencyText }}</span>
-      <span class="cents-value">{{ centsText }}</span>
       <span class="tuner-big-conf">{{ t("confidence") }} {{ confidenceText }}</span>
     </div>
-    <TunerNeedle :cents="target ? clamp(target.cents, -50, 50) : 0" />
+    <CentsGauge :cents="target ? target.cents : 0" />
   </div>
 </template>

@@ -2,27 +2,31 @@
 import { onBeforeUnmount, onMounted } from "vue";
 import { useI18n } from "../../composables/useI18n.js";
 import { useTuner } from "../../composables/useTuner.js";
+import CollapsibleCard from "../CollapsibleCard.vue";
 import InstrumentSelect from "./InstrumentSelect.vue";
 import TunerBigNeedle from "./TunerBigNeedle.vue";
 import StringsPanel from "./StringsPanel.vue";
 import HarmonicaPanel from "./HarmonicaPanel.vue";
 
+const props = defineProps<{ focus?: boolean }>();
+
 const { t } = useI18n();
 const tuner = useTuner();
 
+// Mount/unmount tracks panel expand/collapse: expanding activates the
+// instrument's detector band, collapsing restores the default.
 onMounted(() => tuner.activateTuner());
 onBeforeUnmount(() => tuner.deactivateTuner());
 </script>
 
 <template>
-  <section class="card tuner-card" aria-labelledby="tunerTitle">
-    <div class="card-head">
-      <div>
-        <p class="section-label">{{ t("navTuner") }}</p>
-        <h2 class="section-title" id="tunerTitle">{{ t("tunerTitle") }}</h2>
-      </div>
-    </div>
-
+  <CollapsibleCard
+    panel-id="tuner"
+    :label="t('navTuner')"
+    :title="t('tunerTitle')"
+    panel-class="tuner-card"
+    :focus="focus"
+  >
     <InstrumentSelect />
 
     <TunerBigNeedle />
@@ -31,5 +35,5 @@ onBeforeUnmount(() => tuner.deactivateTuner());
     <HarmonicaPanel v-else />
 
     <p class="tuner-hint">{{ t("tunerOneNoteNote") }}</p>
-  </section>
+  </CollapsibleCard>
 </template>

@@ -1,7 +1,8 @@
 /**
- * Headless smoke test: boots the app in Edge (Chromium) and walks the two
- * routes, asserting the key UI surfaces render and capturing console/page
- * errors. Run against a dev server:  npm run dev, then  node scripts/smoke.mjs
+ * Headless smoke test: boots the app in Edge (Chromium) and walks the
+ * workbench — collapsible panels, both focus modes, instrument switching,
+ * harmonica positions, i18n. Captures console/page errors.
+ * Run:  npm run dev   then   node scripts/smoke.mjs
  */
 
 import { chromium } from "playwright-core";
@@ -20,48 +21,78 @@ page.on("pageerror", (error) => errors.push(`[pageerror] ${String(error)}`));
 try {
   await page.goto(URL, { waitUntil: "networkidle" });
 
-  // Landing route is the tuner (hash redirect from /).
+  // Workbench: all five panels open by default.
   await page.waitForSelector(".nav-pill", { timeout: 8000 });
   await page.waitForSelector(".strings-panel", { timeout: 8000 });
-  console.log("✓ tuner route renders (strings panel for guitar)");
+  await page.waitForSelector(".metric-card.pitch", { timeout: 8000 });
+  await page.waitForSelector(".metric-card.chord", { timeout: 8000 });
+  await page.waitForSelector("section.spectrum-card .spectrum-wrap canvas", { timeout: 8000 });
+  await page.waitForSelector("section.control-card .v-slider", { timeout: 8000 });
+  console.log("✓ workbench renders all 5 panels expanded");
 
-  // Switch instruments and presets via the selects.
+  // Collapsing a panel unmounts its content (spectrum canvas unregisters).
+  await page.click("section.spectrum-card .card-toggle");
+  await page.waitForTimeout(300);
+  const canvases = await page.locator("section.spectrum-card canvas").count();
+  if (canvases !== 0) throw new Error(`expected collapsed spectrum canvas to unmount, got ${canvases}`);
+  await page.click("section.spectrum-card .card-toggle"); // reopen
+  await page.waitForSelector("section.spectrum-card canvas", { timeout: 5000 });
+  console.log("✓ panel collapse unmounts content and re-expands");
+
+  // Instrument switch: erhu has 2 strings.
   await page.locator(".v-select").nth(0).click();
-  await page.locator(".v-list-item").nth(4).click(); // 二胡 (erhu)
+  await page.locator(".v-list-item").nth(4).click(); // 二胡
   await page.waitForTimeout(300);
   const stringRows = await page.locator(".string-row").count();
   if (stringRows !== 2) throw new Error(`expected 2 erhu strings, got ${stringRows}`);
   console.log("✓ instrument switch to erhu renders 2 strings");
 
-  // Harmonica: pick 布鲁斯口琴, verify the 10×2 grid and bend expansion.
+  // Harmonica: 10×2 grid + bend/overblow position expansion.
   await page.locator(".v-select").nth(0).click();
   await page.locator(".v-list-item").last().click();
   await page.waitForSelector(".harmonica-grid", { timeout: 8000 });
   const cells = await page.locator(".harmonica-cell").count();
   if (cells !== 20) throw new Error(`expected 20 harmonica cells, got ${cells}`);
-  console.log("✓ harmonica grid renders 20 cells");
-
-  await page.locator(".harmonica-cell").nth(3).click(); // hole 2 blow
+  await page.locator(".harmonica-cell").nth(3).click(); // hole 2 draw
   await page.waitForSelector(".position-chips", { timeout: 5000 });
   const chips = await page.locator(".position-chip").count();
   if (chips < 2) throw new Error(`expected position chips, got ${chips}`);
-  console.log(`✓ hole cell expansion shows ${chips} position targets`);
+  console.log(`✓ harmonica grid (20 cells) + ${chips} position targets`);
 
-  // Analyzer route keeps the classic dashboard.
+  // Focus mode #/tuner: tuner only (current instrument is the harmonica),
+  // no analyzer cards, no collapse chevron.
+  await page.click('a[href="#/tuner"]');
+  await page.waitForSelector(".tuner-card .harmonica-grid", { timeout: 8000 });
+  await page.waitForTimeout(300);
+  const tunerFocusCards = await page.locator(".metric-card.pitch").count();
+  if (tunerFocusCards !== 0) throw new Error("focus #/tuner should hide the pitch card");
+  const tunerToggles = await page.locator(".tuner-card .card-chevron").count();
+  if (tunerToggles !== 0) throw new Error("focus mode should hide the collapse chevron");
+  console.log("✓ focus #/tuner shows only the tuner panel");
+
+  // Focus mode #/analyzer: analyzer cards, no tuner panel.
   await page.click('a[href="#/analyzer"]');
   await page.waitForSelector(".metric-card.pitch", { timeout: 8000 });
-  await page.waitForSelector(".spectrum-wrap canvas", { timeout: 8000 });
-  await page.waitForSelector(".chroma", { timeout: 8000 });
-  console.log("✓ analyzer route renders pitch/chord/spectrum cards");
+  await page.waitForTimeout(300);
+  const analyzerFocusStrings = await page.locator(".strings-panel").count();
+  if (analyzerFocusStrings !== 0) throw new Error("focus #/analyzer should hide the tuner panel");
+  console.log("✓ focus #/analyzer shows only the analyzer cards");
+
+  // Workbench nav back home (instrument is still the harmonica).
+  await page.click('a[href="#/"]');
+  await page.waitForSelector(".tuner-card .harmonica-grid", { timeout: 8000 });
+  console.log("✓ workbench nav returns");
 
   // Language switch.
   await page.click(".lang-toggle button[data-lang='en']");
   await page.waitForTimeout(200);
   const navText = await page.locator(".nav-pill").first().textContent();
-  if (!navText.includes("Tuner")) throw new Error(`expected English nav, got ${navText}`);
+  if (!navText.includes("Workbench")) throw new Error(`expected English nav, got ${navText}`);
   console.log("✓ language switch to English works");
 
-  console.log(errors.length ? `✗ ${errors.length} console/page errors:\n${errors.join("\n")}` : "✓ no console or page errors");
+  console.log(
+    errors.length ? `✗ ${errors.length} console/page errors:\n${errors.join("\n")}` : "✓ no console or page errors"
+  );
   process.exitCode = errors.length ? 1 : 0;
 } catch (error) {
   console.error(`✗ smoke test failed: ${error.message}`);

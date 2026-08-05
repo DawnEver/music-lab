@@ -2,8 +2,11 @@
 import { computed } from "vue";
 import { audioStore } from "../stores/audio.js";
 import { useI18n } from "../composables/useI18n.js";
+import CollapsibleCard from "./CollapsibleCard.vue";
 import SpectrumCanvas from "./SpectrumCanvas.vue";
 import LevelMeter from "./LevelMeter.vue";
+
+const props = defineProps<{ focus?: boolean }>();
 
 const { t } = useI18n();
 
@@ -13,18 +16,20 @@ const sampleRateText = computed(() =>
 </script>
 
 <template>
-  <section class="card spectrum-card" aria-labelledby="spectrumTitle">
-    <div class="spectrum-head">
-      <div>
-        <p class="section-label">{{ t("spectrumSectionLabel") }}</p>
-        <h2 class="section-title" id="spectrumTitle">{{ t("spectrumTitle") }}</h2>
-      </div>
+  <CollapsibleCard
+    panel-id="spectrum"
+    :label="t('spectrumSectionLabel')"
+    :title="t('spectrumTitle')"
+    panel-class="spectrum-card"
+    :focus="focus"
+  >
+    <template #badge>
       <div class="spectrum-meta" aria-hidden="true">
         <span>FFT 16384</span>
         <span>{{ sampleRateText }}</span>
         <span>{{ t("logScale") }}</span>
       </div>
-    </div>
+    </template>
 
     <SpectrumCanvas />
 
@@ -33,5 +38,5 @@ const sampleRateText = computed(() =>
     </div>
 
     <LevelMeter />
-  </section>
+  </CollapsibleCard>
 </template>

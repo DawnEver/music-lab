@@ -5,7 +5,10 @@ import { useI18n } from "../composables/useI18n.js";
 import { audioStore } from "../stores/audio.js";
 import { frequencyToNote } from "../lib/music-theory.js";
 import { clamp } from "../lib/dsp.js";
-import TunerNeedle from "./TunerNeedle.vue";
+import CollapsibleCard from "./CollapsibleCard.vue";
+import CentsGauge from "./CentsGauge.vue";
+
+const props = defineProps<{ focus?: boolean }>();
 
 const { pitch } = useAnalysis();
 const { t } = useI18n();
@@ -18,14 +21,7 @@ const confidencePercent = computed(() =>
   pitch.value ? Math.round(clamp(pitch.value.confidence, 0, 1) * 100) : 0
 );
 
-const cents = computed(() => (note.value ? clamp(note.value.cents, -50, 50) : 0));
-
-const centsText = computed(() => {
-  if (!note.value) return "0 cent";
-  const rounded = Math.round(note.value.cents);
-  const prefix = rounded > 0 ? "+" : rounded < 0 ? "−" : "";
-  return `${prefix}${Math.abs(rounded)} cent`;
-});
+const cents = computed(() => (note.value ? note.value.cents : 0));
 
 const hintKey = computed(() => {
   if (!note.value) return audioStore.mode === "idle" ? "pitchHintIdle" : "pitchHintAwait";
@@ -44,14 +40,16 @@ const frequencyText = computed(() =>
 </script>
 
 <template>
-  <section class="card metric-card pitch" aria-labelledby="pitchTitle">
-    <div class="card-head">
-      <div>
-        <p class="section-label">{{ t("pitchSectionLabel") }}</p>
-        <h2 class="section-title" id="pitchTitle">{{ t("pitchTitle") }}</h2>
-      </div>
+  <CollapsibleCard
+    panel-id="pitch"
+    :label="t('pitchSectionLabel')"
+    :title="t('pitchTitle')"
+    panel-class="metric-card pitch"
+    :focus="focus"
+  >
+    <template #badge>
       <div class="micro-badge">{{ t(methodKey) }}</div>
-    </div>
+    </template>
 
     <div class="pitch-main">
       <div class="note-wrap">
@@ -76,14 +74,8 @@ const frequencyText = computed(() =>
           </div>
         </div>
 
-        <div class="tuner-wrap">
-          <div class="tuner-readout">
-            <span class="stat-name">{{ t("cents") }}</span>
-            <span class="cents-value">{{ centsText }}</span>
-          </div>
-          <TunerNeedle :cents="cents" />
-        </div>
+        <CentsGauge :cents="cents" />
       </div>
     </div>
-  </section>
+  </CollapsibleCard>
 </template>
