@@ -86,12 +86,16 @@ watch(tick, syncRows);
       @keydown.enter.prevent="tuner.selectString(index)"
       @keydown.space.prevent="tuner.selectString(index)"
     >
-      <span class="string-label">
-        {{ tuner.preset.value?.noteLabels?.[index]?.[lang] ?? String(index + 1) }}
-      </span>
-      <span class="string-note">{{ NOTE_NAMES[midi % 12] }}{{ Math.floor(midi / 12) - 1 }}</span>
-      <span class="string-cents">{{ rows[index]?.centsText ?? "" }}</span>
-      <span class="string-status">{{ t(STATUS_KEYS[rows[index]?.status ?? "idle"]) }}</span>
+      <div class="string-top">
+        <span class="string-label">
+          {{ tuner.preset.value?.noteLabels?.[index]?.[lang] ?? String(index + 1) }}
+        </span>
+        <span class="string-note">{{ NOTE_NAMES[midi % 12] }}{{ Math.floor(midi / 12) - 1 }}</span>
+      </div>
+      <div class="string-bottom">
+        <span class="string-cents">{{ rows[index]?.centsText ?? "" }}</span>
+        <span class="string-status">{{ t(STATUS_KEYS[rows[index]?.status ?? "idle"]) }}</span>
+      </div>
     </div>
   </div>
 </template>

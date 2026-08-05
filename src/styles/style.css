@@ -292,7 +292,7 @@
 
     .metric-card {
       min-height: 340px;
-      padding: 26px;
+      padding: 22px;
       display: flex;
       flex-direction: column;
     }
@@ -641,7 +641,7 @@
 
     .spectrum-card {
       grid-column: 1 / -1;
-      padding: 24px 24px 20px;
+      padding: 22px;
     }
 
     .spectrum-head {
@@ -736,7 +736,7 @@
 
     .control-card {
       grid-column: 1 / -1;
-      padding: 20px;
+      padding: 22px;
       display: grid;
       grid-template-columns: 1fr;
     }
@@ -1190,9 +1190,8 @@
 
 /* Tuner view (new) */
 .tuner-card {
-  display: flex;
-  flex-direction: column;
-  gap: 18px;
+  /* Span both dashboard columns so the tuner can stretch horizontally. */
+  grid-column: 1 / -1;
 }
 
 .tuner-controls {
@@ -1216,12 +1215,30 @@
   white-space: nowrap;
 }
 
-/* Big needle target */
+/* Horizontal stretch: big needle left, strings/harmonica right */
+.tuner-main {
+  display: grid;
+  grid-template-columns: minmax(260px, 360px) 1fr;
+  gap: 16px;
+  align-items: stretch;
+}
+
+@media (max-width: 900px) {
+  .tuner-main {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Big needle target — same surface language as every other panel block */
 .tuner-big {
-  background: linear-gradient(160deg, rgba(16, 23, 42, 0.7), rgba(10, 15, 30, 0.55));
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 12px;
+  background: rgba(148, 163, 184, 0.05);
   border: 1px solid var(--line);
-  border-radius: var(--radius-lg);
-  padding: 18px 20px 16px;
+  border-radius: var(--radius-md);
+  padding: 20px;
 }
 
 .tuner-big-head {
@@ -1233,7 +1250,7 @@
 
 .tuner-big-note {
   font-family: var(--font-mono);
-  font-size: 52px;
+  font-size: 48px;
   font-weight: 700;
   line-height: 1;
   background: linear-gradient(135deg, var(--accent-2), var(--accent-3));
@@ -1251,7 +1268,6 @@
   display: flex;
   gap: 16px;
   align-items: baseline;
-  margin: 10px 0 6px;
   font-family: var(--font-mono);
   font-size: 13px;
   color: var(--muted);
@@ -1269,24 +1285,24 @@
   font-size: 13px;
 }
 
-/* Strings panel */
+/* Strings panel — adaptive grid of per-string cards */
 .strings-panel {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 8px;
+  align-content: start;
 }
 
 .string-row {
-  display: grid;
-  grid-template-columns: 3rem 5rem 1fr 3.5rem;
-  align-items: center;
-  gap: 10px;
-  padding: 9px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 14px;
   border-radius: var(--radius-sm);
   background: rgba(148, 163, 184, 0.05);
-  border: 1px solid transparent;
+  border: 1px solid var(--line);
   cursor: pointer;
-  transition: background 0.15s ease, border-color 0.15s ease;
+  transition: background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
 .string-row:hover {
@@ -1298,18 +1314,33 @@
 }
 
 .string-row.is-auto {
-  border-left: 3px solid var(--accent-2);
+  border-color: var(--accent-2);
+  box-shadow: 0 0 0 1px var(--accent-2);
+}
+
+.string-top {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.string-bottom {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
 }
 
 .string-label {
   color: var(--muted);
   font-family: var(--font-mono);
-  font-size: 13px;
+  font-size: 12px;
 }
 
 .string-note {
   font-family: var(--font-mono);
-  font-size: 18px;
+  font-size: 22px;
   font-weight: 600;
 }
 
@@ -1317,12 +1348,10 @@
   font-family: var(--font-mono);
   font-size: 13px;
   color: var(--muted);
-  text-align: right;
 }
 
 .string-status {
   font-size: 12px;
-  text-align: right;
 }
 
 .string-row.st-in-tune .string-note,
@@ -1343,7 +1372,6 @@
   display: grid;
   grid-template-columns: 2.2rem repeat(2, 1fr);
   gap: 7px;
-  max-width: 560px;
 }
 
 .harmonica-grid-head {
@@ -1474,9 +1502,8 @@
 }
 
 @media (max-width: 560px) {
-  .string-row {
-    grid-template-columns: 2.4rem 4.2rem 1fr 3rem;
-    padding: 8px 10px;
+  .strings-panel {
+    grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
   }
 
   .tuner-big-note {
@@ -1485,6 +1512,12 @@
 }
 
 /* Collapsible workbench panels */
+.panel-body {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
 .card-toggle {
   display: block;
   width: 100%;

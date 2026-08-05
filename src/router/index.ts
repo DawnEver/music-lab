@@ -1,7 +1,7 @@
 /**
- * App routes. All three paths render the same workbench dashboard; the
- * legacy #/tuner and #/analyzer links become focus modes that show only
- * that tool. Hash history keeps static hosting free of rewrite rules.
+ * App routes. A single workbench page hosts every tool as a collapsible
+ * panel; the legacy #/tuner and #/analyzer links redirect here so old
+ * bookmarks keep working. Hash history suits static hosting.
  */
 
 import { createRouter, createWebHashHistory, type RouteRecordRaw } from "vue-router";
@@ -12,18 +12,8 @@ const routes: RouteRecordRaw[] = [
     name: "workbench",
     component: () => import("../views/Dashboard.vue")
   },
-  {
-    path: "/tuner",
-    name: "tuner",
-    component: () => import("../views/Dashboard.vue"),
-    props: { focus: "tuner" }
-  },
-  {
-    path: "/analyzer",
-    name: "analyzer",
-    component: () => import("../views/Dashboard.vue"),
-    props: { focus: "analyzer" }
-  }
+  { path: "/tuner", redirect: "/" },
+  { path: "/analyzer", redirect: "/" }
 ];
 
 export const router = createRouter({

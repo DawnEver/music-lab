@@ -28,18 +28,6 @@ const showSecureNotice = computed(
         </div>
       </div>
 
-      <nav class="app-nav" aria-label="Tools">
-        <RouterLink
-          to="/"
-          class="nav-pill"
-          :class="{ 'router-link-active': $route.path === '/' }"
-        >
-          {{ t("navWorkbench") }}
-        </RouterLink>
-        <RouterLink to="/tuner" class="nav-pill">{{ t("navTuner") }}</RouterLink>
-        <RouterLink to="/analyzer" class="nav-pill">{{ t("navAnalyzer") }}</RouterLink>
-      </nav>
-
       <div class="topbar-tools">
         <SourceBar />
         <LangToggle />

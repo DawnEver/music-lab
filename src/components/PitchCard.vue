@@ -8,8 +8,6 @@ import { clamp } from "../lib/dsp.js";
 import CollapsibleCard from "./CollapsibleCard.vue";
 import CentsGauge from "./CentsGauge.vue";
 
-const props = defineProps<{ focus?: boolean }>();
-
 const { pitch } = useAnalysis();
 const { t } = useI18n();
 
@@ -45,7 +43,6 @@ const frequencyText = computed(() =>
     :label="t('pitchSectionLabel')"
     :title="t('pitchTitle')"
     panel-class="metric-card pitch"
-    :focus="focus"
   >
     <template #badge>
       <div class="micro-badge">{{ t(methodKey) }}</div>

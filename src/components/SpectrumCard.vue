@@ -6,8 +6,6 @@ import CollapsibleCard from "./CollapsibleCard.vue";
 import SpectrumCanvas from "./SpectrumCanvas.vue";
 import LevelMeter from "./LevelMeter.vue";
 
-const props = defineProps<{ focus?: boolean }>();
-
 const { t } = useI18n();
 
 const sampleRateText = computed(() =>
@@ -21,7 +19,6 @@ const sampleRateText = computed(() =>
     :label="t('spectrumSectionLabel')"
     :title="t('spectrumTitle')"
     panel-class="spectrum-card"
-    :focus="focus"
   >
     <template #badge>
       <div class="spectrum-meta" aria-hidden="true">

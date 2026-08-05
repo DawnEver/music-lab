@@ -6,8 +6,6 @@ import { NOTE_NAMES } from "../lib/music-theory.js";
 import CollapsibleCard from "./CollapsibleCard.vue";
 import ChromaBars from "./ChromaBars.vue";
 
-const props = defineProps<{ focus?: boolean }>();
-
 const { chord } = useAnalysis();
 const { t } = useI18n();
 
@@ -32,7 +30,6 @@ const chordConfidence = computed(() =>
     :label="t('chordSectionLabel')"
     :title="t('chordTitle')"
     panel-class="metric-card chord"
-    :focus="focus"
   >
     <template #badge>
       <div class="micro-badge">{{ chordConfidence }}</div>

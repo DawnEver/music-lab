@@ -8,14 +8,12 @@ const props = defineProps<{
   title: string;
   /** Extra section class for the legacy card styling hooks (e.g. "metric-card pitch"). */
   panelClass?: string;
-  /** Focus mode: always open, no collapse affordance. */
-  focus?: boolean;
 }>();
 
-const open = computed(() => (props.focus ? true : isOpen(props.panelId)));
+const open = computed(() => isOpen(props.panelId));
 
 function onToggle(): void {
-  if (!props.focus) toggle(props.panelId);
+  toggle(props.panelId);
 }
 
 function onKeydown(event: KeyboardEvent): void {
@@ -31,7 +29,7 @@ function onKeydown(event: KeyboardEvent): void {
     <div
       class="card-toggle"
       role="button"
-      :tabindex="focus ? -1 : 0"
+      tabindex="0"
       :aria-expanded="open"
       :aria-controls="`panel-${panelId}`"
       @click="onToggle"
@@ -43,7 +41,7 @@ function onKeydown(event: KeyboardEvent): void {
           <h2 class="section-title" :id="`${panelId}Title`">{{ title }}</h2>
         </div>
         <slot name="badge" />
-        <span v-if="!focus" class="card-chevron" :class="{ 'is-open': open }" aria-hidden="true">▾</span>
+        <span class="card-chevron" :class="{ 'is-open': open }" aria-hidden="true">▾</span>
       </div>
     </div>
 

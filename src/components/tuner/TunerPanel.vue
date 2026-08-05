@@ -8,8 +8,6 @@ import TunerBigNeedle from "./TunerBigNeedle.vue";
 import StringsPanel from "./StringsPanel.vue";
 import HarmonicaPanel from "./HarmonicaPanel.vue";
 
-const props = defineProps<{ focus?: boolean }>();
-
 const { t } = useI18n();
 const tuner = useTuner();
 
@@ -25,14 +23,15 @@ onBeforeUnmount(() => tuner.deactivateTuner());
     :label="t('navTuner')"
     :title="t('tunerTitle')"
     panel-class="tuner-card"
-    :focus="focus"
   >
     <InstrumentSelect />
 
-    <TunerBigNeedle />
+    <div class="tuner-main">
+      <TunerBigNeedle />
 
-    <StringsPanel v-if="tuner.instrument.value?.layout === 'strings'" />
-    <HarmonicaPanel v-else />
+      <StringsPanel v-if="tuner.instrument.value?.layout === 'strings'" />
+      <HarmonicaPanel v-else />
+    </div>
 
     <p class="tuner-hint">{{ t("tunerOneNoteNote") }}</p>
   </CollapsibleCard>

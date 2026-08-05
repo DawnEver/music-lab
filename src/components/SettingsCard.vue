@@ -3,8 +3,6 @@ import { audioStore, updateSettings } from "../stores/audio.js";
 import { useI18n } from "../composables/useI18n.js";
 import CollapsibleCard from "./CollapsibleCard.vue";
 
-const props = defineProps<{ focus?: boolean }>();
-
 const { t } = useI18n();
 
 function onTuning(value: number | null): void {
@@ -26,7 +24,6 @@ function onStability(value: number | null): void {
     :label="t('settingsTitle')"
     :title="t('settingsTitle')"
     panel-class="control-card"
-    :focus="focus"
   >
     <div class="control-group">
       <div class="sliders">
