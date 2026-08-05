@@ -6,14 +6,12 @@
 
 import { createRouter, createWebHashHistory, type RouteRecordRaw } from "vue-router";
 
-const Placeholder = { template: "<div class='shell'><p>…</p></div>" };
-
 const routes: RouteRecordRaw[] = [
   { path: "/", redirect: "/tuner" },
   {
     path: "/tuner",
     name: "tuner",
-    component: Placeholder
+    component: () => import("../views/TunerView.vue")
   },
   {
     path: "/analyzer",
