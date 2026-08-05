@@ -32,12 +32,3 @@ export function cMajorSpectrum(fftSize: number): Float32Array {
   return data;
 }
 
-/** Build a spectrum with a single peak at the given frequency/db. */
-export function toneSpectrum(fftSize: number, frequency: number, db = -12): Float32Array {
-  const bins = fftSize / 2;
-  const data = new Float32Array(bins).fill(-100);
-  const binHz = SAMPLE_RATE / fftSize;
-  const index = Math.min(bins - 2, Math.max(1, Math.round(frequency / binHz)));
-  data[index] = db;
-  return data;
-}

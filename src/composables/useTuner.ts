@@ -12,7 +12,6 @@ import {
   nearestPosition,
   buildHarmonicaCells,
   type Breath,
-  type HarmonicaPosition,
   type NearestPositionResult
 } from "../instruments/index.js";
 import { midiToFrequency } from "../lib/music-theory.js";
@@ -165,21 +164,6 @@ watch(pitchRef, (pitch) => {
   }
 });
 
-/** Resolve the label parts of a harmonica position for display. */
-export function positionLabel(position: HarmonicaPosition, hole: number, breath: Breath): {
-  hole: number;
-  breath: Breath;
-  kind: string;
-  bendLevel?: number;
-} {
-  return {
-    hole,
-    breath,
-    kind: position.kind,
-    bendLevel: position.bendLevel
-  };
-}
-
 /** The big-needle target: manual selection, else the auto-detected one. */
 export const needleTarget = computed(() => {
   const pitch = pitchRef.value;
@@ -242,7 +226,6 @@ export function useTuner() {
     toggleAuto,
     selectString,
     selectPosition,
-    resetTargets,
     activateTuner,
     deactivateTuner
   };

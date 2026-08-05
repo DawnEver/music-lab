@@ -8,7 +8,7 @@ import { useTuner } from "../../composables/useTuner.js";
 import { stringStatus, type Breath, type HarmonicaCell, type StringStatus } from "../../instruments/index.js";
 import { audioStore } from "../../stores/audio.js";
 
-const { t, lang } = useI18n();
+const { t } = useI18n();
 const tuner = useTuner();
 const { pitch, tick } = useAnalysis();
 
@@ -25,13 +25,6 @@ interface CellDisplay {
 
 const display = reactive<Record<string, CellDisplay>>({});
 const positionDisplays = reactive<Array<{ status: StringStatus; centsText: string }>>([]);
-
-const STATUS_KEYS: Record<StringStatus, string> = {
-  idle: "tunerStIdle",
-  "in-tune": "tunerStInTune",
-  flat: "tunerStFlat",
-  sharp: "tunerStSharp"
-};
 
 function cellBy(hole: number, breath: Breath): HarmonicaCell | undefined {
   return harmonicaCells.value.find((cell) => cell.hole === hole && cell.breath === breath);

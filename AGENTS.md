@@ -1,20 +1,20 @@
-# 开发原则 · Development Principles
+# Development Principles
 
-## 语言与术语
-- 代码与文件内容用英文;对话可中文。
-- 界面文案走 i18n 词典;中文统一用"调音"(不写"校音")。
+## Language & Terminology
+- Write code and file contents in English; conversations may be in Chinese.
+- UI copy lives in the i18n dictionary. Chinese UI text uses 调音 (tuning) consistently — never 校音.
 
-## 架构原则
-- 纯逻辑(DSP / 乐器数据 / 和弦)保持框架无关纯函数,可直接被 Node 测试。
-- 添加乐器 ≈ 新增一个数据文件并在注册表登记,不碰 UI 与分析循环。
-- 实时分析:频谱绘制命令式,不进 Vue 响应式;显示结果按分析节奏经 shallowRef 更新;大子树变化时才写。
-- 样式单一来源:卡片外壳/间距定义在 `.card` 基类,面板差异用变体类(`card--wide` / `card--tall` / `card--stack` / `card--glow*`),不重复定义、不留失效覆盖。
+## Architecture
+- Keep pure logic (DSP / instrument data / chords) as framework-agnostic pure functions directly testable in Node.
+- Adding an instrument ≈ adding one data file and registering it — never touch the UI or the analysis loop.
+- Real-time analysis: the spectrum is drawn imperatively and never enters Vue reactivity; display results update via shallowRef at analysis cadence; large subtrees sync change-only.
+- Single source for styles: the `.card` base rule owns the shell and padding; panel differences are variant classes (`card--wide` / `card--tall` / `card--stack` / `card--glow*`). Never duplicate definitions or leave dead overrides.
 
-## 工作流
-- 测试驱动:先写失败测试,再以最小改动使其通过。
-- 每阶段 `npm test` 全绿且 `vue-tsc --noEmit` 干净才提交;提交信息用惯例前缀(`feat:` / `fix:` / `refactor:` / `chore:`),双引号 `-m`。
-- UI 改动必须运行 `npm run smoke`(桌面 + 移动双视口冒烟),内含防回归断言(内容不越出卡片 padding、折叠卸载内容与徽标、无横向溢出)。
+## Workflow
+- Test-driven: write the failing test first, then the minimal change that makes it pass.
+- Commit only when `npm test` is green and `vue-tsc --noEmit` is clean; use conventional prefixes (`feat:` / `fix:` / `refactor:` / `chore:`) with double-quoted `-m`.
+- UI changes must run `npm run smoke` (desktop + mobile viewports), which guards against regressions (content inside card padding, collapse unmounts content and badges, no horizontal overflow).
 
-## 数据与 i18n 正确性
-- 乐器数据(音名表 / 压音深度 / 音域)由逐音符/逐孔位测试锁定;改数据必须同步改测试。
-- zh/en 词典键集必须一致;代码引用的静态 i18n key 必须存在于词典(均由测试强制)。
+## Data & i18n Correctness
+- Instrument data (note tables / bend depths / ranges) is locked by per-note / per-hole tests; change the data, change the tests.
+- The zh and en dictionaries must define the same key set, and every static `t()` key referenced in `src` must exist in the dictionary (both enforced by tests).

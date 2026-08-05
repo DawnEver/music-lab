@@ -2,7 +2,7 @@
 import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 import { useAudio } from "../composables/useAudio.js";
 import { useI18n } from "../composables/useI18n.js";
-import { setAudioHostContainer, audioStore } from "../stores/audio.js";
+import { setAudioHostContainer } from "../stores/audio.js";
 
 const { audioStore: store, startMic, startFile, stop, populateDevices } = useAudio();
 const { t } = useI18n();

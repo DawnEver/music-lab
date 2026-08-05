@@ -735,15 +735,6 @@
       background: rgba(5, 9, 20, 0.22);
     }
 
-    .control-group-title {
-      margin: 0 0 13px;
-      color: var(--muted);
-      font-size: 10px;
-      font-weight: 800;
-      letter-spacing: 0.14em;
-      text-transform: uppercase;
-    }
-
     .button-row {
       display: flex;
       flex-wrap: wrap;
@@ -968,32 +959,6 @@
       color: var(--accent);
     }
 
-    .toast {
-      position: fixed;
-      z-index: 100;
-      left: 50%;
-      bottom: 24px;
-      width: min(520px, calc(100% - 32px));
-      padding: 13px 16px;
-      border: 1px solid var(--line-strong);
-      border-radius: 14px;
-      color: var(--text);
-      background: rgba(15,23,42,0.94);
-      box-shadow: 0 20px 60px rgba(0,0,0,0.45);
-      backdrop-filter: blur(18px);
-      font-size: 13px;
-      line-height: 1.5;
-      transform: translate(-50%, 30px);
-      opacity: 0;
-      pointer-events: none;
-      transition: 180ms ease;
-    }
-
-    .toast.show {
-      transform: translate(-50%, 0);
-      opacity: 1;
-    }
-
     @media (max-width: 1040px) {
       .dashboard {
         grid-template-columns: 1fr;
@@ -1127,37 +1092,6 @@
         transition-duration: 0.001ms !important;
       }
     }
-
-/* App navigation (new) */
-.app-nav {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-  margin: 0 8px;
-}
-
-.nav-pill {
-  padding: 8px 16px;
-  border-radius: 999px;
-  color: var(--muted);
-  text-decoration: none;
-  border: 1px solid var(--line);
-  font-size: 14px;
-  line-height: 1.4;
-  transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease;
-  white-space: nowrap;
-}
-
-.nav-pill:hover {
-  color: var(--text);
-  border-color: var(--line-strong);
-}
-
-.nav-pill.router-link-active {
-  color: #0b1226;
-  background: linear-gradient(135deg, var(--accent-2), var(--accent));
-  border-color: transparent;
-}
 
 /* Tuner view (new) — the panel shell is .card--wide (see card variants). */
 .tuner-controls {
