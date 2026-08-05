@@ -1,23 +1,44 @@
 {
   "name": "tone-chord-lab",
-  "version": "1.0.0",
-  "description": "调音实验室 (Tuning Lab) — real-time pitch and chord detector for the browser — microphone input, log-frequency spectrum, YIN + harmonic-spectrum pitch detection, and chord recognition. Zero dependencies.",
+  "version": "2.0.0",
+  "description": "调音实验室 (Tuning Lab) — real-time pitch/chord detection and a multi-instrument per-note tuner (guitar, blues harp, guzheng, guqin, …) for the browser. Vue 3 + Vuetify, fully client-side.",
   "type": "module",
   "private": false,
   "license": "MIT",
   "keywords": [
     "pitch-detection",
     "chord-recognition",
+    "tuner",
+    "guitar-tuner",
+    "harmonica",
+    "guzheng",
+    "guqin",
     "yin",
-    "web-audio",
-    "spectrum-analyzer",
-    "tuner"
+    "web-audio"
   ],
   "scripts": {
-    "test": "node --test",
-    "dev": "python3 -m http.server 8000"
+    "dev": "vite",
+    "build": "vue-tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@mdi/font": "^7.4.47",
+    "vue": "^3.5.41",
+    "vue-router": "^4.6.4",
+    "vuetify": "^3.13.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "@vitejs/plugin-vue": "^6.0.8",
+    "typescript": "~5.9.3",
+    "vite": "^7.3.6",
+    "vite-plugin-vuetify": "^2.1.3",
+    "vitest": "^3.2.7",
+    "vue-tsc": "^3.3.9"
   },
   "engines": {
-    "node": ">=18"
+    "node": ">=20"
   }
 }

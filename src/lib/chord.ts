@@ -1,25 +1,40 @@
 /**
  * Chord recognition: match a 12-bin chroma vector against chord templates.
  * Pure functions, safe to import in Node. UI-level frame stabilization
- * lives in app.js.
+ * lives in the analysis loop.
  */
 
-import { NOTE_NAMES, CHORD_TYPES } from "./music-theory.js";
+import { NOTE_NAMES, CHORD_TYPES, type ChordType } from "./music-theory.js";
 import { clamp } from "./dsp.js";
 
 /** True when at least three substantial chroma bins exist (polyphony hint). */
-export function hasPolyphonicEvidence(chroma) {
+export function hasPolyphonicEvidence(chroma: Float32Array | number[]): boolean {
   const values = Array.from(chroma).sort((a, b) => b - a);
   const strongest = values[0] || 0;
   if (strongest <= 0) return false;
   return (values[1] || 0) > strongest * 0.32 && (values[2] || 0) > strongest * 0.16;
 }
 
+export interface ChordCandidate {
+  root: number;
+  type: ChordType;
+  score: number;
+  tones: number[];
+}
+
+export interface ChordResult extends ChordCandidate {
+  confidence: number;
+  symbol: string;
+  description: string;
+  descriptionKey: string;
+  alternate: string;
+}
+
 /**
  * Score every root/chord-type template against the chroma vector and return
  * the best match, or null when nothing clears the confidence threshold.
  */
-export function detectChord(chroma) {
+export function detectChord(chroma: Float32Array | number[]): ChordResult | null {
   const total = Array.from(chroma).reduce((sum, value) => sum + value, 0);
   const maxValue = Math.max(...chroma);
   if (total < 1e-7 || maxValue <= 0) return null;
@@ -29,13 +44,14 @@ export function detectChord(chroma) {
     return null;
   }
 
-  const chromaNorm = Math.sqrt(Array.from(chroma).reduce((sum, value) => sum + value * value, 0)) || 1;
-  const matches = [];
+  const chromaNorm =
+    Math.sqrt(Array.from(chroma).reduce((sum, value) => sum + value * value, 0)) || 1;
+  const matches: ChordCandidate[] = [];
 
   for (let root = 0; root < 12; root += 1) {
     for (const type of CHORD_TYPES) {
       const template = new Float32Array(12);
-      const toneSet = new Set();
+      const toneSet = new Set<number>();
       let templateNormSq = 0;
       let weightSum = 0;
 

@@ -10,17 +10,17 @@ export const PITCH_WINDOW = 4096;
 export const MIN_PITCH_HZ = 55;
 export const MAX_PITCH_HZ = 1400;
 
-export function clamp(value, min, max) {
+export function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
 }
 
-export function smoothstep(edge0, edge1, value) {
+export function smoothstep(edge0: number, edge1: number, value: number): number {
   if (edge0 === edge1) return value >= edge1 ? 1 : 0;
   const t = clamp((value - edge0) / (edge1 - edge0), 0, 1);
   return t * t * (3 - 2 * t);
 }
 
-export function calculateRms(buffer) {
+export function calculateRms(buffer: Float32Array): number {
   let sum = 0;
   let mean = 0;
   const start = Math.max(0, buffer.length - PITCH_WINDOW);
@@ -39,15 +39,27 @@ export function calculateRms(buffer) {
   return Math.sqrt(sum / Math.max(1, length));
 }
 
+export interface PitchResult {
+  frequency: number;
+  confidence: number;
+  method: "yin" | "spectral";
+}
+
+export interface YinResult {
+  pitch: PitchResult | null;
+  rms: number;
+  rmsDb: number;
+}
+
 // Reused YIN difference buffer, allocated lazily and grown on demand to
 // avoid per-frame garbage.
-let yinBuffer = null;
+let yinBuffer: Float32Array | null = null;
 
 /**
  * Detect the fundamental pitch of a time-domain buffer using the YIN
  * algorithm. Returns { pitch, rms, rmsDb }; pitch is null below the gate.
  */
-export function detectPitchYin(buffer, sampleRate, gateDb) {
+export function detectPitchYin(buffer: Float32Array, sampleRate: number, gateDb: number): YinResult {
   const size = Math.min(PITCH_WINDOW, buffer.length);
   const offset = buffer.length - size;
   const rms = calculateRms(buffer);
@@ -119,7 +131,7 @@ export function detectPitchYin(buffer, sampleRate, gateDb) {
     const right = yin[tauEstimate + 1];
     const denominator = left - 2 * center + right;
     if (Math.abs(denominator) > 1e-9) {
-      const shift = 0.5 * (left - right) / denominator;
+      const shift = (0.5 * (left - right)) / denominator;
       refinedTau += clamp(shift, -1, 1);
     }
   }
@@ -142,8 +154,19 @@ export function detectPitchYin(buffer, sampleRate, gateDb) {
   };
 }
 
+export interface PeakSample {
+  db: number;
+  index: number;
+}
+
 /** Return the peak dB and bin index within a small cents window around a frequency. */
-export function samplePeakDb(data, frequency, sampleRate, fftSize, centsRadius = 26) {
+export function samplePeakDb(
+  data: Float32Array,
+  frequency: number,
+  sampleRate: number,
+  fftSize: number,
+  centsRadius = 26
+): PeakSample {
   if (!Number.isFinite(frequency) || frequency <= 0 || frequency >= sampleRate / 2) {
     return { db: -160, index: 0 };
   }
@@ -170,9 +193,9 @@ export function samplePeakDb(data, frequency, sampleRate, fftSize, centsRadius =
 }
 
 /** Parabolic interpolation of a spectrum peak to a fractional bin frequency. */
-export function refinePeakFrequency(data, index, sampleRate, fftSize) {
+export function refinePeakFrequency(data: Float32Array, index: number, sampleRate: number, fftSize: number): number {
   if (index <= 0 || index >= data.length - 1) {
-    return index * sampleRate / fftSize;
+    return (index * sampleRate) / fftSize;
   }
 
   const left = Number.isFinite(data[index - 1]) ? data[index - 1] : -160;
@@ -182,13 +205,13 @@ export function refinePeakFrequency(data, index, sampleRate, fftSize) {
   let shift = 0;
 
   if (Math.abs(denominator) > 1e-9) {
-    shift = clamp(0.5 * (left - right) / denominator, -1, 1);
+    shift = clamp((0.5 * (left - right)) / denominator, -1, 1);
   }
 
-  return (index + shift) * sampleRate / fftSize;
+  return ((index + shift) * sampleRate) / fftSize;
 }
 
-export function percentile(values, p) {
+export function percentile(values: number[], p: number): number {
   if (!values.length) return -100;
   const sorted = values.slice().sort((a, b) => a - b);
   const index = clamp(Math.floor((sorted.length - 1) * p), 0, sorted.length - 1);
@@ -199,7 +222,14 @@ export function percentile(values, p) {
  * Build a 12-bin chroma vector from spectrum peaks. Peaks that are likely
  * sub-harmonics of a lower partial are down-weighted (independence factor).
  */
-export function buildChromaFromPeaks(data, sampleRate, fftSize, maxDb, noiseFloor, tuning = 440) {
+export function buildChromaFromPeaks(
+  data: Float32Array,
+  sampleRate: number,
+  fftSize: number,
+  maxDb: number,
+  noiseFloor: number,
+  tuning = 440
+): Float32Array {
   const chroma = new Float32Array(12);
   const binHz = sampleRate / fftSize;
   const minBin = Math.max(2, Math.floor(MIN_PITCH_HZ / binHz));
@@ -207,7 +237,7 @@ export function buildChromaFromPeaks(data, sampleRate, fftSize, maxDb, noiseFloo
   const maxBin = Math.min(data.length - 2, Math.ceil(maxFrequency / binHz));
   const threshold = Math.max(noiseFloor + 7, maxDb - 48);
 
-  const relativeAmplitude = (db) => {
+  const relativeAmplitude = (db: number): number => {
     if (!Number.isFinite(db)) return 0;
     return Math.pow(10, (db - maxDb) / 20);
   };
@@ -231,7 +261,7 @@ export function buildChromaFromPeaks(data, sampleRate, fftSize, maxDb, noiseFloo
 
     let subharmonicSupport = 0;
     const divisors = [2, 3, 4, 5];
-    const weights = [0.85, 0.65, 0.50, 0.40];
+    const weights = [0.85, 0.65, 0.5, 0.4];
 
     for (let j = 0; j < divisors.length; j += 1) {
       const lowerFrequency = frequency / divisors[j];
@@ -243,7 +273,7 @@ export function buildChromaFromPeaks(data, sampleRate, fftSize, maxDb, noiseFloo
       );
     }
 
-    const independence = Math.max(0.12, 1 - 0.80 * subharmonicSupport);
+    const independence = Math.max(0.12, 1 - 0.8 * subharmonicSupport);
     const pitchClass = ((midi % 12) + 12) % 12;
     chroma[pitchClass] += amplitude * lowFrequencyBias * tuningWeight * independence;
   }
@@ -262,17 +292,44 @@ export function buildChromaFromPeaks(data, sampleRate, fftSize, maxDb, noiseFloo
   return chroma;
 }
 
+export interface SpectrumConfig {
+  tuning?: number;
+  gateDb?: number;
+}
+
+export interface SpectralCandidate {
+  midi: number;
+  pitchClass: number;
+  f0: number;
+  frequency: number;
+  score: number;
+  presence: number;
+  fundamentalDb: number;
+}
+
+export interface SpectrumAnalysisResult {
+  chroma: Float32Array;
+  dominantPitch: PitchResult | null;
+  maxDb: number;
+  noiseFloor: number;
+}
+
 /**
  * Analyze a spectrum (analyser.getFloatFrequencyData output): score every
  * semitone's fundamental + harmonics, return the dominant pitch and chroma.
  * Config defaults keep the exported API usable without arguments.
  */
-export function analyzeSpectrum(data, sampleRate, fftSize, config = {}) {
+export function analyzeSpectrum(
+  data: Float32Array,
+  sampleRate: number,
+  fftSize: number,
+  config: SpectrumConfig = {}
+): SpectrumAnalysisResult {
   const { tuning = 440, gateDb = -52 } = config;
   const binHz = sampleRate / fftSize;
   const minBin = Math.max(1, Math.floor(48 / binHz));
   const maxBin = Math.min(data.length - 2, Math.ceil(Math.min(5200, sampleRate / 2 - binHz) / binHz));
-  const samples = [];
+  const samples: number[] = [];
   let maxDb = -160;
   const step = Math.max(1, Math.floor((maxBin - minBin) / 220));
 
@@ -294,9 +351,9 @@ export function analyzeSpectrum(data, sampleRate, fftSize, config = {}) {
     };
   }
 
-  const candidates = [];
+  const candidates: SpectralCandidate[] = [];
 
-  const relativeAmplitude = (db) => {
+  const relativeAmplitude = (db: number): number => {
     if (!Number.isFinite(db)) return 0;
     return Math.pow(10, (db - maxDb) / 20);
   };
@@ -349,7 +406,7 @@ export function analyzeSpectrum(data, sampleRate, fftSize, config = {}) {
       octaveWeight;
 
     const pitchClass = ((midi % 12) + 12) % 12;
-    const candidate = {
+    const candidate: SpectralCandidate = {
       midi,
       pitchClass,
       f0,
@@ -366,13 +423,13 @@ export function analyzeSpectrum(data, sampleRate, fftSize, config = {}) {
 
   candidates.sort((a, b) => b.score - a.score);
   const best = candidates[0] || null;
-  let second = null;
+  let second: SpectralCandidate | null = null;
 
   if (best) {
     second = candidates.find((candidate) => candidate.pitchClass !== best.pitchClass) || candidates[1] || null;
   }
 
-  let dominantPitch = null;
+  let dominantPitch: PitchResult | null = null;
   if (best && best.score > 0.08 && maxDb > gateDb - 8) {
     const contrast = second ? clamp((best.score - second.score) / Math.max(best.score, 1e-6), 0, 1) : 1;
     const confidence = clamp(0.24 + 0.48 * best.presence + 0.55 * contrast, 0, 1);

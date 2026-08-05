@@ -11,8 +11,13 @@ import { frequencyToNote } from "./music-theory.js";
 export const SPECTRUM_MIN_HZ = 40;
 export const SPECTRUM_MAX_HZ = 12000;
 
+export interface SpectrumTarget {
+  canvas: HTMLCanvasElement;
+  wrap: HTMLElement;
+}
+
 /** Size the canvas to the wrapper's device-pixel dimensions. */
-export function resizeCanvas(canvas, wrap) {
+export function resizeCanvas(canvas: HTMLCanvasElement, wrap: HTMLElement): void {
   const rect = wrap.getBoundingClientRect();
   const dpr = clamp(window.devicePixelRatio || 1, 1, 2);
   const width = Math.max(1, Math.round(rect.width * dpr));
@@ -24,15 +29,16 @@ export function resizeCanvas(canvas, wrap) {
   }
 }
 
-export function clearSpectrumCanvas(canvas, wrap) {
+export function clearSpectrumCanvas(canvas: HTMLCanvasElement, wrap: HTMLElement): void {
   resizeCanvas(canvas, wrap);
   const ctx = canvas.getContext("2d");
+  if (!ctx) return;
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   drawSpectrumGrid(ctx, canvas.width, canvas.height, null);
 }
 
 /** Map a frequency to an x position within the plot area on a log scale. */
-export function frequencyToX(frequency, width, left, right, maxFrequency) {
+export function frequencyToX(frequency: number, width: number, left: number, right: number, maxFrequency: number): number {
   const minLog = Math.log10(SPECTRUM_MIN_HZ);
   const maxLog = Math.log10(maxFrequency);
   const value = (Math.log10(frequency) - minLog) / (maxLog - minLog);
@@ -40,7 +46,7 @@ export function frequencyToX(frequency, width, left, right, maxFrequency) {
 }
 
 /** Draw the log-frequency grid and dB reference lines. */
-export function drawSpectrumGrid(ctx, width, height, maxFrequency) {
+export function drawSpectrumGrid(ctx: CanvasRenderingContext2D, width: number, height: number, maxFrequency: number | null): void {
   const dpr = clamp(window.devicePixelRatio || 1, 1, 2);
   const left = 52 * dpr;
   const right = 18 * dpr;
@@ -85,13 +91,22 @@ export function drawSpectrumGrid(ctx, width, height, maxFrequency) {
   ctx.restore();
 }
 
+export interface SpectrumDrawOptions extends SpectrumTarget {
+  sampleRate: number;
+  latestPitch: { frequency: number } | null;
+  fftSize: number;
+  tuning?: number;
+}
+
 /**
  * Render the spectrum curve, its peak marker, and the current pitch
  * marker. Takes the live analyser data plus a rendering context object.
  */
-export function drawSpectrum(data, { canvas, wrap, sampleRate, latestPitch, fftSize, tuning = 440 }) {
+export function drawSpectrum(data: Float32Array, options: SpectrumDrawOptions): void {
+  const { canvas, wrap, sampleRate, latestPitch, fftSize, tuning = 440 } = options;
   resizeCanvas(canvas, wrap);
   const ctx = canvas.getContext("2d");
+  if (!ctx) return;
   const width = canvas.width;
   const height = canvas.height;
   const dpr = clamp(window.devicePixelRatio || 1, 1, 2);
@@ -110,19 +125,21 @@ export function drawSpectrum(data, { canvas, wrap, sampleRate, latestPitch, fftS
   if (!data || !data.length) return;
 
   const pointCount = Math.max(260, Math.floor((width - left - right) / (2 * dpr)));
-  const points = [];
+  const points: Array<{ x: number; y: number }> = [];
   let peakDb = -160;
 
   for (let i = 0; i < pointCount; i += 1) {
     const ratio = i / (pointCount - 1);
     const frequency = SPECTRUM_MIN_HZ * Math.pow(maxFrequency / SPECTRUM_MIN_HZ, ratio);
     const center = frequency / binHz;
-    const lowerFrequency = i === 0
-      ? frequency
-      : SPECTRUM_MIN_HZ * Math.pow(maxFrequency / SPECTRUM_MIN_HZ, (i - 0.5) / (pointCount - 1));
-    const upperFrequency = i === pointCount - 1
-      ? frequency
-      : SPECTRUM_MIN_HZ * Math.pow(maxFrequency / SPECTRUM_MIN_HZ, (i + 0.5) / (pointCount - 1));
+    const lowerFrequency =
+      i === 0
+        ? frequency
+        : SPECTRUM_MIN_HZ * Math.pow(maxFrequency / SPECTRUM_MIN_HZ, (i - 0.5) / (pointCount - 1));
+    const upperFrequency =
+      i === pointCount - 1
+        ? frequency
+        : SPECTRUM_MIN_HZ * Math.pow(maxFrequency / SPECTRUM_MIN_HZ, (i + 0.5) / (pointCount - 1));
     const start = Math.max(1, Math.floor(lowerFrequency / binHz));
     const end = Math.min(data.length - 2, Math.max(start, Math.ceil(upperFrequency / binHz)));
     let db = -160;

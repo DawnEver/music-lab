@@ -6,7 +6,9 @@
 
 const STORAGE_KEY = "tcl-lang";
 
-export const messages = {
+export type Lang = "zh" | "en";
+
+export const messages: Record<Lang, Record<string, string>> = {
   zh: {
     appTitle: "调音实验室",
     eyebrow: "本地音频分析",
@@ -174,9 +176,9 @@ export const messages = {
   }
 };
 
-let currentLang = null;
+let currentLang: Lang | null = null;
 
-export function getLang() {
+export function getLang(): Lang {
   try {
     const stored = window.localStorage.getItem(STORAGE_KEY);
     if (stored === "zh" || stored === "en") return stored;
@@ -193,8 +195,8 @@ export function getLang() {
   return "zh";
 }
 
-export function setLang(lang) {
-  const next = lang === "en" ? "en" : "zh";
+export function setLang(lang: string): Lang {
+  const next: Lang = lang === "en" ? "en" : "zh";
   currentLang = next;
   try {
     window.localStorage.setItem(STORAGE_KEY, next);
@@ -205,8 +207,8 @@ export function setLang(lang) {
 }
 
 /** Translate a key, substituting {placeholder} params. Falls back to zh, then the key itself. */
-export function t(key, params = {}) {
-  const dict = messages[currentLang] || messages.zh;
+export function t(key: string, params: Record<string, string | number> = {}): string {
+  const dict = messages[currentLang ?? "zh"] ?? messages.zh;
   let text = dict[key] ?? messages.zh[key] ?? key;
   for (const [name, value] of Object.entries(params)) {
     text = text.split(`{${name}}`).join(String(value));
@@ -215,18 +217,18 @@ export function t(key, params = {}) {
 }
 
 /** Apply translations to all [data-i18n] / [data-i18n-aria] elements. Browser only. */
-export function applyStaticI18n() {
+export function applyStaticI18n(): void {
   const lang = currentLang || getLang();
   document.documentElement.lang = lang === "zh" ? "zh-CN" : "en";
 
-  document.querySelectorAll("[data-i18n]").forEach((el) => {
-    el.textContent = t(el.dataset.i18n);
+  document.querySelectorAll<HTMLElement>("[data-i18n]").forEach((el) => {
+    el.textContent = t(el.dataset.i18n ?? "");
   });
-  document.querySelectorAll("[data-i18n-aria]").forEach((el) => {
-    el.setAttribute("aria-label", t(el.dataset.i18nAria));
+  document.querySelectorAll<HTMLElement>("[data-i18n-aria]").forEach((el) => {
+    el.setAttribute("aria-label", t(el.dataset.i18nAria ?? ""));
   });
 
-  document.querySelectorAll(".lang-toggle button[data-lang]").forEach((btn) => {
+  document.querySelectorAll<HTMLElement>(".lang-toggle button[data-lang]").forEach((btn) => {
     btn.classList.toggle("is-active", btn.dataset.lang === lang);
   });
 }

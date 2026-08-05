@@ -1,0 +1,23 @@
+    :root {
+      --bg: #070b16;
+      --bg-soft: #0d1324;
+      --panel: rgba(16, 23, 42, 0.86);
+      --panel-strong: rgba(19, 28, 50, 0.96);
+      --line: rgba(148, 163, 184, 0.15);
+      --line-strong: rgba(148, 163, 184, 0.28);
+      --text: #f8fafc;
+      --muted: #94a3b8;
+      --muted-2: #64748b;
+      --accent: #7c9cff;
+      --accent-2: #5eead4;
+      --accent-3: #c084fc;
+      --good: #34d399;
+      --warn: #fbbf24;
+      --danger: #fb7185;
+      --shadow: 0 24px 80px rgba(0, 0, 0, 0.34);
+      --radius-xl: 28px;
+      --radius-lg: 22px;
+      --radius-md: 16px;
+      --radius-sm: 12px;
+      --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+    }

@@ -5,9 +5,17 @@
 
 export const NOTE_NAMES = ["C", "C♯", "D", "D♯", "E", "F", "F♯", "G", "G♯", "A", "A♯", "B"];
 
-export const CHORD_TYPES = [
-  { key: "major", suffix: "", name: "大三和弦", intervals: [0, 4, 7], weights: [1, 0.90, 0.78] },
-  { key: "minor", suffix: "m", name: "小三和弦", intervals: [0, 3, 7], weights: [1, 0.90, 0.78] },
+export interface ChordType {
+  key: string;
+  suffix: string;
+  name: string;
+  intervals: number[];
+  weights: number[];
+}
+
+export const CHORD_TYPES: ChordType[] = [
+  { key: "major", suffix: "", name: "大三和弦", intervals: [0, 4, 7], weights: [1, 0.9, 0.78] },
+  { key: "minor", suffix: "m", name: "小三和弦", intervals: [0, 3, 7], weights: [1, 0.9, 0.78] },
   { key: "dim", suffix: "dim", name: "减三和弦", intervals: [0, 3, 6], weights: [1, 0.88, 0.75] },
   { key: "aug", suffix: "aug", name: "增三和弦", intervals: [0, 4, 8], weights: [1, 0.88, 0.78] },
   { key: "sus2", suffix: "sus2", name: "挂二和弦", intervals: [0, 2, 7], weights: [1, 0.82, 0.78] },
@@ -19,20 +27,29 @@ export const CHORD_TYPES = [
 ];
 
 /** Convert a MIDI note number to a frequency in Hz. */
-export function midiToFrequency(midi, tuning = 440) {
+export function midiToFrequency(midi: number, tuning = 440): number {
   return tuning * Math.pow(2, (midi - 69) / 12);
 }
 
 /** Convert a frequency in Hz to a fractional MIDI note number. */
-export function frequencyToMidi(frequency, tuning = 440) {
+export function frequencyToMidi(frequency: number, tuning = 440): number {
   return 69 + 12 * Math.log2(frequency / tuning);
+}
+
+export interface NoteResult {
+  midi: number;
+  pitchClass: number;
+  octave: number;
+  name: string;
+  frequency: number;
+  cents: number;
 }
 
 /**
  * Resolve a frequency to a note name, octave, and cents deviation
  * relative to the nearest equal-tempered note.
  */
-export function frequencyToNote(frequency, tuning = 440) {
+export function frequencyToNote(frequency: number, tuning = 440): NoteResult {
   const midiFloat = frequencyToMidi(frequency, tuning);
   const midi = Math.round(midiFloat);
   const pitchClass = ((midi % 12) + 12) % 12;
