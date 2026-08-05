@@ -1,0 +1,29 @@
+import type { InstrumentDefinition } from "./types.js";
+
+/**
+ * MIDI in physical string order (4弦→1弦). The standard high-G tuning is
+ * re-entrant (4th string G4 sits above C4 in pitch), so notes are NOT
+ * frequency-sorted here — display order follows the instrument.
+ */
+export const ukulele: InstrumentDefinition = {
+  id: "ukulele",
+  name: { zh: "尤克里里", en: "Ukulele" },
+  category: "strings",
+  layout: "strings",
+  defaultPresetId: "standard",
+  range: { minHz: 190, maxHz: 470, minMidi: 53, maxMidi: 70 },
+  presets: [
+    {
+      id: "standard",
+      name: { zh: "标准 (高 G)", en: "Standard (high G)" },
+      notes: [67, 60, 64, 69], // G4 C4 E4 A4
+      noteLabels: ["4", "3", "2", "1"].map((label) => ({ zh: label, en: label }))
+    },
+    {
+      id: "lowG",
+      name: { zh: "Low G", en: "Low G" },
+      notes: [55, 60, 64, 69], // G3 C4 E4 A4
+      noteLabels: ["4", "3", "2", "1"].map((label) => ({ zh: label, en: label }))
+    }
+  ]
+};
