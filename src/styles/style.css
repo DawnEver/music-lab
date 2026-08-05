@@ -1156,3 +1156,34 @@
         transition-duration: 0.001ms !important;
       }
     }
+
+/* App navigation (new) */
+.app-nav {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin: 0 8px;
+}
+
+.nav-pill {
+  padding: 8px 16px;
+  border-radius: 999px;
+  color: var(--muted);
+  text-decoration: none;
+  border: 1px solid var(--line);
+  font-size: 14px;
+  line-height: 1.4;
+  transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+  white-space: nowrap;
+}
+
+.nav-pill:hover {
+  color: var(--text);
+  border-color: var(--line-strong);
+}
+
+.nav-pill.router-link-active {
+  color: #0b1226;
+  background: linear-gradient(135deg, var(--accent-2), var(--accent));
+  border-color: transparent;
+}

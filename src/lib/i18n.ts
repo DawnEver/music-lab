@@ -12,6 +12,8 @@ export const messages: Record<Lang, Record<string, string>> = {
   zh: {
     appTitle: "调音实验室",
     eyebrow: "本地音频分析",
+    navTuner: "校音器",
+    navAnalyzer: "分析器",
     statusIdle: "未启动",
     statusRequesting: "请求权限",
     statusMicLive: "麦克风实时",
@@ -95,6 +97,8 @@ export const messages: Record<Lang, Record<string, string>> = {
   en: {
     appTitle: "Tuning Lab",
     eyebrow: "Local audio analysis",
+    navTuner: "Tuner",
+    navAnalyzer: "Analyzer",
     statusIdle: "Idle",
     statusRequesting: "Requesting access",
     statusMicLive: "Mic live",

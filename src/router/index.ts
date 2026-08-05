@@ -18,7 +18,7 @@ const routes: RouteRecordRaw[] = [
   {
     path: "/analyzer",
     name: "analyzer",
-    component: Placeholder
+    component: () => import("../views/AnalyzerView.vue")
   }
 ];
 
