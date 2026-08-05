@@ -10,6 +10,39 @@ export const PITCH_WINDOW = 4096;
 export const MIN_PITCH_HZ = 55;
 export const MAX_PITCH_HZ = 1400;
 
+/** Detection range bounds; absent fields default to the legacy constants. */
+export interface PitchRange {
+  minHz?: number;
+  maxHz?: number;
+  minMidi?: number;
+  maxMidi?: number;
+}
+
+export interface ResolvedPitchRange {
+  minHz: number;
+  maxHz: number;
+  minMidi: number;
+  maxMidi: number;
+}
+
+/**
+ * Resolve a partial PitchRange to a complete one, keeping the historical
+ * defaults (55–1400 Hz, midi 33–96) when nothing is given. Hz and MIDI
+ * fields are derived from each other when only one side is provided, so a
+ * range is always self-consistent.
+ */
+export function resolveRange(range: PitchRange | undefined, tuning: number): ResolvedPitchRange {
+  const minMidi =
+    range?.minMidi ??
+    (range?.minHz != null ? Math.floor(frequencyToMidi(range.minHz, tuning)) : 33);
+  const maxMidi =
+    range?.maxMidi ??
+    (range?.maxHz != null ? Math.ceil(frequencyToMidi(range.maxHz, tuning)) : 96);
+  const minHz = range?.minHz ?? (range?.minMidi != null ? midiToFrequency(range.minMidi, tuning) : MIN_PITCH_HZ);
+  const maxHz = range?.maxHz ?? (range?.maxMidi != null ? midiToFrequency(range.maxMidi, tuning) : MAX_PITCH_HZ);
+  return { minHz, maxHz, minMidi, maxMidi };
+}
+
 export function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
 }
@@ -58,8 +91,15 @@ let yinBuffer: Float32Array | null = null;
 /**
  * Detect the fundamental pitch of a time-domain buffer using the YIN
  * algorithm. Returns { pitch, rms, rmsDb }; pitch is null below the gate.
+ * `range` widens/narrows the search band (e.g. bass B0 needs ~26 Hz).
  */
-export function detectPitchYin(buffer: Float32Array, sampleRate: number, gateDb: number): YinResult {
+export function detectPitchYin(
+  buffer: Float32Array,
+  sampleRate: number,
+  gateDb: number,
+  range?: PitchRange
+): YinResult {
+  const { minHz, maxHz } = resolveRange(range, 440);
   const size = Math.min(PITCH_WINDOW, buffer.length);
   const offset = buffer.length - size;
   const rms = calculateRms(buffer);
@@ -69,8 +109,8 @@ export function detectPitchYin(buffer: Float32Array, sampleRate: number, gateDb:
     return { pitch: null, rms, rmsDb };
   }
 
-  const minTau = Math.max(2, Math.floor(sampleRate / MAX_PITCH_HZ));
-  const maxTau = Math.min(Math.floor(sampleRate / MIN_PITCH_HZ), Math.floor(size / 2) - 2);
+  const minTau = Math.max(2, Math.floor(sampleRate / maxHz));
+  const maxTau = Math.min(Math.floor(sampleRate / minHz), Math.floor(size / 2) - 2);
   const sampleCount = size - maxTau - 1;
 
   if (!yinBuffer || yinBuffer.length < maxTau + 2) {
@@ -139,7 +179,7 @@ export function detectPitchYin(buffer: Float32Array, sampleRate: number, gateDb:
   const frequency = sampleRate / refinedTau;
   const confidence = clamp(1 - yin[tauEstimate], 0, 1);
 
-  if (!Number.isFinite(frequency) || frequency < MIN_PITCH_HZ || frequency > MAX_PITCH_HZ) {
+  if (!Number.isFinite(frequency) || frequency < minHz || frequency > maxHz) {
     return { pitch: null, rms, rmsDb };
   }
 
@@ -221,6 +261,7 @@ export function percentile(values: number[], p: number): number {
 /**
  * Build a 12-bin chroma vector from spectrum peaks. Peaks that are likely
  * sub-harmonics of a lower partial are down-weighted (independence factor).
+ * `range` widens the sampled band for low/high-pitched instruments.
  */
 export function buildChromaFromPeaks(
   data: Float32Array,
@@ -228,12 +269,14 @@ export function buildChromaFromPeaks(
   fftSize: number,
   maxDb: number,
   noiseFloor: number,
-  tuning = 440
+  tuning = 440,
+  range?: PitchRange
 ): Float32Array {
+  const { minHz, maxHz } = resolveRange(range, tuning);
   const chroma = new Float32Array(12);
   const binHz = sampleRate / fftSize;
-  const minBin = Math.max(2, Math.floor(MIN_PITCH_HZ / binHz));
-  const maxFrequency = Math.min(1800, sampleRate / 2 - 20);
+  const minBin = Math.max(2, Math.floor(minHz / binHz));
+  const maxFrequency = Math.min(Math.max(1800, maxHz), sampleRate / 2 - 20);
   const maxBin = Math.min(data.length - 2, Math.ceil(maxFrequency / binHz));
   const threshold = Math.max(noiseFloor + 7, maxDb - 48);
 
@@ -265,7 +308,7 @@ export function buildChromaFromPeaks(
 
     for (let j = 0; j < divisors.length; j += 1) {
       const lowerFrequency = frequency / divisors[j];
-      if (lowerFrequency < MIN_PITCH_HZ) continue;
+      if (lowerFrequency < minHz) continue;
       const lowerPeak = samplePeakDb(data, lowerFrequency, sampleRate, fftSize, 30);
       subharmonicSupport = Math.max(
         subharmonicSupport,
@@ -295,6 +338,7 @@ export function buildChromaFromPeaks(
 export interface SpectrumConfig {
   tuning?: number;
   gateDb?: number;
+  range?: PitchRange;
 }
 
 export interface SpectralCandidate {
@@ -325,9 +369,12 @@ export function analyzeSpectrum(
   fftSize: number,
   config: SpectrumConfig = {}
 ): SpectrumAnalysisResult {
-  const { tuning = 440, gateDb = -52 } = config;
+  const { tuning = 440, gateDb = -52, range } = config;
+  const { minHz, maxHz, minMidi, maxMidi } = resolveRange(range, tuning);
   const binHz = sampleRate / fftSize;
-  const minBin = Math.max(1, Math.floor(48 / binHz));
+  // Scan floor derived from the range (a hardcoded 48 Hz floor would hide
+  // low fundamentals like bass B0 at ~31 Hz).
+  const minBin = Math.max(1, Math.floor(midiToFrequency(minMidi, tuning) / binHz));
   const maxBin = Math.min(data.length - 2, Math.ceil(Math.min(5200, sampleRate / 2 - binHz) / binHz));
   const samples: number[] = [];
   let maxDb = -160;
@@ -358,9 +405,9 @@ export function analyzeSpectrum(
     return Math.pow(10, (db - maxDb) / 20);
   };
 
-  for (let midi = 33; midi <= 96; midi += 1) {
+  for (let midi = minMidi; midi <= maxMidi; midi += 1) {
     const f0 = midiToFrequency(midi, tuning);
-    if (f0 < MIN_PITCH_HZ || f0 > Math.min(MAX_PITCH_HZ, sampleRate / 2 - 40)) continue;
+    if (f0 < minHz || f0 > Math.min(maxHz, sampleRate / 2 - 40)) continue;
 
     const fundamental = samplePeakDb(data, f0, sampleRate, fftSize, 32);
     const fundRel = relativeAmplitude(fundamental.db);
@@ -386,7 +433,7 @@ export function analyzeSpectrum(
 
     for (let j = 0; j < divisors.length; j += 1) {
       const lowerFrequency = f0 / divisors[j];
-      if (lowerFrequency < MIN_PITCH_HZ) continue;
+      if (lowerFrequency < minHz) continue;
       const lowerPeak = samplePeakDb(data, lowerFrequency, sampleRate, fftSize, 28);
       subharmonicPenalty = Math.max(
         subharmonicPenalty,
@@ -419,7 +466,7 @@ export function analyzeSpectrum(
     candidates.push(candidate);
   }
 
-  const chroma = buildChromaFromPeaks(data, sampleRate, fftSize, maxDb, noiseFloor, tuning);
+  const chroma = buildChromaFromPeaks(data, sampleRate, fftSize, maxDb, noiseFloor, tuning, range);
 
   candidates.sort((a, b) => b.score - a.score);
   const best = candidates[0] || null;

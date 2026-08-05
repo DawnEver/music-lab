@@ -3,6 +3,27 @@ import { detectPitchYin, analyzeSpectrum } from "../src/lib/dsp.js";
 import { frequencyToNote } from "../src/lib/music-theory.js";
 import { SAMPLE_RATE, GATE_DB, sineWave, cMajorSpectrum } from "./helpers.js";
 
+/**
+ * Spectrum with a fundamental and a few harmonics, like a real string.
+ * Energy is spread linearly across the two bins around each partial's
+ * fractional position, so the parabolic refinement lands on the true
+ * frequency (at 30 Hz one bin spans ~160 cents — a single-bin peak would
+ * read the bin center instead).
+ */
+function harmonicSpectrum(fftSize: number, fundamental: number): Float32Array {
+  const data = new Float32Array(fftSize / 2).fill(-100);
+  const binHz = SAMPLE_RATE / fftSize;
+  for (let harmonic = 1; harmonic <= 3; harmonic += 1) {
+    const fractional = (fundamental * harmonic) / binHz;
+    const lo = Math.max(1, Math.floor(fractional));
+    const weight = fractional - lo;
+    const db = -12 - 6 * (harmonic - 1);
+    data[lo] = db + 20 * Math.log10(1 - weight || 1e-6);
+    if (lo + 1 < data.length) data[lo + 1] = db + 20 * Math.log10(weight || 1e-6);
+  }
+  return data;
+}
+
 describe("detectPitchYin", () => {
   it("detects a 440 Hz tone", () => {
     const result = detectPitchYin(sineWave(440, SAMPLE_RATE, 48000), SAMPLE_RATE, GATE_DB);
@@ -27,6 +48,29 @@ describe("detectPitchYin", () => {
     const silence = new Float32Array(48000);
     const result = detectPitchYin(silence, SAMPLE_RATE, GATE_DB);
     expect(result.pitch).toBeNull();
+  });
+
+  it("detects a low 30.87 Hz tone (bass B0) when the range is widened", () => {
+    const result = detectPitchYin(sineWave(30.87, SAMPLE_RATE, 48000), SAMPLE_RATE, GATE_DB, {
+      minHz: 26,
+      maxHz: 400
+    });
+    expect(result.pitch).toBeTruthy();
+    expect(Math.abs(result.pitch!.frequency - 30.87)).toBeLessThan(1.5);
+  });
+
+  it("detects high tones (D6, A6) when the range is widened", () => {
+    const d6 = detectPitchYin(sineWave(1174.66, SAMPLE_RATE, 48000), SAMPLE_RATE, GATE_DB, {
+      maxHz: 1900
+    });
+    expect(d6.pitch).toBeTruthy();
+    expect(Math.abs(d6.pitch!.frequency - 1174.66)).toBeLessThan(2);
+
+    const a6 = detectPitchYin(sineWave(1760, SAMPLE_RATE, 48000), SAMPLE_RATE, GATE_DB, {
+      maxHz: 1900
+    });
+    expect(a6.pitch).toBeTruthy();
+    expect(Math.abs(a6.pitch!.frequency - 1760)).toBeLessThan(2);
   });
 });
 
@@ -55,5 +99,21 @@ describe("analyzeSpectrum", () => {
     const result = analyzeSpectrum(data, SAMPLE_RATE, fftSize, { tuning: 440, gateDb: GATE_DB });
     expect(result.dominantPitch).toBeNull();
     expect([...result.chroma].every((v) => v === 0)).toBe(true);
+  });
+
+  it("finds B0 as the dominant pitch of a low harmonic spectrum with a widened range", () => {
+    const fftSize = 16384;
+    const data = harmonicSpectrum(fftSize, 30.87);
+    const result = analyzeSpectrum(data, SAMPLE_RATE, fftSize, {
+      tuning: 440,
+      gateDb: GATE_DB,
+      range: { minHz: 26, maxHz: 130, minMidi: 21, maxMidi: 30 }
+    });
+
+    expect(result.dominantPitch).toBeTruthy();
+    const note = frequencyToNote(result.dominantPitch!.frequency);
+    expect(note.name).toBe("B");
+    expect(note.octave).toBe(0);
+    expect(Math.abs(result.dominantPitch!.frequency - 30.87)).toBeLessThan(1.5);
   });
 });
