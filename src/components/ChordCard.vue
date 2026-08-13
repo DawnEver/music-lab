@@ -4,7 +4,7 @@ import { useAnalysis } from "../composables/useAnalysis.js";
 import { audioStore } from "../stores/audio.js";
 import { useI18n } from "../composables/useI18n.js";
 import { NOTE_NAMES } from "../lib/music-theory.js";
-import { degreeOf, MODES, type Key, type ModeKey } from "../lib/key.js";
+import { degreeOf, type Key, type ModeKey } from "../lib/key.js";
 import CollapsibleCard from "./CollapsibleCard.vue";
 import ChromaBars from "./ChromaBars.vue";
 
@@ -25,31 +25,27 @@ const chordConfidence = computed(() =>
     : t("chordConfidence0")
 );
 
-const keySelection = computed({
-  get: () =>
-    audioStore.keyMode === "manual"
-      ? `${audioStore.keyTonic}-${audioStore.keyScale}`
-      : "auto",
+const tonicSelection = computed({
+  get: () => (audioStore.keyMode === "manual" ? String(audioStore.keyTonic) : "auto"),
   set: (value: string) => {
     if (value === "auto") {
       audioStore.keyMode = "auto";
       return;
     }
-    const [tonic, scale] = value.split("-");
     audioStore.keyMode = "manual";
-    audioStore.keyTonic = Number(tonic);
-    audioStore.keyScale = scale as ModeKey;
+    audioStore.keyTonic = Number(value);
   }
 });
 
-const keyOptions = computed(() =>
-  Object.keys(MODES).flatMap((mode) =>
-    NOTE_NAMES.map((name, tonic) => ({
-      value: `${tonic}-${mode}`,
-      label: `${name} ${t(`keyMode.${mode}`)}`
-    }))
-  )
-);
+const scaleSelection = computed({
+  get: () => audioStore.keyScale,
+  set: (value: ModeKey) => {
+    audioStore.keyScale = value;
+    audioStore.keyMode = "manual";
+  }
+});
+
+const tonicOptions = NOTE_NAMES.map((name, tonic) => ({ value: String(tonic), label: name }));
 
 const resolvedKey = computed<Key | null>(() =>
   audioStore.keyMode === "manual"
@@ -87,16 +83,27 @@ const degree = computed(() =>
       </div>
 
       <div class="key-row">
-        <select
-          v-model="keySelection"
-          class="key-select"
-          :aria-label="t('keyLabel')"
-        >
-          <option value="auto">{{ t("keyAuto") }}</option>
-          <option v-for="option in keyOptions" :key="option.value" :value="option.value">
-            {{ option.label }}
-          </option>
-        </select>
+        <div class="key-selects">
+          <select
+            v-model="tonicSelection"
+            class="key-select"
+            :aria-label="t('keyLabel')"
+          >
+            <option value="auto">{{ t("keyAuto") }}</option>
+            <option v-for="option in tonicOptions" :key="option.value" :value="option.value">
+              {{ option.label }}
+            </option>
+          </select>
+          <select
+            v-model="scaleSelection"
+            class="key-select key-select--scale"
+            :disabled="audioStore.keyMode !== 'manual'"
+            :aria-label="t('keyScaleLabel')"
+          >
+            <option value="major">{{ t("keyMode.major") }}</option>
+            <option value="minor">{{ t("keyMode.minor") }}</option>
+          </select>
+        </div>
 
         <div v-if="degree" class="degree-display" aria-live="polite">
           <span class="degree-key">{{ keyName }}</span>
