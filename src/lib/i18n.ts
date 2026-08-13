@@ -110,7 +110,16 @@ export const messages: Record<Lang, Record<string, string>> = {
     "chordType.fifth": "五度和弦",
     "chordType.dom7": "属七和弦",
     "chordType.maj7": "大七和弦",
-    "chordType.m7": "小七和弦"
+    "chordType.m7": "小七和弦",
+    keyLabel: "调",
+    keyAuto: "自动估调",
+    "keyMode.major": "大调",
+    "keyMode.minor": "小调",
+    degreeDiatonic: "调内",
+    degreeChromatic: "离调",
+    degreeSecondary: "副属 {target}",
+    degreeHarmonicVariant: "和声小调",
+    degreeWaiting: "识别到和弦后显示级数"
   },
 
   en: {
@@ -214,7 +223,16 @@ export const messages: Record<Lang, Record<string, string>> = {
     "chordType.fifth": "Power chord",
     "chordType.dom7": "Dominant seventh",
     "chordType.maj7": "Major seventh",
-    "chordType.m7": "Minor seventh"
+    "chordType.m7": "Minor seventh",
+    keyLabel: "Key",
+    keyAuto: "Auto-detect key",
+    "keyMode.major": "major",
+    "keyMode.minor": "minor",
+    degreeDiatonic: "diatonic",
+    degreeChromatic: "chromatic",
+    degreeSecondary: "secondary dominant {target}",
+    degreeHarmonicVariant: "harmonic minor",
+    degreeWaiting: "Scale degree appears once a chord is detected"
   }
 };
 

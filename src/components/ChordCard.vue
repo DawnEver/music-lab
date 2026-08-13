@@ -1,12 +1,14 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { useAnalysis } from "../composables/useAnalysis.js";
+import { audioStore } from "../stores/audio.js";
 import { useI18n } from "../composables/useI18n.js";
 import { NOTE_NAMES } from "../lib/music-theory.js";
+import { degreeOf, MODES, type Key, type ModeKey } from "../lib/key.js";
 import CollapsibleCard from "./CollapsibleCard.vue";
 import ChromaBars from "./ChromaBars.vue";
 
-const { chord } = useAnalysis();
+const { chord, keyEstimate } = useAnalysis();
 const { t } = useI18n();
 
 const chordDescription = computed(() =>
@@ -21,6 +23,50 @@ const chordConfidence = computed(() =>
   chord.value
     ? `${Math.round(chord.value.confidence * 100)}% ${t("match")}`
     : t("chordConfidence0")
+);
+
+const keySelection = computed({
+  get: () =>
+    audioStore.keyMode === "manual"
+      ? `${audioStore.keyTonic}-${audioStore.keyScale}`
+      : "auto",
+  set: (value: string) => {
+    if (value === "auto") {
+      audioStore.keyMode = "auto";
+      return;
+    }
+    const [tonic, scale] = value.split("-");
+    audioStore.keyMode = "manual";
+    audioStore.keyTonic = Number(tonic);
+    audioStore.keyScale = scale as ModeKey;
+  }
+});
+
+const keyOptions = computed(() =>
+  Object.keys(MODES).flatMap((mode) =>
+    NOTE_NAMES.map((name, tonic) => ({
+      value: `${tonic}-${mode}`,
+      label: `${name} ${t(`keyMode.${mode}`)}`
+    }))
+  )
+);
+
+const resolvedKey = computed<Key | null>(() =>
+  audioStore.keyMode === "manual"
+    ? { tonic: audioStore.keyTonic, mode: audioStore.keyScale }
+    : (keyEstimate.value?.key ?? null)
+);
+
+const keyName = computed(() =>
+  resolvedKey.value
+    ? `${NOTE_NAMES[resolvedKey.value.tonic]} ${t(`keyMode.${resolvedKey.value.mode}`)}`
+    : ""
+);
+
+const degree = computed(() =>
+  chord.value && resolvedKey.value
+    ? degreeOf(chord.value.root, chord.value.descriptionKey, resolvedKey.value)
+    : null
 );
 </script>
 
@@ -39,6 +85,40 @@ const chordConfidence = computed(() =>
         <div class="chord-name" aria-live="polite">{{ chord ? chord.symbol : "…" }}</div>
         <div class="chord-description">{{ chordDescription }}</div>
       </div>
+
+      <div class="key-row">
+        <select
+          v-model="keySelection"
+          class="key-select"
+          :aria-label="t('keyLabel')"
+        >
+          <option value="auto">{{ t("keyAuto") }}</option>
+          <option v-for="option in keyOptions" :key="option.value" :value="option.value">
+            {{ option.label }}
+          </option>
+        </select>
+
+        <div v-if="degree" class="degree-display" aria-live="polite">
+          <span class="degree-key">{{ keyName }}</span>
+          <span class="degree-numeral">{{ degree.numeral }}</span>
+          <span class="degree-badges">
+            <span
+              class="degree-badge"
+              :class="degree.diatonic ? 'is-diatonic' : 'is-chromatic'"
+            >
+              {{ degree.diatonic ? t("degreeDiatonic") : t("degreeChromatic") }}
+            </span>
+            <span v-if="degree.variant === 'harmonic'" class="degree-badge">
+              {{ t("degreeHarmonicVariant") }}
+            </span>
+            <span v-if="degree.secondary" class="degree-badge is-secondary">
+              {{ t("degreeSecondary", { target: degree.secondary }) }}
+            </span>
+          </span>
+        </div>
+        <div v-else class="degree-display degree-empty">{{ t("degreeWaiting") }}</div>
+      </div>
+
       <ChromaBars />
     </div>
   </CollapsibleCard>

@@ -19,6 +19,7 @@ import {
   type PitchResult
 } from "./dsp.js";
 import { detectChord, hasPolyphonicEvidence, type ChordResult } from "./chord.js";
+import { KeyTracker, type KeyEstimate } from "./key.js";
 import { drawSpectrum, type SpectrumTarget } from "./draw.js";
 
 export const FFT_SIZE = 16384;
@@ -29,6 +30,7 @@ export const spectrumTargets = new Set<SpectrumTarget>();
 // Display results, replaced at analysis cadence (never mutated in place).
 export const pitchRef = shallowRef<PitchResult | null>(null);
 export const chordRef = shallowRef<ChordResult | null>(null);
+export const keyEstimateRef = shallowRef<KeyEstimate | null>(null);
 export const chromaRef = shallowRef<Float32Array | null>(null);
 export const levelRef = shallowRef<{ rmsDb: number } | null>(null);
 /** Bumped once per rAF tick that changed any display value. */
@@ -65,6 +67,7 @@ let latestSpectralPitchAt = 0;
 let lastChordCandidate = "";
 let chordCandidateCount = 0;
 let displayedChord: ChordResult | null = null;
+const keyTracker = new KeyTracker();
 
 /** Widens/narrows the detector band (e.g. bass B0 needs ~26 Hz). */
 export function setDetectorRange(range: PitchRange | null): void {
@@ -95,8 +98,10 @@ export function startAnalysisLoop(params: AnalysisLoopParams): void {
   displayedChord = null;
   lastChordCandidate = "";
   chordCandidateCount = 0;
+  keyTracker.reset();
   pitchRef.value = null;
   chordRef.value = null;
+  keyEstimateRef.value = null;
   chromaRef.value = null;
   levelRef.value = null;
   tickRef.value += 1;
@@ -115,8 +120,10 @@ export function stopAnalysisLoop(): void {
   latestPitch = null;
   latestSpectralPitch = null;
   displayedChord = null;
+  keyTracker.reset();
   pitchRef.value = null;
   chordRef.value = null;
+  keyEstimateRef.value = null;
   chromaRef.value = null;
   levelRef.value = null;
   tickRef.value += 1;
@@ -280,6 +287,9 @@ function renderLoop(now: number): void {
       latestChroma[i] = chromaSmooth[i];
     }
     chromaRef.value = latestChroma.slice();
+
+    keyTracker.push(latestChroma, now);
+    keyEstimateRef.value = keyTracker.estimate();
 
     const chordCandidate = detectChord(latestChroma);
     displayedChord = stabilizeChord(chordCandidate);

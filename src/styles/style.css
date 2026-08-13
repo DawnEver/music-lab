@@ -580,6 +580,77 @@
       font-weight: 650;
     }
 
+    .key-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin: 0 0 16px;
+    }
+
+    .key-select {
+      flex: 0 0 auto;
+      width: auto;
+      min-width: 132px;
+      height: 38px;
+      padding: 0 32px 0 12px;
+      font-size: 13px;
+      font-weight: 650;
+    }
+
+    .degree-display {
+      min-width: 0;
+      display: flex;
+      align-items: baseline;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .degree-key {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 650;
+      white-space: nowrap;
+    }
+
+    .degree-numeral {
+      font-size: 26px;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+    }
+
+    .degree-badges {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+
+    .degree-badge {
+      padding: 3px 8px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 650;
+      white-space: nowrap;
+    }
+
+    .degree-badge.is-diatonic {
+      color: rgb(94, 234, 212);
+      border-color: rgba(94, 234, 212, 0.35);
+    }
+
+    .degree-badge.is-chromatic,
+    .degree-badge.is-secondary {
+      color: rgb(251, 191, 36);
+      border-color: rgba(251, 191, 36, 0.35);
+    }
+
+    .degree-empty {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 650;
+    }
+
     .chroma {
       height: 122px;
       display: grid;

@@ -9,6 +9,7 @@
 
 import { reactive, ref } from "vue";
 import { clamp } from "../lib/dsp.js";
+import type { ModeKey } from "../lib/key.js";
 import { t } from "../composables/useI18n.js";
 import {
   FFT_SIZE,
@@ -34,6 +35,9 @@ export const audioStore = reactive({
   tuning: 440,
   gateDb: -52,
   stability: 0.72,
+  keyMode: "auto" as "auto" | "manual",
+  keyTonic: 0,
+  keyScale: "major" as ModeKey,
   isStarting: false,
   deviceId: "",
   devices: [] as AudioDevice[],
