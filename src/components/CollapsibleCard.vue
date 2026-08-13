@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { isOpen, toggle, type PanelId } from "../stores/panels.js";
+import { useI18n } from "../composables/useI18n.js";
 
 const props = defineProps<{
   panelId: PanelId;
@@ -10,6 +11,7 @@ const props = defineProps<{
 }>();
 
 const open = computed(() => isOpen(props.panelId));
+const { t } = useI18n();
 
 function onToggle(): void {
   toggle(props.panelId);
@@ -39,6 +41,7 @@ function onKeydown(event: KeyboardEvent): void {
         <!-- The badge is content state (waiting/0% match/FFT meta), so it
              collapses with the body instead of lingering in the header. -->
         <slot v-if="open" name="badge" />
+        <span v-if="!open" class="card-expand-hint">{{ t("panelExpandHint") }}</span>
         <span class="card-chevron" :class="{ 'is-open': open }" aria-hidden="true">▾</span>
       </div>
     </div>

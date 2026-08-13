@@ -123,7 +123,8 @@ export const messages: Record<Lang, Record<string, string>> = {
     degreeChromatic: "离调",
     degreeSecondary: "副属 {target}",
     degreeHarmonicVariant: "和声小调",
-    degreeWaiting: "识别到和弦后显示级数"
+    degreeWaiting: "识别到和弦后显示级数",
+    panelExpandHint: "点击展开"
   },
 
   en: {
@@ -240,7 +241,8 @@ export const messages: Record<Lang, Record<string, string>> = {
     degreeChromatic: "chromatic",
     degreeSecondary: "secondary dominant {target}",
     degreeHarmonicVariant: "harmonic minor",
-    degreeWaiting: "Scale degree appears once a chord is detected"
+    degreeWaiting: "Scale degree appears once a chord is detected",
+    panelExpandHint: "Click to expand"
   }
 };
 
