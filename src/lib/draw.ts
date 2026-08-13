@@ -11,6 +11,50 @@ import { frequencyToNote } from "./music-theory.js";
 export const SPECTRUM_MIN_HZ = 40;
 export const SPECTRUM_MAX_HZ = 12000;
 
+/** Canvas colors, per theme (mirrors tokens.css; canvas cannot read CSS vars directly). */
+interface SpectrumPalette {
+  axisText: string;
+  grid: string;
+  fill: [string, string, string];
+  stroke: [string, string, string];
+  glow: string;
+  pitchLine: string;
+  chipBg: string;
+  chipBorder: string;
+  chipText: string;
+}
+
+const DARK_PALETTE: SpectrumPalette = {
+  axisText: "rgba(148,163,184,0.56)",
+  grid: "rgba(148,163,184,0.105)",
+  fill: ["rgba(94,234,212,0.36)", "rgba(124,156,255,0.18)", "rgba(124,156,255,0.01)"],
+  stroke: ["#5eead4", "#7c9cff", "#c084fc"],
+  glow: "rgba(124,156,255,0.34)",
+  pitchLine: "rgba(255,255,255,0.65)",
+  chipBg: "rgba(15,23,42,0.9)",
+  chipBorder: "rgba(255,255,255,0.18)",
+  chipText: "rgba(248,250,252,0.92)"
+};
+
+const LIGHT_PALETTE: SpectrumPalette = {
+  axisText: "rgba(15,23,42,0.6)",
+  grid: "rgba(15,23,42,0.09)",
+  fill: ["rgba(13,148,136,0.24)", "rgba(79,95,213,0.13)", "rgba(79,95,213,0.02)"],
+  stroke: ["#0d9488", "#4f5fd5", "#9333ea"],
+  glow: "rgba(79,95,213,0.22)",
+  pitchLine: "rgba(15,23,42,0.5)",
+  chipBg: "rgba(255,255,255,0.94)",
+  chipBorder: "rgba(15,23,42,0.16)",
+  chipText: "rgba(15,23,42,0.92)"
+};
+
+function spectrumPalette(): SpectrumPalette {
+  return typeof document !== "undefined" &&
+    document.documentElement.dataset.theme === "light"
+    ? LIGHT_PALETTE
+    : DARK_PALETTE;
+}
+
 export interface SpectrumTarget {
   canvas: HTMLCanvasElement;
   wrap: HTMLElement;
@@ -34,7 +78,7 @@ export function clearSpectrumCanvas(canvas: HTMLCanvasElement, wrap: HTMLElement
   const ctx = canvas.getContext("2d");
   if (!ctx) return;
   ctx.clearRect(0, 0, canvas.width, canvas.height);
-  drawSpectrumGrid(ctx, canvas.width, canvas.height, null);
+  drawSpectrumGrid(ctx, canvas.width, canvas.height, null, spectrumPalette());
 }
 
 /** Map a frequency to an x position within the plot area on a log scale. */
@@ -46,7 +90,7 @@ export function frequencyToX(frequency: number, width: number, left: number, rig
 }
 
 /** Draw the log-frequency grid and dB reference lines. */
-export function drawSpectrumGrid(ctx: CanvasRenderingContext2D, width: number, height: number, maxFrequency: number | null): void {
+export function drawSpectrumGrid(ctx: CanvasRenderingContext2D, width: number, height: number, maxFrequency: number | null, palette: SpectrumPalette = spectrumPalette()): void {
   const dpr = clamp(window.devicePixelRatio || 1, 1, 2);
   const left = 52 * dpr;
   const right = 18 * dpr;
@@ -59,8 +103,8 @@ export function drawSpectrumGrid(ctx: CanvasRenderingContext2D, width: number, h
   ctx.lineWidth = 1 * dpr;
   ctx.font = `${9 * dpr}px ${getComputedStyle(document.documentElement).getPropertyValue("--font-mono")}`;
   ctx.textBaseline = "middle";
-  ctx.fillStyle = "rgba(148,163,184,0.56)";
-  ctx.strokeStyle = "rgba(148,163,184,0.105)";
+  ctx.fillStyle = palette.axisText;
+  ctx.strokeStyle = palette.grid;
 
   const frequencies = [50, 100, 200, 500, 1000, 2000, 5000, 10000];
   for (const frequency of frequencies) {
@@ -120,7 +164,8 @@ export function drawSpectrum(data: Float32Array, options: SpectrumDrawOptions): 
   const binHz = srate / fftSize;
 
   ctx.clearRect(0, 0, width, height);
-  drawSpectrumGrid(ctx, width, height, maxFrequency);
+  const palette = spectrumPalette();
+  drawSpectrumGrid(ctx, width, height, maxFrequency, palette);
 
   if (!data || !data.length) return;
 
@@ -165,14 +210,14 @@ export function drawSpectrum(data: Float32Array, options: SpectrumDrawOptions): 
   if (peakDb < -130) return;
 
   const fillGradient = ctx.createLinearGradient(0, top, 0, top + plotHeight);
-  fillGradient.addColorStop(0, "rgba(94,234,212,0.36)");
-  fillGradient.addColorStop(0.45, "rgba(124,156,255,0.18)");
-  fillGradient.addColorStop(1, "rgba(124,156,255,0.01)");
+  fillGradient.addColorStop(0, palette.fill[0]);
+  fillGradient.addColorStop(0.45, palette.fill[1]);
+  fillGradient.addColorStop(1, palette.fill[2]);
 
   const strokeGradient = ctx.createLinearGradient(left, 0, width - right, 0);
-  strokeGradient.addColorStop(0, "#5eead4");
-  strokeGradient.addColorStop(0.5, "#7c9cff");
-  strokeGradient.addColorStop(1, "#c084fc");
+  strokeGradient.addColorStop(0, palette.stroke[0]);
+  strokeGradient.addColorStop(0.5, palette.stroke[1]);
+  strokeGradient.addColorStop(1, palette.stroke[2]);
 
   ctx.save();
   ctx.beginPath();
@@ -190,7 +235,7 @@ export function drawSpectrum(data: Float32Array, options: SpectrumDrawOptions): 
   });
   ctx.lineWidth = 1.65 * dpr;
   ctx.strokeStyle = strokeGradient;
-  ctx.shadowColor = "rgba(124,156,255,0.34)";
+  ctx.shadowColor = palette.glow;
   ctx.shadowBlur = 9 * dpr;
   ctx.stroke();
   ctx.restore();
@@ -200,15 +245,6 @@ export function drawSpectrum(data: Float32Array, options: SpectrumDrawOptions): 
     const note = frequencyToNote(latestPitch.frequency, tuning);
 
     ctx.save();
-    ctx.strokeStyle = "rgba(255,255,255,0.65)";
-    ctx.lineWidth = 1 * dpr;
-    ctx.setLineDash([4 * dpr, 5 * dpr]);
-    ctx.beginPath();
-    ctx.moveTo(x, top);
-    ctx.lineTo(x, top + plotHeight);
-    ctx.stroke();
-    ctx.setLineDash([]);
-
     const label = `${note.name}${note.octave} · ${latestPitch.frequency.toFixed(1)} Hz`;
     ctx.font = `${10 * dpr}px ${getComputedStyle(document.documentElement).getPropertyValue("--font-mono")}`;
     const textWidth = ctx.measureText(label).width;
@@ -216,15 +252,29 @@ export function drawSpectrum(data: Float32Array, options: SpectrumDrawOptions): 
     const boxX = clamp(x - boxWidth / 2, left, width - right - boxWidth);
     const boxY = top + 8 * dpr;
 
-    ctx.fillStyle = "rgba(15,23,42,0.9)";
-    ctx.strokeStyle = "rgba(255,255,255,0.18)";
+    // Dashed marker starts below the chip so it never crosses the label.
+    ctx.strokeStyle = palette.pitchLine;
+    ctx.lineWidth = 1 * dpr;
+    ctx.beginPath();
+    ctx.moveTo(x, top);
+    ctx.lineTo(x, boxY);
+    ctx.stroke();
+    ctx.setLineDash([4 * dpr, 5 * dpr]);
+    ctx.beginPath();
+    ctx.moveTo(x, boxY + 28 * dpr);
+    ctx.lineTo(x, top + plotHeight);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    ctx.fillStyle = palette.chipBg;
+    ctx.strokeStyle = palette.chipBorder;
     ctx.lineWidth = 1 * dpr;
     ctx.beginPath();
     ctx.roundRect(boxX, boxY, boxWidth, 24 * dpr, 7 * dpr);
     ctx.fill();
     ctx.stroke();
 
-    ctx.fillStyle = "rgba(248,250,252,0.92)";
+    ctx.fillStyle = palette.chipText;
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     ctx.fillText(label, boxX + boxWidth / 2, boxY + 12 * dpr);

@@ -733,7 +733,7 @@
     }
 
     .chroma-col.is-root .chroma-bar {
-      background: linear-gradient(180deg, #ffffff, var(--accent));
+      background: linear-gradient(180deg, var(--text), var(--accent));
       box-shadow: 0 0 18px rgba(124,156,255,0.45);
     }
 
@@ -774,10 +774,7 @@
       border: 1px solid var(--line);
       border-radius: 20px;
       overflow: hidden;
-      /* Deliberately dark "oscilloscope screen" in both themes. */
-      background:
-        linear-gradient(180deg, rgba(124,156,255,0.035), rgba(5,9,20,0.38)),
-        #080d1c;
+      background: var(--screen);
     }
 
     #spectrumCanvas {
