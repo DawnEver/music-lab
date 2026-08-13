@@ -18,8 +18,9 @@
   - **自动识别模式**:演奏任意音,自动高亮最近的弦或孔位并跟随显示偏差
   - 点选目标模式:点选弦/孔位/压音位置,大表针跟踪该目标的偏差
 - 📊 实时对数频率频谱、主导音高(音名/八度/频率/置信度)、音准偏差表针
-- 🎼 和弦识别:大三/小三/减三/增三/sus2/sus4/五度/属七/大七/小七 + 色度能量图
+- 🎼 和弦识别:大三/小三/减三/增三/sus2/sus4/五度/属七/大七/小七 + 色度能量图;**级数标注**(罗马数字、调内/离调/副属/和声小变体),支持手动选调或 Krumhansl 自动估调
 - ⚙️ 可调 A4 基准音、噪声门与识别稳定度
+- 🌗 深色 / 浅色双主题,一键切换并记住选择
 - 🌐 中英双语界面,一键切换并记住选择;📱 响应式
 
 ## 快速开始 · Quick Start
@@ -73,12 +74,13 @@ tone-chord-lab/
 │   ├── main.ts             # 入口:router + vuetify + window.ToneChordLab 兼容 API
 │   ├── App.vue             # AppShell(顶栏 / 导航 / 页脚)
 │   ├── lib/                # 框架无关纯模块
-│   │   ├── music-theory.ts dsp.ts chord.ts i18n.ts draw.ts
+│   │   ├── music-theory.ts dsp.ts chord.ts key.ts i18n.ts draw.ts
 │   │   ├── analysis-loop.ts # rAF 分析循环 + Vue 响应桥
 │   │   └── format.ts
 │   ├── instruments/        # 乐器数据层(types / 注册表 / 8 个数据文件)
 │   ├── stores/audio.ts     # 音频会话 store(reactive 面 + 非响应式音频图)
-│   ├── composables/        # useAudio / useAnalysis / useI18n / useToast / useTuner
+│   ├── composables/        # useAudio / useAnalysis / useI18n / useTheme / useToast / useTuner
+│   ├── styles/             # tokens.css(深/浅双主题变量)+ style.css
 │   ├── components/         # AppShell / SourceBar / 各卡片 / tuner/ 面板
 │   └── views/              # AnalyzerView / TunerView(懒加载路由)
 ├── tests/                  # Vitest:算法 + 乐器数据逐音符校验
@@ -88,10 +90,11 @@ tone-chord-lab/
 ## 测试 · Tests
 
 ```bash
-npm test
+npm test        # Vitest 单元测试
+npm run smoke   # Playwright 冒烟(桌面+移动视口:布局、折叠、主题切换)
 ```
 
-覆盖:YIN 音高检测(含 B0/D6/A6 宽音域)、合成频谱主导音与色度、和弦识别、i18n 键集一致性、乐器数据逐音符/逐孔位断言(吉他 E2–E4、古筝 21 弦、古琴五调式、口琴 C/G 调与压音表、F4 优先级裁决)。
+覆盖:YIN 音高检测(含 B0/D6/A6 宽音域)、合成频谱主导音与色度、和弦识别、级数标注(C 大调/A 小调各级、副属 V/x、KeyTracker 滞后)、i18n 键集一致性、乐器数据逐音符/逐孔位断言(吉他 E2–E4、古筝 21 弦、古琴五调式、口琴 C/G 调与压音表、F4 优先级裁决)。
 
 ## 部署 · Deployment
 
