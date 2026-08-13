@@ -3,6 +3,7 @@ import { computed } from "vue";
 import { useI18n } from "../composables/useI18n.js";
 import SourceBar from "./SourceBar.vue";
 import LangToggle from "./LangToggle.vue";
+import ThemeToggle from "./ThemeToggle.vue";
 import StatusPill from "./StatusPill.vue";
 import Toaster from "./Toaster.vue";
 
@@ -31,6 +32,7 @@ const showSecureNotice = computed(
       <div class="topbar-tools">
         <SourceBar />
         <LangToggle />
+        <ThemeToggle />
         <StatusPill />
       </div>
     </header>

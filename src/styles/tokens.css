@@ -2,6 +2,7 @@
       color-scheme: dark;
       --bg: #070b16;
       --bg-soft: #0d1324;
+      --bg-gradient: linear-gradient(180deg, #080c18 0%, #060914 100%);
       --panel: rgba(16, 23, 42, 0.86);
       --panel-strong: rgba(19, 28, 50, 0.96);
       --line: rgba(148, 163, 184, 0.15);
@@ -16,9 +17,57 @@
       --warn: #fbbf24;
       --danger: #fb7185;
       --shadow: 0 24px 80px rgba(0, 0, 0, 0.34);
+      --shadow-sm: 0 4px 12px rgba(0, 0, 0, 0.3);
+      /* Neutral surface washes (theme-dependent; accent glows stay hardcoded). */
+      --grid-line: rgba(255, 255, 255, 0.018);
+      --glass: rgba(255, 255, 255, 0.025);
+      --glass-hover: rgba(255, 255, 255, 0.035);
+      --glass-strong: rgba(255, 255, 255, 0.055);
+      --sheen-1: rgba(255, 255, 255, 0.038);
+      --sheen-2: rgba(255, 255, 255, 0.008);
+      --inset-highlight: rgba(255, 255, 255, 0.09);
+      --inset-highlight-soft: rgba(255, 255, 255, 0.045);
+      --well: rgba(5, 9, 20, 0.28);
+      --well-soft: rgba(5, 9, 20, 0.22);
+      --spotlight: rgba(255, 255, 255, 0.72);
+      --spotlight-glow: rgba(255, 255, 255, 0.55);
       --radius-xl: 28px;
       --radius-lg: 22px;
       --radius-md: 16px;
       --radius-sm: 12px;
       --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+    }
+
+    :root[data-theme="light"] {
+      color-scheme: light;
+      --bg: #eef1f8;
+      --bg-soft: #ffffff;
+      --bg-gradient: linear-gradient(180deg, #f2f5fc 0%, #e8edf7 100%);
+      --panel: rgba(255, 255, 255, 0.88);
+      --panel-strong: rgba(255, 255, 255, 0.97);
+      --line: rgba(15, 23, 42, 0.1);
+      --line-strong: rgba(15, 23, 42, 0.22);
+      --text: #0f172a;
+      --muted: #52607a;
+      --muted-2: #70809b;
+      --accent: #4f5fd5;
+      --accent-2: #0d9488;
+      --accent-3: #9333ea;
+      --good: #059669;
+      --warn: #b45309;
+      --danger: #e11d48;
+      --shadow: 0 24px 80px rgba(15, 23, 42, 0.14);
+      --shadow-sm: 0 4px 12px rgba(15, 23, 42, 0.12);
+      --grid-line: rgba(15, 23, 42, 0.04);
+      --glass: rgba(15, 23, 42, 0.035);
+      --glass-hover: rgba(15, 23, 42, 0.055);
+      --glass-strong: rgba(15, 23, 42, 0.08);
+      --sheen-1: rgba(255, 255, 255, 0.55);
+      --sheen-2: rgba(255, 255, 255, 0.15);
+      --inset-highlight: rgba(255, 255, 255, 0.65);
+      --inset-highlight-soft: rgba(255, 255, 255, 0.35);
+      --well: rgba(15, 23, 42, 0.05);
+      --well-soft: rgba(15, 23, 42, 0.035);
+      --spotlight: rgba(15, 23, 42, 0.78);
+      --spotlight-glow: rgba(15, 23, 42, 0.22);
     }

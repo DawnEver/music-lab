@@ -29,10 +29,32 @@ const labDark: ThemeDefinition = {
   }
 };
 
+const labLight: ThemeDefinition = {
+  dark: false,
+  colors: {
+    background: "#eef1f8",
+    surface: "#ffffff",
+    "surface-variant": "#f2f5fc",
+    primary: "#4f5fd5",
+    secondary: "#0d9488",
+    tertiary: "#9333ea",
+    accent: "#4f5fd5",
+    success: "#059669",
+    warning: "#b45309",
+    error: "#e11d48",
+    info: "#4f5fd5",
+    "on-background": "#0f172a",
+    "on-surface": "#0f172a",
+    "on-primary": "#ffffff",
+    "on-secondary": "#ffffff",
+    muted: "#52607a"
+  }
+};
+
 export default createVuetify({
   theme: {
     defaultTheme: "labDark",
-    themes: { labDark }
+    themes: { labDark, labLight }
   },
   defaults: {
     VCard: { rounded: "lg", flat: true },

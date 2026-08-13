@@ -154,6 +154,23 @@ try {
   if (!brand.includes("Tuning Lab")) throw new Error(`expected English brand, got ${brand}`);
   console.log("✓ desktop: language switch to English works");
 
+  // Theme toggle flips data-theme and the body background follows.
+  const darkBg = await desktop.evaluate(
+    () => getComputedStyle(document.documentElement).backgroundColor
+  );
+  await desktop.click(".theme-toggle");
+  await desktop.waitForTimeout(200);
+  const themeAttr = await desktop.evaluate(() => document.documentElement.dataset.theme);
+  const lightBg = await desktop.evaluate(
+    () => getComputedStyle(document.documentElement).backgroundColor
+  );
+  if (themeAttr !== "light") throw new Error(`expected data-theme=light, got ${themeAttr}`);
+  if (darkBg === lightBg) throw new Error("theme toggle did not change the body background");
+  await assertNoHOverflow(desktop, "desktop light");
+  await desktop.click(".theme-toggle");
+  await desktop.waitForTimeout(200);
+  console.log("✓ desktop: theme toggle switches dark/light without overflow");
+
   // ---- Mobile ----
   const mobile = await browser.newPage({ viewport: { width: 375, height: 667 } });
   attachListeners(mobile, "mobile");
