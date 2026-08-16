@@ -12,7 +12,7 @@ const { t } = useI18n();
 const tuner = useTuner();
 const { pitch, tick } = useAnalysis();
 
-const { harmonicaCells, activeCell, autoMatch, autoMode, selectPosition } = tuner;
+const { harmonicaCells, activeCell, autoMatch, autoMode, selectPosition, clearSelection } = tuner;
 
 const expanded = ref<{ hole: number; breath: Breath } | null>(null);
 
@@ -92,12 +92,19 @@ function syncDisplays(): void {
   }
 }
 
+// Clicking a cell both expands its positions and pins it as the tuner
+// target (the plain note, position 0); clicking it again releases the
+// target back to auto-follow.
 function toggleCell(hole: number, breath: Breath): void {
   const current = expanded.value;
-  expanded.value =
-    current && current.hole === hole && current.breath === breath
-      ? null
-      : { hole, breath };
+  if (current && current.hole === hole && current.breath === breath) {
+    expanded.value = null;
+    clearSelection();
+  } else {
+    expanded.value = { hole, breath };
+    selectPosition(hole, breath, 0);
+  }
+  syncDisplays();
 }
 
 function positionKindText(kind: string, bendLevel?: number): string {

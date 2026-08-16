@@ -108,6 +108,12 @@ function selectPosition(hole: number, breath: Breath, positionIndex: number): vo
   activeString.value = null;
 }
 
+/** Drop the manual target and fall back to auto-follow. */
+function clearSelection(): void {
+  activeString.value = null;
+  activeCell.value = null;
+}
+
 function resetTargets(): void {
   activeString.value = null;
   activeCell.value = null;
@@ -134,7 +140,7 @@ watch(pitchRef, (pitch) => {
   const pr = preset.value;
   const confident = Boolean(pitch && pitch.confidence >= 0.35);
 
-  if (!confident || !instr || !pr) {
+  if (!confident || !instr || !pr || !autoMode.value) {
     autoString.value = null;
     autoMatch.value = null;
     return;
@@ -143,9 +149,6 @@ watch(pitchRef, (pitch) => {
   if (instr.layout === "strings") {
     const match = nearestString(pitch!.frequency, pr.notes, audioStore.tuning);
     autoString.value = match ? match.index : null;
-    if (match && activeString.value === null) {
-      activeString.value = match.index;
-    }
     return;
   }
 
@@ -159,9 +162,6 @@ watch(pitchRef, (pitch) => {
   );
   const positionIndex = cell ? cell.positions.indexOf(match.position) : -1;
   autoMatch.value = { ...match, positionIndex };
-  if (positionIndex >= 0 && activeCell.value === null) {
-    activeCell.value = { hole: match.hole, breath: match.breath, positionIndex, midi: match.position.midi };
-  }
 });
 
 /** The big-needle target: manual selection, else the auto-detected one. */
@@ -226,6 +226,7 @@ export function useTuner() {
     toggleAuto,
     selectString,
     selectPosition,
+    clearSelection,
     activateTuner,
     deactivateTuner
   };
