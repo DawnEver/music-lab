@@ -1,5 +1,5 @@
 /**
- * Headless smoke test: boots the app in Edge (Chromium) and walks the
+ * Headless smoke test: boots the app in a system Chromium browser and walks the
  * workbench on BOTH desktop and mobile viewports — collapsible panels,
  * horizontal tuner layout, instrument switching, harmonica positions,
  * i18n, and horizontal-overflow checks. Captures console/page errors.
@@ -10,7 +10,12 @@ import { chromium } from "playwright-core";
 
 const URL = process.env.SMOKE_URL ?? "http://localhost:5199";
 
-const browser = await chromium.launch({ channel: "msedge", headless: true });
+// playwright-core ships no browsers, so we drive a system-installed one.
+// Chrome by default; override with SMOKE_BROWSER=msedge on machines that
+// only have Edge.
+const CHANNEL = process.env.SMOKE_BROWSER ?? "chrome";
+
+const browser = await chromium.launch({ channel: CHANNEL, headless: true });
 const errors = [];
 
 function attachListeners(page, label) {
