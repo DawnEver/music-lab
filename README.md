@@ -1,8 +1,8 @@
 # 调音实验室 · Tuning Lab
 
-> 浏览器内的实时音高/和弦分析 + **多乐器调音器** — 吉他、贝斯、尤克里里、小提琴、二胡、古筝、古琴、布鲁斯口琴(含压音/超吹目标)。Vue 3 + Vuetify 构建,音频只在浏览器本地处理,**不会上传**。
+> 浏览器内的音乐练习工具台:**调音与分析** + **专业节拍器**。实时音高/和弦分析 + 多乐器调音器 — 吉他、贝斯、尤克里里、小提琴、二胡、古筝、古琴、布鲁斯口琴(含压音/超吹目标)。Vue 3 + Vuetify 构建,音频只在浏览器本地处理,**不会上传**。
 >
-> Real-time pitch & chord analysis plus a **multi-instrument per-note tuner** — guitar, bass, ukulele, violin, erhu, guzheng, guqin, and blues harmonica (with bend/overblow targets). Built with Vue 3 + Vuetify; audio never leaves your browser.
+> A browser music-practice workbench: **tuning & analysis** plus a **professional metronome**. Real-time pitch & chord analysis, a multi-instrument per-note tuner — guitar, bass, ukulele, violin, erhu, guzheng, guqin, and blues harmonica (with bend/overblow targets). Built with Vue 3 + Vuetify; audio never leaves your browser.
 
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Node](https://img.shields.io/badge/node-%3E%3D20-brightgreen)](#开发)
@@ -20,6 +20,14 @@
 - 📊 实时对数频率频谱、主导音高(音名/八度/频率/置信度)、音准偏差表针
 - 🎼 和弦识别:大三/小三/减三/增三/sus2/sus4/五度/属七/大七/小七 + 色度能量图;**级数标注**(罗马数字、调内/离调/副属/和声小变体),支持手动选调或 Krumhansl 自动估调
 - ⚙️ 可调 A4 基准音、噪声门与识别稳定度
+- 🥁 **节拍器**(`#/metronome`):Web Audio 时钟调度,不受主线程抖动影响
+  - **加法拍号模型**:拍号即分组 — 4/4、3/4、6/8 [3+3]、9/8、12/8、5/8 [2+3 / 3+2]、7/8 [2+2+3 / 2+3+2 / 3+2+2]、11/8 [3+3+3+2]、16 分母混合拍,支持自定义分组(如 `3+2+2`)
+  - **可编辑重音**:每个拍点在 强 / 次强 / 弱 / 静音 之间循环,分组首拍自动带次强
+  - **细分**:基本拍 / 八分 / 三连音 / 十六分 / 五连音 / 六连音 / 七连音
+  - **Swing**:在时间层实现,0% 平均 → 100% 三连音摇摆
+  - **复节奏**:2/3/4/5/7 均分小节的第二声部(3:2、4:3、5:4 …)
+  - **练习模式**:渐进提速(每 N 小节 +X BPM,带上限)、静音小节循环、随机静音
+  - 打拍取速(Tap)、六种音色(合成 / 电子 / 木鱼 / 响棒 / 牛铃 / 踩镲)、音量与设置持久化
 - 🌗 深色 / 浅色双主题,一键切换并记住选择
 - 🌐 中英双语界面,一键切换并记住选择;📱 响应式
 
@@ -28,7 +36,7 @@
 ```bash
 npm install
 npm run dev        # 开发服务器 → http://localhost:5173
-npm test           # Vitest 单元测试(43 项:算法 / 乐器数据逐音符校验)
+npm test           # Vitest 单元测试(算法 / 乐器数据 / 节拍器领域与调度)
 npm run build      # 类型检查 + 生产构建 → dist/
 ```
 
@@ -72,29 +80,44 @@ tone-chord-lab/
 ├── public/                 # favicon.ico / favicon.png
 ├── src/
 │   ├── main.ts             # 入口:router + vuetify + window.ToneChordLab 兼容 API
-│   ├── App.vue             # AppShell(顶栏 / 导航 / 页脚)
+│   ├── App.vue             # AppShell(顶栏 / 工具导航 / 页脚)
+│   ├── audio/              # 全应用唯一的 AudioContext
+│   │   ├── audio-engine.ts # 租约式获取:最后一个租约释放才关闭 context
+│   │   └── types.ts
 │   ├── lib/                # 框架无关纯模块
 │   │   ├── music-theory.ts dsp.ts chord.ts key.ts i18n.ts draw.ts
 │   │   ├── analysis-loop.ts # rAF 分析循环 + Vue 响应桥
 │   │   └── format.ts
 │   ├── instruments/        # 乐器数据层(types / 注册表 / 8 个数据文件)
-│   ├── stores/audio.ts     # 音频会话 store(reactive 面 + 非响应式音频图)
+│   ├── features/
+│   │   ├── tuning/         # 调音与分析工具(TuningView:输入条 + 分析面板)
+│   │   └── metronome/
+│   │       ├── domain/     # meter / accent / tempo / rhythm / practice / presets(纯函数)
+│   │       ├── engine/     # transport 接口 + native-transport / scheduler / click-engine / sound-bank
+│   │       ├── stores/     # metronome.ts(响应式状态 ↔ transport 接线)
+│   │       ├── components/ # Transport / Tempo / Meter / BeatGrid / Subdivision / Practice / Sound
+│   │       └── MetronomeView.vue
+│   ├── stores/             # audio.ts(输入会话)/ panels.ts(折叠状态)
 │   ├── composables/        # useAudio / useAnalysis / useI18n / useTheme / useToast / useTuner
 │   ├── styles/             # tokens.css(深/浅双主题变量)+ style.css
-│   ├── components/         # AppShell / SourceBar / 各卡片 / tuner/ 面板
-│   └── views/              # AnalyzerView / TunerView(懒加载路由)
-├── tests/                  # Vitest:算法 + 乐器数据逐音符校验
+│   ├── components/         # AppShell / ToolNav / SourceBar / 各卡片 / tuner/ 面板
+│   └── router/             # /tuner、/metronome(懒加载;/ 与 /analyzer 重定向)
+├── tests/                  # Vitest:算法 + 乐器数据 + 节拍器领域/调度
 └── vercel.json
+```
+
+三条边界是这次架构的核心:**AudioContext**(`src/audio`)、**工具**(`src/features/*` + 路由)、**节奏引擎**(domain 纯函数 → engine 调度 → store → UI)。节拍器只依赖 `Transport` 接口,日后换成 Tone.js Transport 不需要改任何业务代码。
+
 ```
 
 ## 测试 · Tests
 
 ```bash
 npm test        # Vitest 单元测试
-npm run smoke   # Playwright 冒烟(桌面+移动视口:布局、折叠、主题切换)
+npm run smoke   # Playwright 冒烟(桌面+移动视口:布局、折叠、主题切换、工具路由、节拍器)
 ```
 
-覆盖:YIN 音高检测(含 B0/D6/A6 宽音域)、合成频谱主导音与色度、和弦识别、级数标注(C 大调/A 小调各级、副属 V/x、KeyTracker 滞后)、i18n 键集一致性、乐器数据逐音符/逐孔位断言(吉他 E2–E4、古筝 21 弦、古琴五调式、口琴 C/G 调与压音表、F4 优先级裁决)。
+覆盖:YIN 音高检测(含 B0/D6/A6 宽音域)、合成频谱主导音与色度、和弦识别、级数标注(C 大调/A 小调各级、副属 V/x、KeyTracker 滞后)、i18n 键集一致性、乐器数据逐音符/逐孔位断言(吉他 E2–E4、古筝 21 弦、古琴五调式、口琴 C/G 调与压音表、F4 优先级裁决);节拍器领域(7/8 [2,2,3] 产生 7 个 pulse、6/8 在第 1/4 个八分音符重音、120 BPM 四分音符严格 0.5s、三连音偏移、swing 0%/100%、3:2 复节奏、练习模式逐小节计划)与前瞻调度器(仅调度 horizon 内的事件、跨小节间隔恒定、停止后不再排程)。
 
 ## 部署 · Deployment
 
@@ -108,6 +131,7 @@ npm run build && vercel
 
 - **八度命名**:采用严格科学音高记谱(SPN),midi 23 显示为 B0(五弦贝斯低音弦常称 B1,同音高)。
 - **乐器调音**:一次只演奏一个音;扫弦/和弦输入会交给和弦识别,调音器按主音处理。
+- **节拍精度**:JS 定时器只负责"提前把未来 100ms 的事件排进去",真正的发声时间来自 `AudioContext.currentTime`;UI 高亮由 rAF 反向跟随音频时钟,Vue 永远不驱动发声。
 - **古琴调式**:默认十二平均律;古琴传统用纯律/五度相生调弦,偏差通常小于 5 cent,后续可扩展律制支持。
 - 产物自包含、无运行时 CDN;依赖仅 `vue` / `vue-router` / `vuetify` / `@mdi/font`。
 

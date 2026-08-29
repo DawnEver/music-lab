@@ -1,6 +1,6 @@
 /**
- * Headless smoke test: boots the app in a system Chromium browser and walks the
- * workbench on BOTH desktop and mobile viewports — collapsible panels,
+ * Headless smoke test: boots the app in a system Chromium browser and walks
+ * both tools (tuning workbench + metronome) on BOTH desktop and mobile viewports — collapsible panels,
  * horizontal tuner layout, instrument switching, harmonica positions,
  * i18n, and horizontal-overflow checks. Captures console/page errors.
  * Run:  npm run dev   then   node scripts/smoke.mjs
@@ -31,6 +31,66 @@ async function assertNoHOverflow(page, label) {
     () => document.documentElement.scrollWidth - window.innerWidth
   );
   if (overflow > 1) throw new Error(`${label}: horizontal overflow of ${overflow}px`);
+}
+
+/** Every tool page is reached through the shell nav, never a deep link only. */
+async function gotoTool(page, tool) {
+  await page.click(`[data-tool-link="${tool}"]`);
+  await page.waitForSelector(`[data-tool="${tool}"]`, { timeout: 8000 });
+}
+
+async function walkMetronome(page, label) {
+  await gotoTool(page, "metronome");
+
+  const pulses = await page.locator(".metro-beat").count();
+  if (pulses !== 4) throw new Error(`${label}: expected a 4/4 grid, got ${pulses} beats`);
+
+  // 7/8 (2+2+3) must render 7 beats in 3 visually separate groups.
+  await page.click('.metro-chip:text-is("7/8 (2+2+3)")');
+  await page.waitForTimeout(150);
+  if ((await page.locator(".metro-beat").count()) !== 7) {
+    throw new Error(`${label}: 7/8 should render 7 beats`);
+  }
+  if ((await page.locator(".metro-group").count()) !== 3) {
+    throw new Error(`${label}: 7/8 (2+2+3) should render 3 groups`);
+  }
+  console.log(`✓ ${label}: metronome renders 7/8 as 2+2+3`);
+
+  // Clicking a beat cycles its accent.
+  const before = await page.locator(".metro-beat").nth(1).getAttribute("class");
+  await page.locator(".metro-beat").nth(1).click();
+  await page.waitForTimeout(120);
+  const after = await page.locator(".metro-beat").nth(1).getAttribute("class");
+  if (before === after) throw new Error(`${label}: clicking a beat should cycle its accent`);
+  console.log(`✓ ${label}: beat click edits the accent`);
+
+  // Start/stop drives the audio clock and the running highlight.
+  await page.click(".metro-play");
+  await page.waitForSelector(".metro-play.is-running", { timeout: 5000 });
+  await page.waitForSelector(".metro-beat.is-active", { timeout: 5000 });
+  await page.click(".metro-play");
+  await page.waitForTimeout(200);
+  if ((await page.locator(".metro-play.is-running").count()) !== 0) {
+    throw new Error(`${label}: metronome should stop`);
+  }
+  console.log(`✓ ${label}: transport starts, highlights beats, and stops`);
+
+  // Custom additive grouping.
+  await page.fill(".metro-input", "3+2+2");
+  await page.click('.metro-chips .metro-chip.is-action, .metro-groups-row .metro-chip.is-action');
+  await page.waitForTimeout(150);
+  if ((await page.locator(".metro-beat").count()) !== 7) {
+    throw new Error(`${label}: custom grouping 3+2+2 should render 7 beats`);
+  }
+  console.log(`✓ ${label}: custom grouping applies`);
+
+  // The mic picker must not follow the user into the metronome.
+  if ((await page.locator(".source-actions").count()) !== 0) {
+    throw new Error(`${label}: the audio source bar should stay in the tuning tool`);
+  }
+
+  await assertNoHOverflow(page, `${label} metronome`);
+  await gotoTool(page, "tuning");
 }
 
 async function walkWorkbench(page, label) {
@@ -146,11 +206,11 @@ try {
   }
   console.log("✓ desktop: tuner stretches horizontally (needle | panel side by side)");
 
-  // No nav pills anymore (single interface).
-  if ((await desktop.locator(".app-nav").count()) !== 0) {
-    throw new Error("desktop: navigation should be removed");
+  // Tool-level navigation: one shell, several music tools.
+  if ((await desktop.locator(".tool-nav-link").count()) !== 2) {
+    throw new Error("desktop: expected tuning + metronome nav links");
   }
-  console.log("✓ desktop: single interface (no nav)");
+  console.log("✓ desktop: shell exposes both tools");
 
   // Language switch updates the brand.
   await desktop.click(".lang-toggle button[data-lang='en']");
@@ -176,6 +236,8 @@ try {
   await desktop.waitForTimeout(200);
   console.log("✓ desktop: theme toggle switches dark/light without overflow");
 
+  await walkMetronome(desktop, "desktop");
+
   // ---- Mobile ----
   const mobile = await browser.newPage({ viewport: { width: 375, height: 667 } });
   attachListeners(mobile, "mobile");
@@ -190,6 +252,8 @@ try {
     throw new Error("mobile: needle should stack above the panel below 900px");
   }
   console.log("✓ mobile: tuner falls back to a single column");
+
+  await walkMetronome(mobile, "mobile");
 
   await mobile.close();
   await desktop.close();

@@ -11,6 +11,8 @@ import { reactive, ref } from "vue";
 import { clamp } from "../lib/dsp.js";
 import type { ModeKey } from "../lib/key.js";
 import { t } from "../composables/useI18n.js";
+import { acquireAudio } from "../audio/audio-engine.js";
+import type { AudioEngineHandle } from "../audio/types.js";
 import {
   FFT_SIZE,
   startAnalysisLoop,
@@ -60,6 +62,7 @@ export function showToast(message: string): void {
 
 // --- Non-reactive audio graph internals ---
 
+let lease: AudioEngineHandle | null = null;
 let ctx: AudioContext | null = null;
 let analyser: AnalyserNode | null = null;
 let sourceNode: AudioNode | null = null;
@@ -100,15 +103,12 @@ export function updateSettings(tuning: number, gateDb: number, stability: number
 }
 
 async function createAudioGraph(mode: "mic" | "file"): Promise<void> {
-  const AudioContextClass =
-    window.AudioContext ||
-    (window as Window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
-  if (!AudioContextClass) {
+  try {
+    lease = await acquireAudio();
+  } catch (_) {
     throw new Error(t("errWebAudio"));
   }
-
-  ctx = new AudioContextClass({ latencyHint: "interactive" });
-  await ctx.resume();
+  ctx = lease.context;
 
   analyser = ctx.createAnalyser();
   analyser.fftSize = FFT_SIZE;
@@ -116,10 +116,12 @@ async function createAudioGraph(mode: "mic" | "file"): Promise<void> {
   analyser.maxDecibels = -10;
   analyser.smoothingTimeConstant = clamp(audioStore.stability, 0.2, 0.92);
 
+  // Monitoring gain: silent for the mic (no feedback loop), audible for
+  // file playback. It joins the shared master bus, not `destination`.
   outputGain = ctx.createGain();
   outputGain.gain.value = mode === "mic" ? 0 : 0.92;
   analyser.connect(outputGain);
-  outputGain.connect(ctx.destination);
+  outputGain.connect(lease.master);
 
   audioStore.sampleRate = ctx.sampleRate;
 }
@@ -312,12 +314,11 @@ async function stopAudio(resetUi = true): Promise<void> {
   analyser = null;
   outputGain = null;
 
-  if (ctx && ctx.state !== "closed") {
-    try {
-      await ctx.close();
-    } catch (_) {
-      // Ignore race errors when closing.
-    }
+  // The context belongs to the engine: drop the lease instead of closing
+  // it, so a metronome running alongside the tuner keeps its clock.
+  if (lease) {
+    lease.release();
+    lease = null;
   }
   ctx = null;
 

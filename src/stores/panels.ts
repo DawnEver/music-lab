@@ -8,7 +8,18 @@ import { reactive } from "vue";
 
 const STORAGE_KEY = "tcl-panels";
 
-export const PANEL_IDS = ["tuner", "pitch", "chord", "spectrum", "settings"] as const;
+export const PANEL_IDS = [
+  "tuner",
+  "pitch",
+  "chord",
+  "spectrum",
+  "settings",
+  "metroTempo",
+  "metroMeter",
+  "metroRhythm",
+  "metroPractice",
+  "metroSound"
+] as const;
 export type PanelId = (typeof PANEL_IDS)[number];
 
 const DEFAULT_OPEN: Record<PanelId, boolean> = {
@@ -16,7 +27,12 @@ const DEFAULT_OPEN: Record<PanelId, boolean> = {
   pitch: true,
   chord: true,
   spectrum: true,
-  settings: true
+  settings: true,
+  metroTempo: true,
+  metroMeter: true,
+  metroRhythm: true,
+  metroPractice: true,
+  metroSound: true
 };
 
 function load(): Record<PanelId, boolean> {
