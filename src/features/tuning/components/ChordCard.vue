@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import { computed } from "vue";
-import { useAnalysis } from "../composables/useAnalysis.js";
+import { useAnalysis } from "../../../composables/useAnalysis.js";
 import { audioStore } from "../stores/audio.js";
-import { useI18n } from "../composables/useI18n.js";
-import { NOTE_NAMES } from "../lib/music-theory.js";
-import { degreeOf, type Key, type ModeKey } from "../lib/key.js";
-import CollapsibleCard from "./CollapsibleCard.vue";
+import { useI18n } from "../../../composables/useI18n.js";
+import { NOTE_NAMES } from "../../../lib/music-theory.js";
+import { degreeOf, type Key, type ModeKey } from "../../../lib/key.js";
+import CollapsibleCard from "../../../shared/components/CollapsibleCard.vue";
 import ChromaBars from "./ChromaBars.vue";
 
 const { chord, keyEstimate } = useAnalysis();

@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { computed } from "vue";
-import { useAnalysis } from "../composables/useAnalysis.js";
-import { useI18n } from "../composables/useI18n.js";
-import { clamp } from "../lib/dsp.js";
+import { useAnalysis } from "../../../composables/useAnalysis.js";
+import { useI18n } from "../../../composables/useI18n.js";
+import { clamp } from "../../../lib/dsp.js";
 
 const { level } = useAnalysis();
 const { t } = useI18n();

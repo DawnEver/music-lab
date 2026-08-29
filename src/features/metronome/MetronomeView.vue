@@ -5,7 +5,7 @@
  */
 import { onBeforeUnmount } from "vue";
 import { useI18n } from "../../composables/useI18n.js";
-import CollapsibleCard from "../../components/CollapsibleCard.vue";
+import CollapsibleCard from "../../shared/components/CollapsibleCard.vue";
 import TransportControl from "./components/TransportControl.vue";
 import TempoControl from "./components/TempoControl.vue";
 import MeterSelector from "./components/MeterSelector.vue";

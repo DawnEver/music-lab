@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { audioStore, updateSettings } from "../stores/audio.js";
-import { useI18n } from "../composables/useI18n.js";
-import CollapsibleCard from "./CollapsibleCard.vue";
+import { useI18n } from "../../../composables/useI18n.js";
+import CollapsibleCard from "../../../shared/components/CollapsibleCard.vue";
 
 const { t } = useI18n();
 

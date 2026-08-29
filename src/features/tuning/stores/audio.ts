@@ -8,17 +8,17 @@
  */
 
 import { reactive, ref } from "vue";
-import { clamp } from "../lib/dsp.js";
-import type { ModeKey } from "../lib/key.js";
-import { t } from "../composables/useI18n.js";
-import { acquireAudio } from "../audio/audio-engine.js";
-import type { AudioEngineHandle } from "../audio/types.js";
+import { clamp } from "../../../lib/dsp.js";
+import type { ModeKey } from "../../../lib/key.js";
+import { t } from "../../../composables/useI18n.js";
+import { acquireAudio } from "../../../audio/audio-engine.js";
+import type { AudioEngineHandle } from "../../../audio/types.js";
 import {
   FFT_SIZE,
   startAnalysisLoop,
   stopAnalysisLoop,
   type AnalysisLoopParams
-} from "../lib/analysis-loop.js";
+} from "../../../lib/analysis-loop.js";
 
 export type SourceMode = "idle" | "mic" | "file";
 

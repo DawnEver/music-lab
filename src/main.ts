@@ -14,7 +14,7 @@ import { initTheme } from "./composables/useTheme.js";
 import { detectPitchYin, analyzeSpectrum } from "./lib/dsp.js";
 import { detectChord } from "./lib/chord.js";
 import { frequencyToNote } from "./lib/music-theory.js";
-import { cleanup, populateDevices } from "./stores/audio.js";
+import { cleanup, populateDevices } from "./features/tuning/stores/audio.js";
 import "./styles/tokens.css";
 import "./styles/style.css";
 

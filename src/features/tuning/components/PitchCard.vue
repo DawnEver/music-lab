@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import { computed } from "vue";
-import { useAnalysis } from "../composables/useAnalysis.js";
-import { useI18n } from "../composables/useI18n.js";
+import { useAnalysis } from "../../../composables/useAnalysis.js";
+import { useI18n } from "../../../composables/useI18n.js";
 import { audioStore } from "../stores/audio.js";
-import { frequencyToNote } from "../lib/music-theory.js";
-import { clamp } from "../lib/dsp.js";
-import CollapsibleCard from "./CollapsibleCard.vue";
+import { frequencyToNote } from "../../../lib/music-theory.js";
+import { clamp } from "../../../lib/dsp.js";
+import CollapsibleCard from "../../../shared/components/CollapsibleCard.vue";
 import CentsGauge from "./CentsGauge.vue";
 
 const { pitch } = useAnalysis();

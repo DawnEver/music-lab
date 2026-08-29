@@ -1,7 +1,7 @@
 <script setup lang="ts">
 /** Top-level tool switcher — one Shell, many music tools. */
-import { useI18n } from "../composables/useI18n.js";
-import { TOOLS } from "../router/index.js";
+import { useI18n } from "../../composables/useI18n.js";
+import { TOOLS } from "../../router/index.js";
 
 const { t } = useI18n();
 </script>

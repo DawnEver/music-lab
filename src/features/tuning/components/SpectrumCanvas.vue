@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { onBeforeUnmount, onMounted, ref } from "vue";
-import { useAnalysis } from "../composables/useAnalysis.js";
-import { clearSpectrumCanvas } from "../lib/draw.js";
+import { useAnalysis } from "../../../composables/useAnalysis.js";
+import { clearSpectrumCanvas } from "../../../lib/draw.js";
 
 const { spectrumTargets } = useAnalysis();
 

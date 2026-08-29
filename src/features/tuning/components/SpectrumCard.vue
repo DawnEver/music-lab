@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { audioStore } from "../stores/audio.js";
-import { useI18n } from "../composables/useI18n.js";
-import CollapsibleCard from "./CollapsibleCard.vue";
+import { useI18n } from "../../../composables/useI18n.js";
+import CollapsibleCard from "../../../shared/components/CollapsibleCard.vue";
 import SpectrumCanvas from "./SpectrumCanvas.vue";
 import LevelMeter from "./LevelMeter.vue";
 

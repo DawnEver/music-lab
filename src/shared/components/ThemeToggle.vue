@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { useTheme } from "../composables/useTheme.js";
-import { useI18n } from "../composables/useI18n.js";
+import { useTheme } from "../../composables/useTheme.js";
+import { useI18n } from "../../composables/useI18n.js";
 
 const { theme, toggleTheme } = useTheme();
 const { t } = useI18n();

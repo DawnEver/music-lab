@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { onMounted, ref, watch } from "vue";
-import { NOTE_NAMES } from "../lib/music-theory.js";
-import { clamp } from "../lib/dsp.js";
-import { useAnalysis } from "../composables/useAnalysis.js";
-import { useI18n } from "../composables/useI18n.js";
+import { NOTE_NAMES } from "../../../lib/music-theory.js";
+import { clamp } from "../../../lib/dsp.js";
+import { useAnalysis } from "../../../composables/useAnalysis.js";
+import { useI18n } from "../../../composables/useI18n.js";
 
 const { chroma, chord, tick } = useAnalysis();
 const { t } = useI18n();

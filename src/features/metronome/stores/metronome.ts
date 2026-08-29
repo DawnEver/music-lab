@@ -41,7 +41,6 @@ export interface MetronomeState {
   running: boolean;
   /** BPM actually sounding — differs from `bpm` while the ramp runs. */
   effectiveBpm: number;
-  countIn: boolean;
 }
 
 function initialState(): MetronomeState {
@@ -58,8 +57,7 @@ function initialState(): MetronomeState {
     volume: 0.8,
     practice: defaultPractice(),
     running: false,
-    effectiveBpm: 120,
-    countIn: false
+    effectiveBpm: 120
   };
 }
 
@@ -80,7 +78,6 @@ function load(): MetronomeState {
     if (typeof saved.polyrhythm === "number") state.polyrhythm = saved.polyrhythm;
     if (typeof saved.bankId === "string") state.bankId = saved.bankId;
     if (typeof saved.volume === "number") state.volume = saved.volume;
-    if (typeof saved.countIn === "boolean") state.countIn = saved.countIn;
     if (saved.practice) state.practice = { ...state.practice, ...saved.practice };
   } catch (_) {
     // Corrupted storage falls back to defaults.

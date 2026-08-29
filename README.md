@@ -90,17 +90,19 @@ tone-chord-lab/
 │   │   └── format.ts
 │   ├── instruments/        # 乐器数据层(types / 注册表 / 8 个数据文件)
 │   ├── features/
-│   │   ├── tuning/         # 调音与分析工具(TuningView:输入条 + 分析面板)
+│   │   ├── tuning/         # 调音与分析工具
+│   │   │   ├── components/ # SourceBar / StatusPill / 各分析卡片 / tuner 面板
+│   │   │   ├── stores/audio.ts # 输入会话(reactive 面 + 非响应式音频图)
+│   │   │   └── TuningView.vue
 │   │   └── metronome/
 │   │       ├── domain/     # meter / accent / tempo / rhythm / practice / presets(纯函数)
 │   │       ├── engine/     # transport 接口 + native-transport / scheduler / click-engine / sound-bank
 │   │       ├── stores/     # metronome.ts(响应式状态 ↔ transport 接线)
 │   │       ├── components/ # Transport / Tempo / Meter / BeatGrid / Subdivision / Practice / Sound
 │   │       └── MetronomeView.vue
-│   ├── stores/             # audio.ts(输入会话)/ panels.ts(折叠状态)
+│   ├── shared/             # 跨工具复用:AppShell / ToolNav / 主题语言开关 / CollapsibleCard / panels store
 │   ├── composables/        # useAudio / useAnalysis / useI18n / useTheme / useToast / useTuner
 │   ├── styles/             # tokens.css(深/浅双主题变量)+ style.css
-│   ├── components/         # AppShell / ToolNav / SourceBar / 各卡片 / tuner/ 面板
 │   └── router/             # /tuner、/metronome(懒加载;/ 与 /analyzer 重定向)
 ├── tests/                  # Vitest:算法 + 乐器数据 + 节拍器领域/调度
 └── vercel.json

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { isOpen, toggle, type PanelId } from "../stores/panels.js";
-import { useI18n } from "../composables/useI18n.js";
+import { useI18n } from "../../composables/useI18n.js";
 
 const props = defineProps<{
   panelId: PanelId;

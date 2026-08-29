@@ -1,12 +1,12 @@
 <script setup lang="ts">
 import { reactive, ref, watch } from "vue";
-import { midiToFrequency, NOTE_NAMES } from "../../lib/music-theory.js";
-import { formatCents } from "../../lib/format.js";
-import { useAnalysis } from "../../composables/useAnalysis.js";
-import { useI18n } from "../../composables/useI18n.js";
-import { useTuner } from "../../composables/useTuner.js";
-import { stringStatus, type Breath, type HarmonicaCell, type StringStatus } from "../../instruments/index.js";
-import { audioStore } from "../../stores/audio.js";
+import { midiToFrequency, NOTE_NAMES } from "../../../lib/music-theory.js";
+import { formatCents } from "../../../lib/format.js";
+import { useAnalysis } from "../../../composables/useAnalysis.js";
+import { useI18n } from "../../../composables/useI18n.js";
+import { useTuner } from "../../../composables/useTuner.js";
+import { stringStatus, type Breath, type HarmonicaCell, type StringStatus } from "../../../instruments/index.js";
+import { audioStore } from "../stores/audio.js";
 
 const { t } = useI18n();
 const tuner = useTuner();

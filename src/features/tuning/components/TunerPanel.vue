@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { onBeforeUnmount, onMounted } from "vue";
-import { useI18n } from "../../composables/useI18n.js";
-import { useTuner } from "../../composables/useTuner.js";
-import CollapsibleCard from "../CollapsibleCard.vue";
+import { useI18n } from "../../../composables/useI18n.js";
+import { useTuner } from "../../../composables/useTuner.js";
+import CollapsibleCard from "../../../shared/components/CollapsibleCard.vue";
 import InstrumentSelect from "./InstrumentSelect.vue";
 import TunerBigNeedle from "./TunerBigNeedle.vue";
 import StringsPanel from "./StringsPanel.vue";

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
-import { clamp } from "../lib/dsp.js";
-import { useI18n } from "../composables/useI18n.js";
+import { clamp } from "../../../lib/dsp.js";
+import { useI18n } from "../../../composables/useI18n.js";
 import TunerNeedle from "./TunerNeedle.vue";
 
 /**
