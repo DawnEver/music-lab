@@ -98,7 +98,7 @@ tone-chord-lab/
 │   │   │   └── TuningView.vue
 │   │   └── metronome/
 │   │       ├── domain/     # meter / accent / tempo / rhythm / practice / presets(纯函数)
-│   │       ├── engine/     # transport 接口 + native-transport / scheduler / click-engine / sound-bank
+│   │       ├── engine/     # transport 接口 + native-transport / scheduler / bar-cursor / click-engine / sound-bank
 │   │       ├── stores/     # metronome.ts(响应式状态 ↔ transport 接线)
 │   │       ├── components/ # Transport / Tempo / Meter / BeatGrid / Subdivision / Practice / Sound
 │   │       └── MetronomeView.vue

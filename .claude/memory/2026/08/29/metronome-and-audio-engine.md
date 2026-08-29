@@ -1,6 +1,6 @@
 ---
 name: metronome-and-audio-engine
-description: V2.1–V2.7 升级 — 共享 AudioEngine、工具级路由、节拍器(加法拍号/重音/细分/swing/复节奏/练习模式)与前瞻调度器
+description: 共享 AudioEngine 租约、工具级路由、节拍器(加法拍号/重音/细分/swing/复节奏/练习模式);单屏"读数即控件"UI;逐事件调度让编辑下一个点即生效
 metadata:
   type: project
 ---
@@ -18,7 +18,7 @@ metadata:
   - `tempo.ts`:`pulseSeconds = (60/bpm) * (beatUnit/denominator)`;tap tempo 丢弃 >3s 的陈旧点击。
   - `rhythm.ts`:编译器 meter+accents+subdivision(+swing/polyrhythm)→ 排序的小节内事件。**swing 在时间层**:`(index + swing/3)/divisions`,swing=1 时八分对变 2/3+1/3;odd divisions 不摇摆。polyrhythm 是均分小节的第二 voice。
   - `practice.ts`:逐小节纯计划(渐进提速 / 静音小节循环 / 随机静音),随机数注入 → 可单测。
-- **engine**:`Transport` 接口 + `native-transport.ts`;`scheduler.ts` 为 MDN 前瞻调度器(clock/timer 注入,lookAhead 25ms / horizon 100ms)。**按事件而非按小节出队** — 一小节常比 horizon 长,按小节粒度会让变速和停止延迟整整一小节(第一版就踩到了,测试直接抓出)。`click-engine.ts` 振荡器+指数包络(hi-hat 用一次性噪声 buffer),`sound-bank.ts` 纯数据 6 种音色。
+- **engine**:`Transport` 接口 + `native-transport.ts`;`scheduler.ts` 为 MDN 前瞻调度器(clock/timer 注入,lookAhead 25ms / horizon 100ms)。**按事件而非按小节出队** — 一小节常比 horizon 长,按小节粒度会让变速和停止延迟整整一小节(第一版就踩到了,测试直接抓出)。⚠️ 这一轮只修了*出队*粒度,*编译*仍按小节冻结 `pulseSeconds` — 真正的响应延迟到迭代 3 才根治。`click-engine.ts` 振荡器+指数包络(hi-hat 用一次性噪声 buffer),`sound-bank.ts` 纯数据 6 种音色。
 - **UI**:`activeBeat` 由 rAF 从 `transport.currentAt(now)` 反向拉取 — 音频是主时钟,Vue 从不触发发声。
 - **目录**:`features/{tuning,metronome}` + `shared/`;`stores/audio.ts` → `features/tuning/stores/`,AppShell/ToolNav/toggles/CollapsibleCard/panels → `shared/`。
 
