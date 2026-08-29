@@ -9,23 +9,19 @@
 import { acquireAudio } from "../../../audio/audio-engine.js";
 import type { AudioEngineHandle } from "../../../audio/types.js";
 import type { RhythmPattern } from "../domain/rhythm.js";
-import { compileBar } from "../domain/rhythm.js";
-import { meterPulses } from "../domain/meter.js";
+import type { Meter } from "../domain/meter.js";
+import { createBarCursor, type BarPlan } from "./bar-cursor.js";
 import { createClickEngine, type ClickEngine } from "./click-engine.js";
 import { createScheduler, type Scheduler } from "./scheduler.js";
 import type { ClickTransport, ScheduledBeat } from "./transport.js";
 
-export interface BarRequest {
-  pattern: RhythmPattern;
-  /** Duration of one meter pulse, in seconds. */
-  pulseSeconds: number;
-  /** Whole-bar mute (practice mode) — still emitted so the UI can count. */
-  silent: boolean;
-}
-
 export interface NativeTransportOptions {
-  /** Called once per bar; may vary tempo or mute for practice mode. */
-  requestBar(barIndex: number): BarRequest;
+  /** Once per bar: locks the bar's meter and applies practice mode. */
+  startBar(barIndex: number): BarPlan;
+  /** Live pattern; read per event so edits land on the next click. */
+  pattern(): RhythmPattern;
+  /** Live pulse length for the given bar meter; read per event. */
+  pulseSeconds(meter: Meter): number;
   /** Notified for every scheduled beat, for the beat-grid display. */
   onSchedule?(beat: ScheduledBeat, silent: boolean): void;
   bankId?: string;
@@ -39,28 +35,22 @@ export function createNativeTransport(options: NativeTransportOptions): ClickTra
   let running = false;
   let bankId = options.bankId ?? "synth";
   let volume = options.volume ?? 0.8;
-  const silentBars = new Set<number>();
 
   function buildScheduler(context: AudioContext): Scheduler {
+    const cursor = createBarCursor({
+      startBar: options.startBar,
+      pattern: options.pattern,
+      pulseSeconds: options.pulseSeconds
+    });
+
     return createScheduler({
       clock: {
         now: () => context.currentTime,
         setTimer: (callback, ms) => window.setTimeout(callback, ms),
         clearTimer: (id) => window.clearTimeout(id)
       },
-      source: {
-        nextBar(barIndex) {
-          const request = options.requestBar(barIndex);
-          if (request.silent) silentBars.add(barIndex);
-          else silentBars.delete(barIndex);
-          return {
-            events: compileBar(request.pattern, request.pulseSeconds),
-            duration: request.pulseSeconds * meterPulses(request.pattern.meter)
-          };
-        }
-      },
-      onEvent(beat) {
-        const silent = silentBars.has(beat.barIndex);
+      source: cursor,
+      onEvent(beat, silent) {
         if (!silent) clicks?.play(beat.event.accent, beat.time, beat.event.voice);
         options.onSchedule?.(beat, silent);
       }
@@ -85,7 +75,6 @@ export function createNativeTransport(options: NativeTransportOptions): ClickTra
       running = false;
       scheduler?.stop();
       scheduler = null;
-      silentBars.clear();
       clicks?.dispose();
       clicks = null;
       lease?.release();

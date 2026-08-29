@@ -122,15 +122,20 @@ export function tempo(): Tempo {
   return { bpm: metronome.effectiveBpm || metronome.bpm, beatUnit: metronome.beatUnit };
 }
 
-function requestBar(barIndex: number) {
+/**
+ * Once per bar: practice mode picks this bar's tempo and whether it is
+ * silent, and the bar's meter is locked in. Its dice are rolled here, not
+ * per event.
+ */
+function startBar(barIndex: number) {
   const plan = practiceForBar(metronome.practice, barIndex, metronome.bpm, Math.random);
   metronome.effectiveBpm = plan.bpm;
-  const activeTempo: Tempo = { bpm: plan.bpm, beatUnit: metronome.beatUnit };
-  return {
-    pattern: currentPattern(),
-    pulseSeconds: pulseSeconds(activeTempo, metronome.meter),
-    silent: plan.silent
-  };
+  return { meter: metronome.meter, silent: plan.silent };
+}
+
+/** Live pulse length, read per event so a tempo change lands immediately. */
+function livePulseSeconds(meter: Meter): number {
+  return pulseSeconds({ bpm: metronome.effectiveBpm || metronome.bpm, beatUnit: metronome.beatUnit }, meter);
 }
 
 function followAudioClock(): void {
@@ -159,7 +164,9 @@ function followAudioClock(): void {
 export async function start(): Promise<void> {
   if (metronome.running) return;
   transport = createNativeTransport({
-    requestBar,
+    startBar,
+    pattern: currentPattern,
+    pulseSeconds: livePulseSeconds,
     bankId: metronome.bankId,
     volume: metronome.volume
   });

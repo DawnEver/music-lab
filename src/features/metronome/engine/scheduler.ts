@@ -8,7 +8,7 @@
  * AudioContext.
  */
 
-import type { BeatEvent } from "../domain/rhythm.js";
+import type { CursorEvent } from "./bar-cursor.js";
 import type { ScheduledBeat } from "./transport.js";
 
 export interface SchedulerClock {
@@ -18,15 +18,17 @@ export interface SchedulerClock {
   clearTimer(id: number): void;
 }
 
-export interface BarSource {
-  /** Compile bar `barIndex`; `duration` is its length in seconds. */
-  nextBar(barIndex: number): { events: BeatEvent[]; duration: number };
+export interface ScheduleSource {
+  /** The next event and its gap from the previous one, without consuming it. */
+  peek(): CursorEvent | null;
+  /** Consume the peeked event. */
+  advance(): void;
 }
 
 export interface SchedulerOptions {
   clock: SchedulerClock;
-  source: BarSource;
-  onEvent(beat: ScheduledBeat): void;
+  source: ScheduleSource;
+  onEvent(beat: ScheduledBeat, silent: boolean): void;
   /** How far ahead to schedule, in seconds. */
   horizon?: number;
   /** How often the timer wakes up, in milliseconds. */
@@ -51,37 +53,32 @@ export function createScheduler(options: SchedulerOptions): Scheduler {
 
   let running = false;
   let timerId = 0;
-  let barIndex = 0;
-  let nextBarTime = 0;
-  /** Beats already handed to the audio clock, kept for the UI to follow. */
+  /** Audio-clock time of the last event handed to the output. */
+  let lastTime = 0;
+  /** Beats already scheduled, kept so the UI can follow the audio clock. */
   let queue: ScheduledBeat[] = [];
-
-  /** Beats compiled but not yet handed to the audio clock. */
-  let buffer: ScheduledBeat[] = [];
-
-  function fillBar(): void {
-    const bar = source.nextBar(barIndex);
-    buffer = bar.events.map((event) => ({
-      event,
-      time: nextBarTime + event.time,
-      barIndex
-    }));
-    nextBarTime += Math.max(bar.duration, 1e-3);
-    barIndex += 1;
-  }
 
   function pump(): void {
     const limit = clock.now() + horizon;
-    // Emit beat by beat, not bar by bar: a bar is often longer than the
-    // horizon, and a per-bar granularity would freeze tempo changes and
-    // delay stops by a whole bar.
+    // One event at a time, and the source is only asked for an event once
+    // the previous one is inside the horizon. That is what keeps an edit
+    // from waiting: at most one event is already committed to the clock.
     while (running) {
-      if (!buffer.length) fillBar();
-      const next = buffer[0];
-      if (!next || next.time >= limit) break;
-      buffer.shift();
-      queue.push(next);
-      onEvent(next);
+      const item = source.peek();
+      if (!item) break;
+      const time = lastTime + item.delta;
+      // Nothing beyond the horizon is committed: it stays in the cursor
+      // and is recomputed at the next tick, at whatever the tempo is then.
+      if (time >= limit) break;
+      source.advance();
+      lastTime = time;
+      const beat: ScheduledBeat = {
+        event: item.event,
+        time,
+        barIndex: item.barIndex
+      };
+      queue.push(beat);
+      onEvent(beat, item.silent);
     }
 
     // Drop beats that are well in the past; the UI never looks that far back.
@@ -102,10 +99,8 @@ export function createScheduler(options: SchedulerOptions): Scheduler {
     start(atTime?: number) {
       if (running) return;
       running = true;
-      barIndex = 0;
       queue = [];
-      buffer = [];
-      nextBarTime = atTime ?? clock.now();
+      lastTime = atTime ?? clock.now();
       tick();
     },
     stop() {
