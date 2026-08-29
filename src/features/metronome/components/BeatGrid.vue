@@ -7,7 +7,7 @@
 import { computed } from "vue";
 import { useI18n } from "../../../composables/useI18n.js";
 import { groupStarts, meterPulses } from "../domain/meter.js";
-import { metronome, activeBeat, cycleAccentAt, resetAccents } from "../stores/metronome.js";
+import { metronome, activeBeat, cycleAccentAt } from "../stores/metronome.js";
 
 const { t } = useI18n();
 
@@ -45,11 +45,8 @@ function isActive(pulse: number): boolean {
       </div>
     </div>
 
-    <div class="metro-grid-foot">
-      <span class="metro-hint">{{ t("metroPulses", { count: total }) }} · {{ t("metroAccentHint") }}</span>
-      <button type="button" class="metro-chip is-action" @click="resetAccents">
-        {{ t("metroAccentReset") }}
-      </button>
-    </div>
+    <p class="metro-hint metro-grid-hint">
+      {{ t("metroPulses", { count: total }) }} · {{ t("metroAccentHint") }}
+    </p>
   </div>
 </template>

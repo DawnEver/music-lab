@@ -4,6 +4,7 @@
  * over one shared audio stream. The source controls live here rather than
  * in the shell — the metronome has no use for a microphone picker.
  */
+import { useI18n } from "../../composables/useI18n.js";
 import SourceBar from "./components/SourceBar.vue";
 import StatusPill from "./components/StatusPill.vue";
 import TunerPanel from "./components/TunerPanel.vue";
@@ -11,6 +12,8 @@ import PitchCard from "./components/PitchCard.vue";
 import ChordCard from "./components/ChordCard.vue";
 import SpectrumCard from "./components/SpectrumCard.vue";
 import SettingsCard from "./components/SettingsCard.vue";
+
+const { t } = useI18n();
 </script>
 
 <template>
@@ -24,4 +27,8 @@ import SettingsCard from "./components/SettingsCard.vue";
   <ChordCard />
   <SpectrumCard />
   <SettingsCard />
+
+  <p class="footnote">
+    <strong>{{ t("footnoteLabel") }}：</strong><span>{{ t("footnoteText") }}</span>
+  </p>
 </template>

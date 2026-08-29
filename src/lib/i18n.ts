@@ -191,7 +191,14 @@ export const messages: Record<Lang, Record<string, string>> = {
     "meterGroup.compound": "复合拍",
     "meterGroup.additive": "混合拍",
     metroPulses: "{count} 拍",
-    metroNowPlaying: "正在以 {bpm} BPM 播放"
+    metroNowPlaying: "正在以 {bpm} BPM 播放",
+    metroClose: "关闭",
+    metroBpmEdit: "直接输入速度,或用 ± / 方向键微调",
+    metroBpmInput: "速度 (BPM)",
+    metroSpaceHint: "空格键启停 · ↑↓ 微调速度",
+    metroPracticeOff: "关闭",
+    metroPracticeOn: "已启用 {count} 项",
+    accentTitle: "重音"
   },
 
   en: {
@@ -376,7 +383,14 @@ export const messages: Record<Lang, Record<string, string>> = {
     "meterGroup.compound": "Compound",
     "meterGroup.additive": "Additive",
     metroPulses: "{count} beats",
-    metroNowPlaying: "Playing at {bpm} BPM"
+    metroNowPlaying: "Playing at {bpm} BPM",
+    metroClose: "Close",
+    metroBpmEdit: "Type a tempo, or nudge with ± / arrow keys",
+    metroBpmInput: "Tempo (BPM)",
+    metroSpaceHint: "Space to start · ↑↓ to nudge",
+    metroPracticeOff: "Off",
+    metroPracticeOn: "{count} on",
+    accentTitle: "Accents"
   }
 };
 

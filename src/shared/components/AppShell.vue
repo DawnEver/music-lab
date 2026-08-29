@@ -47,10 +47,6 @@ const showSecureNotice = computed(
       <RouterView />
     </main>
 
-    <p class="footnote">
-      <strong>{{ t("footnoteLabel") }}：</strong><span>{{ t("footnoteText") }}</span>
-    </p>
-
     <footer class="footer text-center">
       <span>{{ t("copyrights") }}</span>
       <br />

@@ -7,6 +7,7 @@
 ## Architecture
 - One AudioContext for the whole app: features take a lease from `src/audio/audio-engine.ts` and never construct or close a context themselves.
 - One tool per route under `src/features/*`; the shell owns navigation only. Tool-specific chrome (the audio source bar) lives in the tool, not the shell.
+- Layout follows the tool's use: the tuning workbench shows many readouts at once (collapsible cards), the metronome has one focus (a single stage that never scrolls). Metronome settings are reached by tapping the value they change (`ControlSheet`) — never by adding another panel.
 - Metronome layering is strict: `domain/` pure functions -> `engine/` scheduling and sound -> `stores/` -> UI. Audio is the master clock; Vue never triggers a sound, and the UI follows the audio clock through rAF.
 - The metronome depends on the `Transport` interface, never on the native implementation, so a Tone.js transport can replace it without touching a feature.
 - Keep pure logic (DSP / instrument data / chords) as framework-agnostic pure functions directly testable in Node.

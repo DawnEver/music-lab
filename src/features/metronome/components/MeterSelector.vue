@@ -7,7 +7,7 @@ import { computed, ref, watch } from "vue";
 import { useI18n } from "../../../composables/useI18n.js";
 import { METER_PRESETS } from "../domain/presets.js";
 import { makeMeter, meterLabel, metersEqual, parseGroups, type Denominator } from "../domain/meter.js";
-import { metronome, setMeter } from "../stores/metronome.js";
+import { metronome, setMeter, resetAccents } from "../stores/metronome.js";
 
 const { t } = useI18n();
 const DENOMINATORS: Denominator[] = [2, 4, 8, 16];
@@ -98,6 +98,16 @@ function setDenominator(denominator: Denominator): void {
       <p class="metro-hint" :class="{ 'is-error': invalid }">
         {{ invalid ? t("metroCustomInvalid") : t("metroCustomHint") }}
       </p>
+    </div>
+
+    <div class="metro-field">
+      <span class="slider-label">{{ t("accentTitle") }}</span>
+      <div class="metro-chips">
+        <button type="button" class="metro-chip is-action" @click="resetAccents">
+          {{ t("metroAccentReset") }}
+        </button>
+      </div>
+      <p class="metro-hint">{{ t("metroAccentHint") }}</p>
     </div>
   </div>
 </template>

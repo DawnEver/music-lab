@@ -39,14 +39,29 @@ async function gotoTool(page, tool) {
   await page.waitForSelector(`[data-tool="${tool}"]`, { timeout: 8000 });
 }
 
-async function walkMetronome(page, label) {
+async function walkMetronome(page, label, { expectSingleScreen = false } = {}) {
   await gotoTool(page, "metronome");
 
   const pulses = await page.locator(".metro-beat").count();
   if (pulses !== 4) throw new Error(`${label}: expected a 4/4 grid, got ${pulses} beats`);
 
-  // 7/8 (2+2+3) must render 7 beats in 3 visually separate groups.
-  await page.click('.metro-chip:text-is("7/8 (2+2+3)")');
+  // Everything a player needs while playing is on one screen: no panels,
+  // no scrolling to reach the tempo or the play button.
+  if ((await page.locator(".card").count()) !== 1) {
+    throw new Error(`${label}: the metronome should be a single stage, not a stack of cards`);
+  }
+  if (expectSingleScreen) {
+    const overflow = await page.evaluate(
+      () => document.documentElement.scrollHeight - window.innerHeight
+    );
+    if (overflow > 1) throw new Error(`${label}: metronome should fit one screen (${overflow}px over)`);
+  }
+  console.log(`✓ ${label}: metronome is one screen with no panels`);
+
+  // Tapping a value opens exactly the editor for that value.
+  await page.click('[data-sheet="meter"] .value-chip');
+  await page.waitForSelector('[data-sheet="meter"] .sheet', { timeout: 5000 });
+  await page.click('.sheet .metro-chip:text-is("7/8 (2+2+3)")');
   await page.waitForTimeout(150);
   if ((await page.locator(".metro-beat").count()) !== 7) {
     throw new Error(`${label}: 7/8 should render 7 beats`);
@@ -54,14 +69,80 @@ async function walkMetronome(page, label) {
   if ((await page.locator(".metro-group").count()) !== 3) {
     throw new Error(`${label}: 7/8 (2+2+3) should render 3 groups`);
   }
-  console.log(`✓ ${label}: metronome renders 7/8 as 2+2+3`);
+  const chipValue = await page.locator('[data-sheet="meter"] .value-chip-value').textContent();
+  if (!chipValue.includes("7/8")) throw new Error(`${label}: the chip should show 7/8, got ${chipValue}`);
+
+  // Custom additive grouping, inside the same sheet.
+  await page.fill(".sheet .metro-input", "3+2+2");
+  await page.click(".sheet .metro-groups-row .metro-chip.is-action");
+  await page.waitForTimeout(150);
+  if ((await page.locator(".metro-beat").count()) !== 7) {
+    throw new Error(`${label}: custom grouping 3+2+2 should render 7 beats`);
+  }
+
+  // Escape closes the sheet; only one sheet is ever open.
+  await page.keyboard.press("Escape");
+  await page.waitForTimeout(150);
+  if ((await page.locator(".sheet").count()) !== 0) {
+    throw new Error(`${label}: Escape should close the sheet`);
+  }
+  await page.click('[data-sheet="feel"] .value-chip');
+  await page.waitForSelector('[data-sheet="feel"] .sheet', { timeout: 5000 });
+  if (expectSingleScreen) {
+    // Desktop popovers are non-modal: another chip is one click away and
+    // takes over the single open slot.
+    await page.click('[data-sheet="sound"] .value-chip');
+    await page.waitForTimeout(150);
+    if ((await page.locator(".sheet").count()) !== 1) {
+      throw new Error(`${label}: opening a sheet should close the previous one`);
+    }
+    await page.keyboard.press("Escape");
+  } else {
+    // Mobile sheets are modal: the backdrop is what dismisses them.
+    await page.locator(".sheet-backdrop").click({ position: { x: 10, y: 10 } });
+    await page.waitForTimeout(150);
+    if ((await page.locator(".sheet").count()) !== 0) {
+      throw new Error(`${label}: tapping the backdrop should close the bottom sheet`);
+    }
+  }
+  console.log(`✓ ${label}: value chips open their own editor (7/8, 3+2+2, one at a time)`);
+
+  // The BPM readout is itself the tempo control.
+  const before = await page.locator(".metro-bpm-value").inputValue();
+  await page.click(".metro-step >> nth=1");
+  await page.waitForTimeout(120);
+  const after = await page.locator(".metro-bpm-value").inputValue();
+  if (Number(after) !== Number(before) + 1) {
+    throw new Error(`${label}: + should nudge the tempo (${before} -> ${after})`);
+  }
+  // The number is a field: typing a tempo is the most direct input there is.
+  await page.fill(".metro-bpm-value", "96");
+  await page.keyboard.press("Enter");
+  await page.waitForTimeout(150);
+  if ((await page.locator(".metro-bpm-value").inputValue()) !== "96") {
+    throw new Error(`${label}: typing into the BPM field should set the tempo`);
+  }
+  // Out-of-range input is clamped, not accepted.
+  await page.fill(".metro-bpm-value", "999");
+  await page.keyboard.press("Enter");
+  await page.waitForTimeout(150);
+  if ((await page.locator(".metro-bpm-value").inputValue()) !== "400") {
+    throw new Error(`${label}: an out-of-range tempo should clamp to 400`);
+  }
+  await page.fill(".metro-bpm-value", "120");
+  await page.keyboard.press("Enter");
+
+  await page.click(".metro-bpm-unit");
+  await page.waitForSelector('[data-sheet="tempo"] .sheet', { timeout: 5000 });
+  await page.keyboard.press("Escape");
+  console.log(`✓ ${label}: the BPM readout accepts typing, nudges, and opens the tempo editor`);
 
   // Clicking a beat cycles its accent.
-  const before = await page.locator(".metro-beat").nth(1).getAttribute("class");
+  const beatBefore = await page.locator(".metro-beat").nth(1).getAttribute("class");
   await page.locator(".metro-beat").nth(1).click();
   await page.waitForTimeout(120);
-  const after = await page.locator(".metro-beat").nth(1).getAttribute("class");
-  if (before === after) throw new Error(`${label}: clicking a beat should cycle its accent`);
+  const beatAfter = await page.locator(".metro-beat").nth(1).getAttribute("class");
+  if (beatBefore === beatAfter) throw new Error(`${label}: clicking a beat should cycle its accent`);
   console.log(`✓ ${label}: beat click edits the accent`);
 
   // Start/stop drives the audio clock and the running highlight.
@@ -73,16 +154,15 @@ async function walkMetronome(page, label) {
   if ((await page.locator(".metro-play.is-running").count()) !== 0) {
     throw new Error(`${label}: metronome should stop`);
   }
-  console.log(`✓ ${label}: transport starts, highlights beats, and stops`);
-
-  // Custom additive grouping.
-  await page.fill(".metro-input", "3+2+2");
-  await page.click('.metro-chips .metro-chip.is-action, .metro-groups-row .metro-chip.is-action');
-  await page.waitForTimeout(150);
-  if ((await page.locator(".metro-beat").count()) !== 7) {
-    throw new Error(`${label}: custom grouping 3+2+2 should render 7 beats`);
+  // Space is the shortcut a player actually uses.
+  await page.keyboard.press("Space");
+  await page.waitForSelector(".metro-play.is-running", { timeout: 5000 });
+  await page.keyboard.press("Space");
+  await page.waitForTimeout(200);
+  if ((await page.locator(".metro-play.is-running").count()) !== 0) {
+    throw new Error(`${label}: Space should stop the metronome`);
   }
-  console.log(`✓ ${label}: custom grouping applies`);
+  console.log(`✓ ${label}: transport starts, highlights beats, and stops (click + Space)`);
 
   // The mic picker must not follow the user into the metronome.
   if ((await page.locator(".source-actions").count()) !== 0) {
@@ -236,7 +316,7 @@ try {
   await desktop.waitForTimeout(200);
   console.log("✓ desktop: theme toggle switches dark/light without overflow");
 
-  await walkMetronome(desktop, "desktop");
+  await walkMetronome(desktop, "desktop", { expectSingleScreen: true });
 
   // ---- Mobile ----
   const mobile = await browser.newPage({ viewport: { width: 375, height: 667 } });
