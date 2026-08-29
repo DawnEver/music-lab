@@ -48,3 +48,26 @@ metadata:
 - **布局模式要跟着工具的使用形态走**,不能跨工具复制:并列读数 → 卡片工作台;单一焦点 → 单屏 + 就地编辑。
 - "读数即控件"消灭了"设置在哪张卡里"的记忆负担 — 值显示在哪,改它的控件就从哪展开。
 - 数字类主控件优先给输入框:输入 + 步进 + 方向键 + Tap,四种粒度覆盖全部场景,slider 反而退居细调浮层。
+
+## 2026-08-29 (迭代 3)— 改动延迟一小节的根因与修复
+
+### 现象
+用户:"切换了节拍后要当前周期后才能生效"。
+
+### 根因
+`scheduler` 一次编译**整小节**,且把该小节的 `pulseSeconds` 冻结在小节开头。于是任何编辑(速度/细分/swing/重音)最快也要等下一条小节线 — 60 BPM 的 4/4 就是 4 秒。这不是"lookahead 太长",而是**调度粒度是小节**。
+
+### 修复:`engine/bar-cursor.ts`(纯函数,新)
+- 逐**事件**推进:每个事件都重新读取 live pattern 与 live `pulseSeconds()`;位置用 **pulse 单位**保存,发声时才乘以当前脉冲长度。
+- **只有 meter 在小节线快照**(小节中途改小节长度会打乱数拍),其余全部下一个点生效。
+- `peek()` / `advance()` 拆分:scheduler 只提交 horizon(100ms)内的事件,超出的留在游标里,下一 tick 用**当时**的速度重算 → 已锁定的最多一个点。
+- `startBar(barIndex)` 按 barIndex **memoize**:否则 peek 与 advance 会各掷一次骰,练习模式的随机静音会在小节内闪烁。这是拆 peek/advance 时立刻暴露的第二个 bug。
+- 全静音小节(所有拍 mute)靠 `carry` 累积 pulses 跳过,后续 barIndex 与 delta 仍对齐(有 MAX_EMPTY_BARS=64 兜底防死循环)。
+
+### Validation
+112 项 Vitest(新增 9:游标 7 + scheduler×cursor 集成 2)。真机实测(Playwright + MutationObserver 记录 `.metro-beat.is-active` 时间戳):60 BPM 下相邻拍 1000ms,小节中途改为 240 BPM 后 ~180ms 内切到 250ms 间距,原先要等满 4 秒。
+
+### Reusable insight
+- **调度粒度决定响应延迟上限**。前瞻调度器的 buffer 单位必须是"事件",不是"小节/乐句" — 否则 horizon 再小也没用。这个坑在本项目栽了两次(第一次是 buffer 按小节出队,这次是编译按小节冻结参数)。
+- `peek/advance` 是让"未提交的未来"保持可变的标准手法;代价是纯函数化 compute,收益是编辑延迟 = horizon 而不是 buffer 长度。
+- 拆分只读预览与消费之后,任何带副作用的 per-bar 计算(随机数、状态写入)都必须 memoize,否则会被调用两次。
