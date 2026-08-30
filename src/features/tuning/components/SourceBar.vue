@@ -36,6 +36,7 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   setAudioHostContainer(null);
+  void stop();
 });
 </script>
 

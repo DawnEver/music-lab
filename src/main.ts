@@ -1,8 +1,8 @@
 /**
- * 调音实验室 (Tuning Lab) — application entry.
+ * 音乐实验室 (Music Lab) — application entry.
  *
  * Wires Vue + Vuetify + the router, keeps the document title in sync with
- * the active language, and re-exports the legacy window.ToneChordLab API.
+ * the active language, and exposes the framework-agnostic MusicLab API.
  */
 
 import { createApp } from "vue";
@@ -22,7 +22,7 @@ const app = createApp(App);
 app.use(router);
 app.use(vuetify);
 
-document.title = "调音实验室";
+document.title = getLang() === "zh" ? "音乐实验室" : "Music Lab";
 document.documentElement.lang = getLang() === "zh" ? "zh-CN" : "en";
 initTheme();
 
@@ -39,10 +39,12 @@ if (navigator.mediaDevices && navigator.mediaDevices.addEventListener) {
 
 app.mount("#app");
 
-// Legacy public API (documented in the README).
-window.ToneChordLab = Object.freeze({
+const publicApi = Object.freeze({
   detectPitchYin,
   analyzeSpectrum,
   detectChord,
   frequencyToNote
 });
+window.MusicLab = publicApi;
+// Compatibility for consumers of releases before the project rename.
+window.ToneChordLab = publicApi;

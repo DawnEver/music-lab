@@ -13,11 +13,11 @@ describe("dictionary", () => {
 
   it("t returns the localized string for the current language", () => {
     setLang("zh");
-    expect(t("appTitle")).toBe("调音实验室");
+    expect(t("appTitle")).toBe("音乐实验室");
     expect(t("defaultMic")).toBe("默认麦克风");
 
     setLang("en");
-    expect(t("appTitle")).toBe("Tuning Lab");
+    expect(t("appTitle")).toBe("Music Lab");
     expect(t("statusIdle")).toBe("Idle");
   });
 

@@ -1,4 +1,4 @@
-# 调音实验室 · Tuning Lab
+# 音乐实验室 · Music Lab
 
 > 浏览器内的音乐练习工具台:**调音与分析** + **专业节拍器**。实时音高/和弦分析 + 多乐器调音器 — 吉他、贝斯、尤克里里、小提琴、二胡、古筝、古琴、布鲁斯口琴(含压音/超吹目标)。Vue 3 + Vuetify 构建,音频只在浏览器本地处理,**不会上传**。
 >
@@ -6,6 +6,8 @@
 
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Node](https://img.shields.io/badge/node-%3E%3D20-brightgreen)](#开发)
+
+**Online:** [music.mingyangbao.site](https://music.mingyangbao.site) · **Source:** [github.com/DawnEver/music-lab](https://github.com/DawnEver/music-lab)
 
 ## 功能 · Features
 
@@ -20,7 +22,7 @@
 - 📊 实时对数频率频谱、主导音高(音名/八度/频率/置信度)、音准偏差表针
 - 🎼 和弦识别:大三/小三/减三/增三/sus2/sus4/五度/属七/大七/小七 + 色度能量图;**级数标注**(罗马数字、调内/离调/副属/和声小变体),支持手动选调或 Krumhansl 自动估调
 - ⚙️ 可调 A4 基准音、噪声门与识别稳定度
-- 🥁 **节拍器**(`#/metronome`):Web Audio 时钟调度,不受主线程抖动影响
+- 🥁 **节拍器**(`/metronome`):Web Audio 时钟调度,不受主线程抖动影响
   - **改动即时生效**:速度 / 细分 / Swing / 重音 / 复节奏在**下一个点**就变(≤ 100ms 调度视野),只有拍号等到小节线 — 因为小节中途改变小节长度会打乱数拍
   - **单屏无面板**:拍点、速度、启停常驻不滚动;**读数即控件** — BPM 可直接输入数字(± / ↑↓ 微调、Tap 取速),点 `4/4`、`八分`、`音色`、`练习模式` 就地展开各自编辑器(桌面浮层 / 移动端底部抽屉),空格键启停
   - **加法拍号模型**:拍号即分组 — 4/4、3/4、6/8 [3+3]、9/8、12/8、5/8 [2+3 / 3+2]、7/8 [2+2+3 / 2+3+2 / 3+2+2]、11/8 [3+3+3+2]、16 分母混合拍,支持自定义分组(如 `3+2+2`)
@@ -76,12 +78,12 @@ export const myInstrument: InstrumentDefinition = {
 ## 项目结构 · Structure
 
 ```
-tone-chord-lab/
+music-lab/
 ├── index.html              # Vite 入口
-├── vite.config.ts          # vue + vuetify 插件、base './'、vitest 配置
+├── vite.config.ts          # vue + vuetify 插件、根路径部署、vitest 配置
 ├── public/                 # favicon.ico / favicon.png
 ├── src/
-│   ├── main.ts             # 入口:router + vuetify + window.ToneChordLab 兼容 API
+│   ├── main.ts             # 入口:router + vuetify + window.MusicLab 兼容 API
 │   ├── App.vue             # AppShell(顶栏 / 工具导航 / 页脚)
 │   ├── audio/              # 全应用唯一的 AudioContext
 │   │   ├── audio-engine.ts # 租约式获取:最后一个租约释放才关闭 context
@@ -105,7 +107,7 @@ tone-chord-lab/
 │   ├── shared/             # 跨工具复用:AppShell / ToolNav / 主题语言开关 / CollapsibleCard / panels store
 │   ├── composables/        # useAudio / useAnalysis / useI18n / useTheme / useToast / useTuner
 │   ├── styles/             # tokens.css(深/浅双主题变量)+ style.css
-│   └── router/             # /tuner、/metronome(懒加载;/ 与 /analyzer 重定向)
+│   └── router/             # /tuning、/metronome(懒加载;/、/tuner、/analyzer 兼容重定向)
 ├── tests/                  # Vitest:算法 + 乐器数据 + 节拍器领域/调度
 └── vercel.json
 ```

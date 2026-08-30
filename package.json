@@ -1,7 +1,7 @@
 {
-  "name": "tone-chord-lab",
+  "name": "music-lab",
   "version": "2.0.0",
-  "description": "调音实验室 (Tuning Lab) — real-time pitch/chord detection and a multi-instrument per-note tuner (guitar, blues harp, guzheng, guqin, …) for the browser. Vue 3 + Vuetify, fully client-side.",
+  "description": "Music Lab — browser-based tuning, pitch and chord analysis, and a professional metronome. Vue 3 + Vuetify, fully client-side.",
   "type": "module",
   "private": false,
   "license": "MIT",
@@ -42,5 +42,13 @@
   },
   "engines": {
     "node": ">=20"
+  },
+  "homepage": "https://music.mingyangbao.site",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/DawnEver/music-lab.git"
+  },
+  "bugs": {
+    "url": "https://github.com/DawnEver/music-lab/issues"
   }
 }

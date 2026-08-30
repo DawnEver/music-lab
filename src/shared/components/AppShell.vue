@@ -52,7 +52,7 @@ const showSecureNotice = computed(
       <br />
       <a href="mailto:mingyangbob@gmail.com" rel="noreferrer" target="_blank">mingyangbob@gmail.com</a>
       <br />
-      <a href="https://github.com/DawnEver/tone-chord-lab" rel="noreferrer" target="_blank">GitHub</a>
+      <a href="https://github.com/DawnEver/music-lab" rel="noreferrer" target="_blank">GitHub</a>
     </footer>
 
     <Toaster />

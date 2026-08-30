@@ -8,7 +8,7 @@
 
 import { chromium } from "playwright-core";
 
-const URL = process.env.SMOKE_URL ?? "http://localhost:5199";
+const BASE_URL = process.env.SMOKE_URL ?? "http://localhost:5199";
 
 // playwright-core ships no browsers, so we drive a system-installed one.
 // Chrome by default; override with SMOKE_BROWSER=msedge on machines that
@@ -37,6 +37,11 @@ async function assertNoHOverflow(page, label) {
 async function gotoTool(page, tool) {
   await page.click(`[data-tool-link="${tool}"]`);
   await page.waitForSelector(`[data-tool="${tool}"]`, { timeout: 8000 });
+  const expectedPath = tool === "tuning" ? "/tuning" : "/metronome";
+  const pathname = new URL(page.url()).pathname;
+  if (pathname !== expectedPath) {
+    throw new Error(`${tool}: expected clean route ${expectedPath}, got ${pathname}`);
+  }
 }
 
 async function walkMetronome(page, label, { expectSingleScreen = false } = {}) {
@@ -268,10 +273,18 @@ async function walkWorkbench(page, label) {
 }
 
 try {
+  const legacy = await browser.newPage();
+  await legacy.goto(`${BASE_URL}/#/metronome`, { waitUntil: "networkidle" });
+  if (new URL(legacy.url()).pathname !== "/metronome") {
+    throw new Error(`legacy metronome bookmark was not migrated: ${legacy.url()}`);
+  }
+  await legacy.close();
+  console.log("✓ legacy hash bookmark migrates to a clean route");
+
   // ---- Desktop ----
   const desktop = await browser.newPage({ viewport: { width: 1280, height: 900 } });
   attachListeners(desktop, "desktop");
-  await desktop.goto(URL, { waitUntil: "networkidle" });
+  await desktop.goto(BASE_URL, { waitUntil: "networkidle" });
   await walkWorkbench(desktop, "desktop");
 
   // Tuner is horizontal: needle left, strings/harmonica right, same row.
@@ -296,7 +309,7 @@ try {
   await desktop.click(".lang-toggle button[data-lang='en']");
   await desktop.waitForTimeout(200);
   const brand = await desktop.locator("h1").textContent();
-  if (!brand.includes("Tuning Lab")) throw new Error(`expected English brand, got ${brand}`);
+  if (!brand.includes("Music Lab")) throw new Error(`expected English brand, got ${brand}`);
   console.log("✓ desktop: language switch to English works");
 
   // Theme toggle flips data-theme and the body background follows.
@@ -321,7 +334,7 @@ try {
   // ---- Mobile ----
   const mobile = await browser.newPage({ viewport: { width: 375, height: 667 } });
   attachListeners(mobile, "mobile");
-  await mobile.goto(URL, { waitUntil: "networkidle" });
+  await mobile.goto(BASE_URL, { waitUntil: "networkidle" });
   await walkWorkbench(mobile, "mobile");
 
   // Tuner collapses to one column: needle above the panel, same x.

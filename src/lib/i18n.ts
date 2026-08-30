@@ -10,8 +10,8 @@ export type Lang = "zh" | "en";
 
 export const messages: Record<Lang, Record<string, string>> = {
   zh: {
-    appTitle: "调音实验室",
-    eyebrow: "本地音频分析",
+    appTitle: "音乐实验室",
+    eyebrow: "本地音乐工具",
     navTuner: "调音器",
     tunerTitle: "乐器调音",
     tunerSelectInstrument: "乐器",
@@ -81,7 +81,7 @@ export const messages: Record<Lang, Record<string, string>> = {
     stability: "稳定度",
     footnoteLabel: "提示",
     footnoteText: "单音检测适合哼唱、乐器调音；和弦识别是实时启发式结果，清晰的持续和弦、较少环境噪声会更稳定。",
-    copyrights: "© 2026 调音实验室",
+    copyrights: "© 2026 音乐实验室",
     logScale: "对数刻度",
     inputLabel: "输入",
     match: "匹配",
@@ -202,8 +202,8 @@ export const messages: Record<Lang, Record<string, string>> = {
   },
 
   en: {
-    appTitle: "Tuning Lab",
-    eyebrow: "Local audio analysis",
+    appTitle: "Music Lab",
+    eyebrow: "Local music tools",
     navTuner: "Tuner",
     tunerTitle: "Note Tuner",
     tunerSelectInstrument: "Instrument",
@@ -273,7 +273,7 @@ export const messages: Record<Lang, Record<string, string>> = {
     stability: "Stability",
     footnoteLabel: "Tip",
     footnoteText: "Monophonic detection suits humming and instrument tuning; chord recognition is a real-time heuristic and works best with clear sustained chords and low background noise.",
-    copyrights: "© 2026 Tuning Lab",
+    copyrights: "© 2026 Music Lab",
     logScale: "LOG SCALE",
     inputLabel: "INPUT",
     match: "match",
