@@ -14,7 +14,6 @@ import { initTheme } from "./composables/useTheme.js";
 import { detectPitchYin, analyzeSpectrum } from "./lib/dsp.js";
 import { detectChord } from "./lib/chord.js";
 import { frequencyToNote } from "./lib/music-theory.js";
-import { cleanup, populateDevices } from "./features/tuning/stores/audio.js";
 import "./styles/tokens.css";
 import "./styles/style.css";
 
@@ -25,17 +24,6 @@ app.use(vuetify);
 document.title = getLang() === "zh" ? "音乐实验室" : "Music Lab";
 document.documentElement.lang = getLang() === "zh" ? "zh-CN" : "en";
 initTheme();
-
-window.addEventListener("beforeunload", () => {
-  cleanup();
-});
-
-if (navigator.mediaDevices && navigator.mediaDevices.addEventListener) {
-  // Refresh the device list on hot-plug while the page is open.
-  navigator.mediaDevices.addEventListener("devicechange", () => {
-    populateDevices();
-  });
-}
 
 app.mount("#app");
 

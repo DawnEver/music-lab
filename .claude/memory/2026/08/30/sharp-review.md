@@ -54,7 +54,7 @@ SourceBar only clears hostContainer; stream, nodes, rAF, audio element and audio
 ### [SR-20260830-004] [MEDIUM] src/composables/useToast.ts:5 — Shared application layers depend on the tuning feature, defeating route isolation and lazy loading
 
 - **Category:** Performance
-- **Status:** OPEN
+- **Status:** FIXED
 - **Confidence:** single-reviewer
 - **Suggestion:** Move generic toast state to shared and tuning lifecycle wiring into the tuning feature.
 
@@ -65,7 +65,7 @@ AppShell and main eagerly import tuning stores through generic composables, reve
 ### [SR-20260830-005] [MEDIUM] src/lib/dsp.ts:1 — Several modules exceed the 300-line cohesion threshold and combine independently evolving responsibilities
 
 - **Category:** Feature
-- **Status:** OPEN
+- **Status:** FIXED
 - **Confidence:** single-reviewer
 - **Suggestion:** Split DSP, analysis loop, tuning audio store, and key tracking into cohesive modules.
 

@@ -2,17 +2,16 @@
  * Shared audio session store (ported from the legacy app.js controller).
  *
  * The reactive surface holds everything UI binds to (mode, status, source
- * info, settings, devices, toasts). The audio graph itself (context,
+ * info, settings, and devices). The audio graph itself (context,
  * analyser, stream, buffers) stays in non-reactive module state — it is
  * touched only by the actions below and by the analysis loop.
  */
-
-import { reactive, ref } from "vue";
 import { clamp } from "../../../lib/dsp.js";
-import type { ModeKey } from "../../../lib/key.js";
 import { t } from "../../../composables/useI18n.js";
 import { acquireAudio } from "../../../audio/audio-engine.js";
 import type { AudioEngineHandle } from "../../../audio/types.js";
+import { showToast } from "../../../shared/stores/toast.js";
+export { showToast, toastMessage, toastVisible } from "../../../shared/stores/toast.js";
 import {
   FFT_SIZE,
   startAnalysisLoop,
@@ -20,46 +19,8 @@ import {
   type AnalysisLoopParams
 } from "../../../lib/analysis-loop.js";
 
-export type SourceMode = "idle" | "mic" | "file";
-
-export interface AudioDevice {
-  deviceId: string;
-  label: string;
-}
-
-export const audioStore = reactive({
-  mode: "idle" as SourceMode,
-  statusKey: "statusIdle",
-  statusMode: "idle" as "idle" | "live" | "error",
-  sourceInfoKey: "sourceInfoDefault",
-  sourceInfoParams: {} as Record<string, string>,
-  sourceInfoOverride: "",
-  tuning: 440,
-  gateDb: -52,
-  stability: 0.72,
-  keyMode: "auto" as "auto" | "manual",
-  keyTonic: 0,
-  keyScale: "major" as ModeKey,
-  isStarting: false,
-  deviceId: "",
-  devices: [] as AudioDevice[],
-  sampleRate: 0
-});
-
-// Toast surface.
-export const toastMessage = ref("");
-export const toastVisible = ref(false);
-let toastTimer = 0;
-
-export function showToast(message: string): void {
-  window.clearTimeout(toastTimer);
-  toastMessage.value = message;
-  toastVisible.value = true;
-  toastTimer = window.setTimeout(() => {
-    toastVisible.value = false;
-  }, 4200);
-}
-
+export { audioStore, type AudioDevice, type SourceMode } from "./audio-state.js";
+import { audioStore } from "./audio-state.js";
 // --- Non-reactive audio graph internals ---
 
 let lease: AudioEngineHandle | null = null;
@@ -126,31 +87,8 @@ async function createAudioGraph(mode: "mic" | "file"): Promise<void> {
   audioStore.sampleRate = ctx.sampleRate;
 }
 
-export async function populateDevices(): Promise<void> {
-  if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) return;
-
-  try {
-    const previousValue = audioStore.deviceId;
-    const devices = await navigator.mediaDevices.enumerateDevices();
-    const microphones = devices.filter((device) => device.kind === "audioinput");
-
-    audioStore.devices = microphones.map((device, index) => ({
-      deviceId: device.deviceId,
-      label: device.label || t("micNumber", { index: index + 1 })
-    }));
-
-    if (
-      previousValue &&
-      microphones.some((device) => device.deviceId === previousValue)
-    ) {
-      audioStore.deviceId = previousValue;
-    } else {
-      audioStore.deviceId = "";
-    }
-  } catch (error) {
-    console.warn(t("cannotEnumerate"), error);
-  }
-}
+export { populateDevices } from "./device-discovery.js";
+import { populateDevices } from "./device-discovery.js";
 
 export async function startMicrophone(): Promise<void> {
   if (audioStore.isStarting) return;

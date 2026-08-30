@@ -1,6 +1,6 @@
 import { describe, expect, it, beforeEach } from "vitest";
 import { nextTick } from "vue";
-import { useTuner } from "../src/composables/useTuner.js";
+import { useTuner } from "../src/features/tuning/composables/useTuner.js";
 import { pitchRef } from "../src/lib/analysis-loop.js";
 import { midiToFrequency } from "../src/lib/music-theory.js";
 

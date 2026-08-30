@@ -13,10 +13,10 @@ import {
   buildHarmonicaCells,
   type Breath,
   type NearestPositionResult
-} from "../instruments/index.js";
-import { midiToFrequency } from "../lib/music-theory.js";
-import { pitchRef, setDetectorRange } from "../lib/analysis-loop.js";
-import { audioStore } from "../features/tuning/stores/audio.js";
+} from "../../../instruments/index.js";
+import { midiToFrequency } from "../../../lib/music-theory.js";
+import { pitchRef, setDetectorRange } from "../../../lib/analysis-loop.js";
+import { audioStore } from "../stores/audio.js";
 
 const STORAGE_INSTRUMENT = "tcl-tuner-instrument";
 const STORAGE_AUTO = "tcl-tuner-auto";

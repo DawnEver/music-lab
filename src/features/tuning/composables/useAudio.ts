@@ -8,7 +8,7 @@ import {
   startAudioFile,
   stop,
   populateDevices
-} from "../features/tuning/stores/audio.js";
+} from "../stores/audio.js";
 
 export function useAudio() {
   return {

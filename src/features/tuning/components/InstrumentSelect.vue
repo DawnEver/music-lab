@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { useI18n } from "../../../composables/useI18n.js";
-import { useTuner } from "../../../composables/useTuner.js";
+import { useTuner } from "../composables/useTuner.js";
 import { allInstruments } from "../../../instruments/index.js";
 
 const { t, lang } = useI18n();

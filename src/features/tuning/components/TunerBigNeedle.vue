@@ -2,7 +2,7 @@
 import { computed } from "vue";
 import { NOTE_NAMES } from "../../../lib/music-theory.js";
 import { useI18n } from "../../../composables/useI18n.js";
-import { useTuner } from "../../../composables/useTuner.js";
+import { useTuner } from "../composables/useTuner.js";
 import CentsGauge from "./CentsGauge.vue";
 
 const { t, lang } = useI18n();

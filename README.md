@@ -96,7 +96,8 @@ music-lab/
 │   ├── features/
 │   │   ├── tuning/         # 调音与分析工具
 │   │   │   ├── components/ # SourceBar / StatusPill / 各分析卡片 / tuner 面板
-│   │   │   ├── stores/audio.ts # 输入会话(reactive 面 + 非响应式音频图)
+│   │   │   ├── stores/      # 输入会话 / 状态 / 设备发现
+│   │   │   ├── composables/ # 调音专用状态与生命周期
 │   │   │   └── TuningView.vue
 │   │   └── metronome/
 │   │       ├── domain/     # meter / accent / tempo / rhythm / practice / presets(纯函数)
@@ -105,7 +106,7 @@ music-lab/
 │   │       ├── components/ # Transport / Tempo / Meter / BeatGrid / Subdivision / Practice / Sound
 │   │       └── MetronomeView.vue
 │   ├── shared/             # 跨工具复用:AppShell / ToolNav / 主题语言开关 / CollapsibleCard / panels store
-│   ├── composables/        # useAudio / useAnalysis / useI18n / useTheme / useToast / useTuner
+│   ├── composables/        # 跨工具的 useAnalysis / useI18n / useTheme / useToast
 │   ├── styles/             # tokens.css(深/浅双主题变量)+ style.css
 │   └── router/             # /tuning、/metronome(懒加载;/、/tuner、/analyzer 兼容重定向)
 ├── tests/                  # Vitest:算法 + 乐器数据 + 节拍器领域/调度

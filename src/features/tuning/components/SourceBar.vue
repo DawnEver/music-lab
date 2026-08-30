@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from "vue";
-import { useAudio } from "../../../composables/useAudio.js";
+import { useAudio } from "../composables/useAudio.js";
 import { useI18n } from "../../../composables/useI18n.js";
 import { setAudioHostContainer } from "../stores/audio.js";
 
@@ -36,7 +36,6 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   setAudioHostContainer(null);
-  void stop();
 });
 </script>
 

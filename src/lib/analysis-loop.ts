@@ -21,6 +21,7 @@ import {
 import { detectChord, hasPolyphonicEvidence, type ChordResult } from "./chord.js";
 import { KeyTracker, type KeyEstimate } from "./key.js";
 import { drawSpectrum, type SpectrumTarget } from "./draw.js";
+import { ChordStabilizer, PitchSmoother, choosePitch } from "./analysis-stabilizers.js";
 
 export const FFT_SIZE = 16384;
 
@@ -58,16 +59,15 @@ let timeData: Float32Array<ArrayBuffer> | null = null;
 let lastPitchAt = 0;
 let lastSpectrumAt = 0;
 let lastSignalAt = 0;
-let pitchHistory: Array<{ frequency: number; confidence: number; time: number }> = [];
 let chromaSmooth: Float32Array<ArrayBuffer> = new Float32Array(12);
 let latestChroma: Float32Array<ArrayBuffer> = new Float32Array(12);
 let latestPitch: PitchResult | null = null;
 let latestSpectralPitch: PitchResult | null = null;
 let latestSpectralPitchAt = 0;
-let lastChordCandidate = "";
-let chordCandidateCount = 0;
 let displayedChord: ChordResult | null = null;
 const keyTracker = new KeyTracker();
+const pitchSmoother = new PitchSmoother();
+const chordStabilizer = new ChordStabilizer();
 
 /** Widens/narrows the detector band (e.g. bass B0 needs ~26 Hz). */
 export function setDetectorRange(range: PitchRange | null): void {
@@ -89,15 +89,14 @@ export function startAnalysisLoop(params: AnalysisLoopParams): void {
   lastPitchAt = 0;
   lastSpectrumAt = 0;
   lastSignalAt = performance.now();
-  pitchHistory = [];
+  pitchSmoother.reset();
   chromaSmooth.fill(0);
   latestChroma.fill(0);
   latestPitch = null;
   latestSpectralPitch = null;
   latestSpectralPitchAt = 0;
   displayedChord = null;
-  lastChordCandidate = "";
-  chordCandidateCount = 0;
+  chordStabilizer.reset();
   keyTracker.reset();
   pitchRef.value = null;
   chordRef.value = null;
@@ -114,12 +113,13 @@ export function stopAnalysisLoop(): void {
   cancelAnimationFrame(animationId);
   animationId = 0;
   analyser = null;
-  pitchHistory = [];
+  pitchSmoother.reset();
   chromaSmooth.fill(0);
   latestChroma.fill(0);
   latestPitch = null;
   latestSpectralPitch = null;
   displayedChord = null;
+  chordStabilizer.reset();
   keyTracker.reset();
   pitchRef.value = null;
   chordRef.value = null;
@@ -129,110 +129,15 @@ export function stopAnalysisLoop(): void {
   tickRef.value += 1;
 }
 
-function smoothPitchCandidate(pitch: PitchResult, now: number): PitchResult {
-  const history = pitchHistory.filter((item) => now - item.time < 360);
-  pitchHistory = history;
-
-  let frequency = pitch.frequency;
-  if (history.length >= 2) {
-    const centsValues = history
-      .map((item) => 1200 * Math.log2(item.frequency))
-      .sort((a, b) => a - b);
-    const medianCents = centsValues[Math.floor(centsValues.length / 2)];
-    const currentCents = 1200 * Math.log2(frequency);
-    const delta = currentCents - medianCents;
-
-    if (Math.abs(Math.abs(delta) - 1200) < 75) {
-      frequency *= delta > 0 ? 0.5 : 2;
-    }
-  }
-
-  pitchHistory.push({
-    frequency,
-    confidence: pitch.confidence,
-    time: now
-  });
-
-  if (pitchHistory.length > 7) {
-    pitchHistory.shift();
-  }
-
-  let weightedLog = 0;
-  let weightSum = 0;
-  for (const item of pitchHistory) {
-    const weight = Math.max(0.08, item.confidence);
-    weightedLog += Math.log2(item.frequency) * weight;
-    weightSum += weight;
-  }
-
-  return {
-    frequency: Math.pow(2, weightedLog / Math.max(weightSum, 1e-9)),
-    confidence: pitch.confidence,
-    method: pitch.method
-  };
-}
-
-function choosePitch(
-  yinPitch: PitchResult | null,
-  spectralPitch: PitchResult | null,
-  polyphonic = false
-): PitchResult | null {
-  if (polyphonic && spectralPitch && spectralPitch.confidence >= 0.28) {
-    return spectralPitch;
-  }
-
-  if (yinPitch && spectralPitch) {
-    const distance = Math.abs(1200 * Math.log2(yinPitch.frequency / spectralPitch.frequency));
-    const octaveResidual = Math.abs(distance - Math.round(distance / 1200) * 1200);
-
-    if (octaveResidual < 45) {
-      if (yinPitch.confidence >= 0.55) return yinPitch;
-      return spectralPitch;
-    }
-  }
-
-  if (yinPitch && yinPitch.confidence >= 0.62) return yinPitch;
-  if (spectralPitch && spectralPitch.confidence >= 0.34) return spectralPitch;
-  return yinPitch || spectralPitch || null;
-}
-
-function stabilizeChord(candidate: ChordResult | null): ChordResult | null {
-  const key = candidate ? `${candidate.root}:${candidate.type.suffix}` : "";
-
-  if (!candidate) {
-    chordCandidateCount = Math.max(0, chordCandidateCount - 1);
-    if (chordCandidateCount === 0) {
-      lastChordCandidate = "";
-      displayedChord = null;
-    }
-    return displayedChord;
-  }
-
-  if (key === lastChordCandidate) {
-    chordCandidateCount += 1;
-  } else {
-    lastChordCandidate = key;
-    chordCandidateCount = 1;
-  }
-
-  const requiredFrames = candidate.confidence > 0.72 ? 2 : 3;
-  if (chordCandidateCount >= requiredFrames) {
-    displayedChord = candidate;
-  }
-
-  return displayedChord;
-}
-
 function clearAfterSilence(now: number): void {
   if (now - lastSignalAt < 420) return;
 
   latestPitch = null;
   latestSpectralPitch = null;
   latestSpectralPitchAt = 0;
-  pitchHistory = [];
+  pitchSmoother.reset();
   displayedChord = null;
-  lastChordCandidate = "";
-  chordCandidateCount = 0;
+  chordStabilizer.reset();
 
   pitchRef.value = null;
   chordRef.value = null;
@@ -292,7 +197,7 @@ function renderLoop(now: number): void {
     keyEstimateRef.value = keyTracker.estimate();
 
     const chordCandidate = detectChord(latestChroma);
-    displayedChord = stabilizeChord(chordCandidate);
+    displayedChord = chordStabilizer.stabilize(chordCandidate);
     chordRef.value = displayedChord;
   }
 
@@ -311,7 +216,7 @@ function renderLoop(now: number): void {
 
     if (selectedPitch) {
       lastSignalAt = now;
-      latestPitch = smoothPitchCandidate(selectedPitch, now);
+      latestPitch = pitchSmoother.smooth(selectedPitch, now);
     } else {
       clearAfterSilence(now);
     }

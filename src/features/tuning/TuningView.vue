@@ -12,8 +12,10 @@ import PitchCard from "./components/PitchCard.vue";
 import ChordCard from "./components/ChordCard.vue";
 import SpectrumCard from "./components/SpectrumCard.vue";
 import SettingsCard from "./components/SettingsCard.vue";
+import { useTuningLifecycle } from "./composables/useTuningLifecycle.js";
 
 const { t } = useI18n();
+useTuningLifecycle();
 </script>
 
 <template>

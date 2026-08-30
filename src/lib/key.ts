@@ -96,6 +96,13 @@ function pearson(a: ArrayLike<number>, b: ArrayLike<number>): number {
   return denominator > 1e-9 ? covariance / denominator : 0;
 }
 
+/** Correlate chroma against one named key profile. Used by the stateful tracker. */
+export function correlationForKey(chroma: ArrayLike<number>, key: Key): number {
+  const profile = key.mode === "major" ? MAJOR_PROFILE : MINOR_PROFILE;
+  const rotated = profile.map((_, degree) => profile[(degree - key.tonic + 12) % 12]);
+  return pearson(chroma, rotated);
+}
+
 /** Correlate a chroma vector against all 24 key profiles; best match wins. */
 export function estimateKey(chroma: Float32Array | number[]): KeyEstimate | null {
   const energy = Array.from(chroma).reduce((sum, value) => sum + value, 0);
@@ -203,105 +210,4 @@ export function degreeOf(root: number, chordTypeKey: string, key: Key): ChordDeg
   };
 }
 
-/**
- * Accumulates chroma over time (exponential decay) and yields a stable key
- * estimate with hysteresis: a challenger key must beat the current key by a
- * margin on consecutive estimates before the tracker switches.
- */
-export class KeyTracker {
-  private accum = new Float32Array(12);
-  private lastPushAt: number | null = null;
-  private current: Key | null = null;
-  private challenger: Key | null = null;
-  private challengerCount = 0;
-
-  /** Half-life of the accumulation window, in milliseconds. */
-  private readonly halfLifeMs = 6000;
-  /** Minimum correlation margin for a challenger to count as a switch vote. */
-  private readonly switchMargin = 0.04;
-  /** Consecutive votes required before switching. */
-  private readonly switchVotes = 4;
-
-  push(chroma: Float32Array | number[], now: number): void {
-    if (this.lastPushAt !== null) {
-      const elapsed = Math.max(0, now - this.lastPushAt);
-      const decay = Math.pow(0.5, elapsed / this.halfLifeMs);
-      for (let i = 0; i < 12; i += 1) {
-        this.accum[i] *= decay;
-      }
-    }
-    this.lastPushAt = now;
-    for (let i = 0; i < 12; i += 1) {
-      this.accum[i] += Math.max(0, chroma[i]);
-    }
-  }
-
-  estimate(): KeyEstimate | null {
-    const estimate = estimateKey(this.accum);
-    if (!estimate || estimate.correlation < 0.35) return this.currentEstimate(estimate);
-
-    if (!this.current) {
-      this.current = estimate.key;
-      this.challenger = null;
-      this.challengerCount = 0;
-      return estimate;
-    }
-
-    if (estimate.key.tonic === this.current.tonic && estimate.key.mode === this.current.mode) {
-      this.challenger = null;
-      this.challengerCount = 0;
-      return estimate;
-    }
-
-    const currentCorrelation = this.correlationOf(estimate.key, estimate);
-    const beatsCurrent =
-      !this.challenger ||
-      (estimate.key.tonic === this.challenger.tonic && estimate.key.mode === this.challenger.mode);
-
-    if (beatsCurrent && estimate.correlation > currentCorrelation + this.switchMargin) {
-      this.challenger = estimate.key;
-      this.challengerCount += 1;
-      if (this.challengerCount >= this.switchVotes) {
-        this.current = estimate.key;
-        this.challenger = null;
-        this.challengerCount = 0;
-      }
-    } else if (!beatsCurrent) {
-      this.challenger = null;
-      this.challengerCount = 0;
-    }
-
-    return { ...estimate, key: this.current };
-  }
-
-  reset(): void {
-    this.accum.fill(0);
-    this.lastPushAt = null;
-    this.current = null;
-    this.challenger = null;
-    this.challengerCount = 0;
-  }
-
-  private currentEstimate(estimate: KeyEstimate | null): KeyEstimate | null {
-    if (!this.current) return null;
-    if (!estimate) return null;
-    return { ...estimate, key: this.current };
-  }
-
-  private correlationOf(_key: Key, estimate: KeyEstimate): number {
-    // estimateKey sorted the raw best first; when the tracker is holding a
-    // different key, approximate the held key's correlation by re-scoring.
-    if (
-      estimate.key.tonic === this.current?.tonic &&
-      estimate.key.mode === this.current?.mode
-    ) {
-      return estimate.correlation;
-    }
-    if (!this.current) return 0;
-    const profile = this.current.mode === "major" ? MAJOR_PROFILE : MINOR_PROFILE;
-    const rotated = profile.map(
-      (_, degree) => profile[(degree - (this.current as Key).tonic + 12) % 12]
-    );
-    return pearson(this.accum, rotated);
-  }
-}
+export { KeyTracker } from "./key-tracker.js";
