@@ -34,3 +34,5 @@ npm-debug.log*
 **/_meta.json
 
 **/__pycache__/
+# Cloudflare
+.wrangler/

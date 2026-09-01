@@ -1,0 +1,13 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "music-lab",
+  "compatibility_date": "2026-09-01",
+  "assets": {
+    "directory": "./dist",
+    "not_found_handling": "single-page-application"
+  },
+  "routes": [
+    { "pattern": "music.mingyangbao.site", "custom_domain": true },
+    { "pattern": "tone.mingyangbao.site", "custom_domain": true }
+  ]
+}
