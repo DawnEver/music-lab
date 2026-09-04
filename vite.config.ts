@@ -71,7 +71,10 @@ export default defineConfig({
         test: {
           name: "components",
           environment: "happy-dom",
-          include: ["tests/components/**/*.test.ts"]
+          include: ["tests/components/**/*.test.ts"],
+          // Vuetify components auto-imported into an SFC pull their own
+          // CSS; inlining lets Vite handle it instead of Node's loader.
+          server: { deps: { inline: ["vuetify"] } }
         }
       }
     ]
