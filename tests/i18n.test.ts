@@ -1,7 +1,10 @@
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { messages, t, getLang, setLang } from "../src/lib/i18n.js";
+import { messages, t, getLang, setLang, type MessageKey } from "../src/lib/i18n/index.js";
+import { shell } from "../src/lib/i18n/dictionaries/shell.js";
+import { tuning } from "../src/lib/i18n/dictionaries/tuning.js";
+import { metronome } from "../src/lib/i18n/dictionaries/metronome.js";
 
 describe("dictionary", () => {
   it("zh and en define the same set of keys", () => {
@@ -29,7 +32,26 @@ describe("dictionary", () => {
   });
 
   it("t falls back to the key itself when unknown", () => {
-    expect(t("this.key.does.not.exist")).toBe("this.key.does.not.exist");
+    // Unknown keys are a compile error now; the runtime fallback still
+    // guards a dictionary that loses an entry.
+    expect(t("this.key.does.not.exist" as MessageKey)).toBe("this.key.does.not.exist");
+  });
+
+  it("each dictionary owns its keys, with zh/en parity and no overlap", () => {
+    const parts = { shell, tuning, metronome };
+    const seen = new Map<string, string>();
+
+    for (const [name, part] of Object.entries(parts)) {
+      expect(Object.keys(part.en).sort(), name).toEqual(Object.keys(part.zh).sort());
+      for (const key of Object.keys(part.zh)) {
+        const owner = seen.get(key);
+        expect(owner, `${key} is defined in both ${owner} and ${name}`).toBeUndefined();
+        seen.set(key, name);
+      }
+    }
+
+    // Together they are the whole dictionary.
+    expect([...seen.keys()].sort()).toEqual(Object.keys(messages.zh).sort());
   });
 
   it("chord type names are localized per language", () => {

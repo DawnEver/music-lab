@@ -9,7 +9,7 @@ import { createApp } from "vue";
 import App from "./App.vue";
 import vuetify from "./plugins/vuetify.js";
 import { router } from "./router/index.js";
-import { getLang } from "./lib/i18n.js";
+import { getLang } from "./lib/i18n/index.js";
 import { initTheme } from "./composables/useTheme.js";
 import { detectPitchYin, analyzeSpectrum } from "./lib/dsp.js";
 import { detectChord } from "./lib/chord.js";

@@ -16,14 +16,17 @@ export interface ClickVoice {
   wave: ClickWave;
 }
 
+/** Closed set: the dictionary carries a `clickSound.<id>` for each. */
+export type SoundBankId = "synth" | "digital" | "woodblock" | "clave" | "cowbell" | "hihat";
+
 export interface SoundBank {
-  id: string;
+  id: SoundBankId;
   /** i18n key — `clickSound.<id>`. */
   voices: Record<Exclude<Accent, "mute">, ClickVoice>;
 }
 
 function bank(
-  id: string,
+  id: SoundBankId,
   wave: ClickWave,
   base: number,
   duration: number,
@@ -49,7 +52,7 @@ export const SOUND_BANKS: SoundBank[] = [
   bank("hihat", "noise", 7200, 0.028, 1.25)
 ];
 
-export const DEFAULT_BANK_ID = "synth";
+export const DEFAULT_BANK_ID: SoundBankId = "synth";
 
 export function soundBank(id: string): SoundBank {
   return SOUND_BANKS.find((entry) => entry.id === id) ?? SOUND_BANKS[0];

@@ -37,10 +37,20 @@ export const METER_PRESETS: MeterPreset[] = [
   preset("additive", 16, [3, 3, 3, 2, 2])
 ];
 
+/** Closed set: the dictionary carries a `subdivision.<key>` for each. */
+export type SubdivisionKey =
+  | "quarter"
+  | "eighth"
+  | "triplet"
+  | "sixteenth"
+  | "quintuplet"
+  | "sextuplet"
+  | "septuplet";
+
 export interface SubdivisionPreset {
   divisions: number;
   /** i18n key — `subdivision.<key>`. */
-  key: string;
+  key: SubdivisionKey;
 }
 
 export const SUBDIVISION_PRESETS: SubdivisionPreset[] = [

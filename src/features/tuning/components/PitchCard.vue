@@ -2,6 +2,7 @@
 import { computed } from "vue";
 import { useAnalysis } from "../../../composables/useAnalysis.js";
 import { useI18n } from "../../../composables/useI18n.js";
+import type { MessageKey } from "../../../lib/i18n/index.js";
 import { audioStore } from "../stores/audio.js";
 import { frequencyToNote } from "../../../lib/music-theory.js";
 import { clamp } from "../../../lib/dsp.js";
@@ -30,7 +31,9 @@ const hintKey = computed(() => {
       : "pitchHintSharp";
 });
 
-const methodKey = computed(() => (pitch.value ? `method.${pitch.value.method}` : "pitchMethodWaiting"));
+const methodKey = computed<MessageKey>(() =>
+  pitch.value ? `method.${pitch.value.method}` : "pitchMethodWaiting"
+);
 
 const frequencyText = computed(() =>
   pitch.value ? `${pitch.value.frequency.toFixed(pitch.value.frequency < 100 ? 2 : 1)} Hz` : "— Hz"

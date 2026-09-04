@@ -1,4 +1,5 @@
 import { reactive } from "vue";
+import type { MessageKey } from "../../../lib/i18n/index.js";
 import type { ModeKey } from "../../../lib/key.js";
 
 export type SourceMode = "idle" | "mic" | "file";
@@ -10,9 +11,9 @@ export interface AudioDevice {
 
 export const audioStore = reactive({
   mode: "idle" as SourceMode,
-  statusKey: "statusIdle",
+  statusKey: "statusIdle" as MessageKey,
   statusMode: "idle" as "idle" | "live" | "error",
-  sourceInfoKey: "sourceInfoDefault",
+  sourceInfoKey: "sourceInfoDefault" as MessageKey,
   sourceInfoParams: {} as Record<string, string>,
   sourceInfoOverride: "",
   tuning: 440,
@@ -28,13 +29,13 @@ export const audioStore = reactive({
 });
 
 
-export function setStatus(key: string, mode: "idle" | "live" | "error"): void {
+export function setStatus(key: MessageKey, mode: "idle" | "live" | "error"): void {
   audioStore.statusKey = key;
   audioStore.statusMode = mode;
 }
 
 /** Source line rendered from the dictionary. */
-export function setSourceInfo(key: string, params: Record<string, string> = {}): void {
+export function setSourceInfo(key: MessageKey, params: Record<string, string> = {}): void {
   audioStore.sourceInfoKey = key;
   audioStore.sourceInfoParams = params;
   audioStore.sourceInfoOverride = "";

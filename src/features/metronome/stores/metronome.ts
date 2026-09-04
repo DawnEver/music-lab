@@ -20,7 +20,7 @@ import { defaultAccents, nextAccent, resizeAccents, type Accent } from "../domai
 import { clampBpm, pulseSeconds, tapTempo, type Tempo } from "../domain/tempo.js";
 import type { RhythmPattern } from "../domain/rhythm.js";
 import { defaultPractice, practiceForBar, type PracticeConfig } from "../domain/practice.js";
-import { DEFAULT_BANK_ID } from "../engine/sound-bank.js";
+import { DEFAULT_BANK_ID, SOUND_BANKS, type SoundBankId } from "../engine/sound-bank.js";
 import { createNativeTransport } from "../engine/native-transport.js";
 import type { ClickTransport } from "../engine/transport.js";
 import { storedJson } from "../../../lib/persist.js";
@@ -34,7 +34,7 @@ export interface MetronomeState {
   /** 0..1 */
   swing: number;
   polyrhythm: number;
-  bankId: string;
+  bankId: SoundBankId;
   volume: number;
   practice: PracticeConfig;
   running: boolean;
@@ -74,7 +74,7 @@ const stored = storedJson<MetronomeState>(
     if (typeof saved.divisions === "number") state.divisions = saved.divisions;
     if (typeof saved.swing === "number") state.swing = saved.swing;
     if (typeof saved.polyrhythm === "number") state.polyrhythm = saved.polyrhythm;
-    if (typeof saved.bankId === "string") state.bankId = saved.bankId;
+    if (SOUND_BANKS.some((bank) => bank.id === saved.bankId)) state.bankId = saved.bankId!;
     if (typeof saved.volume === "number") state.volume = saved.volume;
     if (saved.practice) state.practice = { ...state.practice, ...saved.practice };
     state.effectiveBpm = state.bpm;
@@ -221,7 +221,7 @@ export function resetAccents(): void {
   metronome.accents = defaultAccents(metronome.meter);
 }
 
-export function setBank(id: string): void {
+export function setBank(id: SoundBankId): void {
   metronome.bankId = id;
   transport?.setBank(id);
 }

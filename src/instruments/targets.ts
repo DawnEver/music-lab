@@ -19,7 +19,10 @@ import type {
   TuningPreset
 } from "./types.js";
 
-export type PositionKind = "open" | "blow" | "draw" | "bend" | "overblow" | "overdraw";
+/** A grid column: the two ways to sound a hole. */
+export type Breath = "blow" | "draw";
+
+export type PositionKind = "open" | Breath | "bend" | "overblow" | "overdraw";
 
 /** One pitch a target can produce. */
 export interface TargetPosition {
@@ -39,7 +42,7 @@ export interface TuningTarget {
   /** The standard pitch first, then bends, then overbends. */
   positions: TargetPosition[];
   /** Grid placement; absent for list layouts. */
-  slot?: { row: number; column: string };
+  slot?: { row: number; column: Breath };
 }
 
 const POSITION_PRECEDENCE: Record<PositionKind, number> = {
@@ -82,7 +85,7 @@ function buildGridTargets(layout: HarmonicaLayout, keyRootMidi: number): TuningT
   const targets: TuningTarget[] = [];
 
   const buildColumn = (
-    column: "blow" | "draw",
+    column: Breath,
     standard: number[],
     depth: Record<number, number>,
     overbendHoles: number[],

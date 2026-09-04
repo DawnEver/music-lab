@@ -4,7 +4,7 @@
  * lives in the analysis loop.
  */
 
-import { NOTE_NAMES, CHORD_TYPES, type ChordType } from "./music-theory.js";
+import { NOTE_NAMES, CHORD_TYPES, type ChordType, type ChordTypeKey } from "./music-theory.js";
 import { clamp } from "./dsp.js";
 
 /** True when at least three substantial chroma bins exist (polyphony hint). */
@@ -26,7 +26,7 @@ export interface ChordResult extends ChordCandidate {
   confidence: number;
   symbol: string;
   description: string;
-  descriptionKey: string;
+  descriptionKey: ChordTypeKey;
   alternate: string;
 }
 

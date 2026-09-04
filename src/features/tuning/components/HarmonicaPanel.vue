@@ -5,7 +5,13 @@ import { formatCents } from "../../../lib/format.js";
 import { useAnalysis } from "../../../composables/useAnalysis.js";
 import { useI18n } from "../../../composables/useI18n.js";
 import { useTuner } from "../stores/tuner.js";
-import { stringStatus, type StringStatus, type TuningTarget } from "../../../instruments/index.js";
+import {
+  stringStatus,
+  type Breath,
+  type PositionKind,
+  type StringStatus,
+  type TuningTarget
+} from "../../../instruments/index.js";
 import { audioStore } from "../stores/audio.js";
 
 const { t } = useI18n();
@@ -29,13 +35,15 @@ const targets = computed(() => tuner.targets.value);
 
 /** The grid is derived from the targets' slots, not hardcoded. */
 const rows = computed(() => [...new Set(targets.value.map((target) => target.slot?.row ?? 0))].sort((a, b) => a - b));
-const columns = computed(() => [...new Set(targets.value.map((target) => target.slot?.column ?? ""))]);
+const columns = computed<Breath[]>(() => [
+  ...new Set(targets.value.flatMap((target) => (target.slot ? [target.slot.column] : [])))
+]);
 
-function indexAt(row: number, column: string): number {
+function indexAt(row: number, column: Breath): number {
   return targets.value.findIndex((target) => target.slot?.row === row && target.slot?.column === column);
 }
 
-function targetAt(row: number, column: string): TuningTarget | undefined {
+function targetAt(row: number, column: Breath): TuningTarget | undefined {
   return targets.value[indexAt(row, column)];
 }
 
@@ -115,11 +123,18 @@ function toggleCell(index: number): void {
   syncDisplays();
 }
 
-function positionKindText(kind: string, bendLevel?: number): string {
+function positionKindText(kind: PositionKind, bendLevel?: number): string {
   if (kind === "bend") {
     return t((bendLevel ?? 0) >= 3 ? "tuner.kind.deepBend" : "tuner.kind.bend", { level: bendLevel ?? 0 });
   }
   return t(`tuner.kind.${kind}`);
+}
+
+/** The badge on a cell names the position the tuner is following. */
+function badgeText(row: number, column: Breath): string {
+  const cell = display[indexAt(row, column)];
+  const position = targetAt(row, column)?.positions[cell?.activeIndex ?? 0];
+  return position ? positionKindText(position.kind, position.bendLevel) : "";
 }
 
 function noteName(midi: number): string {
@@ -170,12 +185,7 @@ watch(tick, syncDisplays);
             {{ noteName(targetAt(row, column)?.positions[0]?.midi ?? 0) }}
           </span>
           <span v-if="(display[indexAt(row, column)]?.activeIndex ?? 0) > 0" class="cell-badge">
-            {{
-              positionKindText(
-                targetAt(row, column)?.positions[display[indexAt(row, column)].activeIndex ?? 0]?.kind ?? '',
-                targetAt(row, column)?.positions[display[indexAt(row, column)].activeIndex ?? 0]?.bendLevel
-              )
-            }}
+            {{ badgeText(row, column) }}
           </span>
           <span v-if="display[indexAt(row, column)]?.centsText" class="cell-cents">
             {{ display[indexAt(row, column)]?.centsText }}

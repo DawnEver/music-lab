@@ -4,6 +4,7 @@ import { midiToFrequency, NOTE_NAMES } from "../../../lib/music-theory.js";
 import { formatCents } from "../../../lib/format.js";
 import { useAnalysis } from "../../../composables/useAnalysis.js";
 import { useI18n } from "../../../composables/useI18n.js";
+import type { MessageKey } from "../../../lib/i18n/index.js";
 import { useTuner } from "../stores/tuner.js";
 import { stringStatus, type StringStatus } from "../../../instruments/index.js";
 import { audioStore } from "../stores/audio.js";
@@ -17,7 +18,7 @@ interface RowState {
   centsText: string;
 }
 
-const STATUS_KEYS: Record<StringStatus, string> = {
+const STATUS_KEYS: Record<StringStatus, MessageKey> = {
   idle: "tunerStIdle",
   "in-tune": "tunerStInTune",
   flat: "tunerStFlat",

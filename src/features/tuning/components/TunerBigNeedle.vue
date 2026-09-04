@@ -2,6 +2,7 @@
 import { computed } from "vue";
 import { NOTE_NAMES } from "../../../lib/music-theory.js";
 import { useI18n } from "../../../composables/useI18n.js";
+import type { MessageKey } from "../../../lib/i18n/index.js";
 import { useTuner } from "../stores/tuner.js";
 import CentsGauge from "./CentsGauge.vue";
 
@@ -26,7 +27,7 @@ const targetText = computed(() => {
   if (!slot) return value.label[lang.value];
 
   const { kind, bendLevel } = value.position;
-  const kindKey =
+  const kindKey: MessageKey =
     kind === "bend"
       ? (bendLevel ?? 0) >= 3
         ? "tuner.kind.deepBend"

@@ -5,6 +5,7 @@
  */
 
 import { createRouter, createWebHistory, type RouteRecordRaw } from "vue-router";
+import type { MessageKey } from "../lib/i18n/index.js";
 
 const LEGACY_HASH_ROUTES: Record<string, string> = {
   "/metronome": "/metronome",
@@ -29,7 +30,7 @@ export interface ToolRoute {
   name: string;
   path: string;
   /** i18n key for the nav label. */
-  labelKey: string;
+  labelKey: MessageKey;
   icon: string;
 }
 

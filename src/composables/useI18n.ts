@@ -5,12 +5,12 @@
  */
 
 import { ref } from "vue";
-import { t as libT, getLang, setLang as libSetLang, messages } from "../lib/i18n.js";
+import { t as libT, getLang, setLang as libSetLang, messages, type MessageKey } from "../lib/i18n/index.js";
 
 const lang = ref<"zh" | "en">(getLang());
 
 /** Translate a key; reads lang.value so dependents re-run on switch. */
-export function t(key: string, params?: Record<string, string | number>): string {
+export function t(key: MessageKey, params?: Record<string, string | number>): string {
   lang.value; // reactive dependency
   return libT(key, params);
 }

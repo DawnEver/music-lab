@@ -5,8 +5,21 @@
 
 export const NOTE_NAMES = ["C", "C♯", "D", "D♯", "E", "F", "F♯", "G", "G♯", "A", "A♯", "B"];
 
+/** Closed set: the dictionary carries a `chordType.<key>` for each. */
+export type ChordTypeKey =
+  | "major"
+  | "minor"
+  | "dim"
+  | "aug"
+  | "sus2"
+  | "sus4"
+  | "fifth"
+  | "dom7"
+  | "maj7"
+  | "m7";
+
 export interface ChordType {
-  key: string;
+  key: ChordTypeKey;
   suffix: string;
   name: string;
   intervals: number[];
