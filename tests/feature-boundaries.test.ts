@@ -83,6 +83,7 @@ describe("feature boundaries", () => {
     const featureImports = router.imports.filter((target) => featureOf(target));
     expect(featureImports.sort()).toEqual([
       "features/metronome/MetronomeView",
+      "features/scope/ScopeView",
       "features/tuning/TuningView"
     ]);
   });

@@ -14,7 +14,8 @@ export const shell = {
     themeToLight: "切换到浅色主题",
     themeToDark: "切换到深色主题",
     navLabel: "工具",
-    navTuning: "调音与分析",
+    navTuning: "调音",
+    navScope: "观察",
     navMetronome: "节拍器"
   },
   en: {
@@ -31,7 +32,8 @@ export const shell = {
     themeToLight: "Switch to light theme",
     themeToDark: "Switch to dark theme",
     navLabel: "Tools",
-    navTuning: "Tuning & Analysis",
+    navTuning: "Tune",
+    navScope: "Scope",
     navMetronome: "Metronome"
   }
 } as const;

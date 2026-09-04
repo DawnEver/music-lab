@@ -72,7 +72,7 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <section class="card metro-stage" data-tool="metronome">
+  <section class="card metro-stage" data-tool="rhythm">
     <BeatGrid />
     <TempoDisplay />
     <TransportControl />

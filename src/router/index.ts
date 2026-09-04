@@ -1,16 +1,21 @@
 /**
- * Tool-level routes. Each tool owns its own page and its own audio needs;
- * the shell only provides navigation. Clean history URLs are backed by the
- * host's SPA fallback; old tuner/analyzer links remain compatible.
+ * Tool-level routes, named for what the player is doing rather than for
+ * the gadget: tune a note, look at a sound, follow a beat. Each tool owns
+ * its own page and its own audio needs; the shell only provides
+ * navigation.
+ *
+ * Clean history URLs are backed by the host's SPA fallback. Old links keep
+ * working through redirects; the hash-route migration is legacy support
+ * for bookmarks made before the router changed, and retires in v3.
  */
 
 import { createRouter, createWebHistory, type RouteRecordRaw } from "vue-router";
 import type { MessageKey } from "../lib/i18n/index.js";
 
 const LEGACY_HASH_ROUTES: Record<string, string> = {
-  "/metronome": "/metronome",
-  "/tuner": "/tuning",
-  "/analyzer": "/tuning"
+  "/metronome": "/rhythm",
+  "/tuner": "/tune",
+  "/analyzer": "/tune"
 };
 
 /** Convert bookmarks created by the former hash router before Vue reads the URL. */
@@ -35,25 +40,33 @@ export interface ToolRoute {
 }
 
 export const TOOLS: ToolRoute[] = [
-  { name: "tuning", path: "/tuning", labelKey: "navTuning", icon: "♪" },
-  { name: "metronome", path: "/metronome", labelKey: "navMetronome", icon: "▮▯" }
+  { name: "tune", path: "/tune", labelKey: "navTuning", icon: "♪" },
+  { name: "scope", path: "/scope", labelKey: "navScope", icon: "▚" },
+  { name: "rhythm", path: "/rhythm", labelKey: "navMetronome", icon: "▮▯" }
 ];
 
 const routes: RouteRecordRaw[] = [
   {
-    path: "/tuning",
-    name: "tuning",
+    path: "/tune",
+    name: "tune",
     component: () => import("../features/tuning/TuningView.vue")
   },
   {
-    path: "/metronome",
-    name: "metronome",
+    path: "/scope",
+    name: "scope",
+    component: () => import("../features/scope/ScopeView.vue")
+  },
+  {
+    path: "/rhythm",
+    name: "rhythm",
     component: () => import("../features/metronome/MetronomeView.vue")
   },
-  { path: "/", redirect: "/tuning" },
-  { path: "/tuner", redirect: "/tuning" },
-  { path: "/analyzer", redirect: "/tuning" },
-  { path: "/:pathMatch(.*)*", redirect: "/tuning" }
+  { path: "/", redirect: "/tune" },
+  { path: "/tuning", redirect: "/tune" },
+  { path: "/tuner", redirect: "/tune" },
+  { path: "/analyzer", redirect: "/tune" },
+  { path: "/metronome", redirect: "/rhythm" },
+  { path: "/:pathMatch(.*)*", redirect: "/tune" }
 ];
 
 export const router = createRouter({

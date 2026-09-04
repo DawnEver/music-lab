@@ -23,7 +23,7 @@ useTuningLifecycle();
 </script>
 
 <template>
-  <div class="tool-bar" data-tool="tuning">
+  <div class="tool-bar" data-tool="tune">
     <SourceBar />
     <StatusPill />
   </div>

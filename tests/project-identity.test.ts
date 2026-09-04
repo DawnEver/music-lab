@@ -35,13 +35,18 @@ describe("project identity and public routes", () => {
     // what happens to be fetched.
     expect(config).toContain("globPatterns");
     expect(config).toContain('registerType: "autoUpdate"');
-    expect(config).toContain('start_url: "/tuning"');
+    expect(config).toContain('start_url: "/tune"');
   });
 
   it("publishes clean tool routes with SPA fallback", () => {
     const router = read("src/router/index.ts");
-    expect(router).toContain('path: "/tuning"');
-    expect(router).toContain('path: "/metronome"');
+    for (const path of ["/tune", "/scope", "/rhythm"]) {
+      expect(router).toContain(`path: "${path}"`);
+    }
+    // Old links must not 404: the routes were renamed, not removed.
+    for (const legacy of ["/tuning", "/tuner", "/analyzer", "/metronome"]) {
+      expect(router).toContain(`path: "${legacy}", redirect`);
+    }
     expect(router).toContain("createWebHistory");
     expect(router).not.toContain("createWebHashHistory");
 

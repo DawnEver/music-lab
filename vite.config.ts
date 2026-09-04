@@ -30,7 +30,7 @@ export default defineConfig({
         theme_color: "#0b1020",
         background_color: "#0b1020",
         display: "standalone",
-        start_url: "/tuning",
+        start_url: "/tune",
         icons: [
           { src: "favicon.png", sizes: "512x512", type: "image/png", purpose: "any maskable" }
         ]

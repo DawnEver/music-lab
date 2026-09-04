@@ -82,7 +82,7 @@ async function assertNoHOverflow(page, label) {
 async function gotoTool(page, tool) {
   await page.click(`[data-tool-link="${tool}"]`);
   await page.waitForSelector(`[data-tool="${tool}"]`, { timeout: 8000 });
-  const expectedPath = tool === "tuning" ? "/tuning" : "/metronome";
+  const expectedPath = `/${tool}`;
   const pathname = new URL(page.url()).pathname;
   if (pathname !== expectedPath) {
     throw new Error(`${tool}: expected clean route ${expectedPath}, got ${pathname}`);
@@ -90,7 +90,7 @@ async function gotoTool(page, tool) {
 }
 
 async function walkMetronome(page, label, { expectSingleScreen = false } = {}) {
-  await gotoTool(page, "metronome");
+  await gotoTool(page, "rhythm");
 
   const pulses = await page.locator(".metro-beat").count();
   if (pulses !== 4) throw new Error(`${label}: expected a 4/4 grid, got ${pulses} beats`);
@@ -220,7 +220,41 @@ async function walkMetronome(page, label, { expectSingleScreen = false } = {}) {
   }
 
   await assertNoHOverflow(page, `${label} metronome`);
-  await gotoTool(page, "tuning");
+  await gotoTool(page, "tune");
+}
+
+/** The scope: one canvas, its layer/window chips, and the freeze toggle. */
+async function walkScope(page, label) {
+  await gotoTool(page, "scope");
+  await page.waitForSelector("[data-scope-canvas] canvas", { timeout: 8000 });
+
+  const size = await page.locator("[data-scope-canvas] canvas").boundingBox();
+  if (!size || size.height < 200) {
+    throw new Error(`${label}: the scope canvas should be a stage, got ${size?.height}px`);
+  }
+  console.log(`✓ ${label}: scope renders one wide canvas`);
+
+  // Layers and windows are chips on the stage, not a settings panel.
+  const chips = await page.locator(".scope-toggles .metro-chip").count();
+  if (chips < 7) {
+    throw new Error(`${label}: expected layer, window, freeze and clear chips, got ${chips}`);
+  }
+
+  const freeze = page.locator("[data-scope-freeze]");
+  const before = await freeze.innerText();
+  await freeze.click();
+  await page.waitForTimeout(120);
+  if ((await freeze.innerText()) === before) {
+    throw new Error(`${label}: freeze should toggle to resume`);
+  }
+  await freeze.click();
+  console.log(`✓ ${label}: freeze toggles and releases`);
+
+  // The range summary is always present, even before anything is heard.
+  await page.waitForSelector("[data-scope-range]", { timeout: 8000 });
+
+  await assertNoHOverflow(page, `${label} scope`);
+  await gotoTool(page, "tune");
 }
 
 async function walkWorkbench(page, label) {
@@ -340,7 +374,7 @@ async function walkWorkbench(page, label) {
 try {
   const legacy = await browser.newPage();
   await legacy.goto(`${BASE_URL}/#/metronome`, { waitUntil: "networkidle" });
-  if (new URL(legacy.url()).pathname !== "/metronome") {
+  if (new URL(legacy.url()).pathname !== "/rhythm") {
     throw new Error(`legacy metronome bookmark was not migrated: ${legacy.url()}`);
   }
   await legacy.close();
@@ -365,10 +399,10 @@ try {
   console.log("✓ desktop: tuner stretches horizontally (needle | panel side by side)");
 
   // Tool-level navigation: one shell, several music tools.
-  if ((await desktop.locator(".tool-nav-link").count()) !== 2) {
-    throw new Error("desktop: expected tuning + metronome nav links");
+  if ((await desktop.locator(".tool-nav-link").count()) !== 3) {
+    throw new Error("desktop: expected tune + scope + rhythm nav links");
   }
-  console.log("✓ desktop: shell exposes both tools");
+  console.log("✓ desktop: shell exposes all three tools");
 
   // The header carries the build version next to the title.
   const versionText = await desktop.locator(".brand-version").innerText();
@@ -401,6 +435,7 @@ try {
   await desktop.waitForTimeout(200);
   console.log("✓ desktop: theme toggle switches dark/light without overflow");
 
+  await walkScope(desktop, "desktop");
   await walkMetronome(desktop, "desktop", { expectSingleScreen: true });
 
   // ---- Mobile ----
@@ -418,6 +453,7 @@ try {
   }
   console.log("✓ mobile: tuner falls back to a single column");
 
+  await walkScope(mobile, "mobile");
   await walkMetronome(mobile, "mobile");
 
   await mobile.close();
