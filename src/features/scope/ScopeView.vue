@@ -7,6 +7,7 @@
  */
 import { computed, onBeforeUnmount, onMounted } from "vue";
 import { useI18n } from "../../composables/useI18n.js";
+import { useAudioInput } from "../../composables/useAudioInput.js";
 import ControlSheet, { closeAllSheets } from "../../shared/components/ControlSheet.vue";
 import SourceBar from "../../shared/components/SourceBar.vue";
 import StatusPill from "../../shared/components/StatusPill.vue";
@@ -29,6 +30,9 @@ import { hydrateScope, persistScope, playback, scope, WINDOW_CHOICES } from "./s
 const { t } = useI18n();
 
 hydrateScope();
+
+// The scope reads the shared input; the session outlives this view.
+useAudioInput();
 
 const settingsValue = computed(
   () => `${t(`colormap.${scope.colormap}`)} · ${t(`scopeResolution.${scope.resolution}`)}`

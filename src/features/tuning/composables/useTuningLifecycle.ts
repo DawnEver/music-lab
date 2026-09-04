@@ -1,12 +1,19 @@
 import { onBeforeUnmount, onMounted } from "vue";
-import { cleanup, populateDevices, stop } from "../../../audio/session.js";
+import { cleanup, populateDevices } from "../../../audio/session.js";
+import { useAudioInput } from "../../../composables/useAudioInput.js";
 
-/** Own browser lifecycle wiring that only the tuning tool needs. */
+/**
+ * Browser lifecycle the tuning tool needs. The input session is not torn
+ * down here: it belongs to the app, and `useAudioInput` stops it only once
+ * no tool that uses input is left on screen.
+ */
 export function useTuningLifecycle(): void {
   const mediaDevices = navigator.mediaDevices;
   const handleDeviceChange = (): void => {
     void populateDevices();
   };
+
+  useAudioInput();
 
   onMounted(() => {
     window.addEventListener("beforeunload", cleanup);
@@ -16,6 +23,5 @@ export function useTuningLifecycle(): void {
   onBeforeUnmount(() => {
     window.removeEventListener("beforeunload", cleanup);
     mediaDevices?.removeEventListener?.("devicechange", handleDeviceChange);
-    void stop();
   });
 }

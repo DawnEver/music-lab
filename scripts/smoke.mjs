@@ -214,7 +214,8 @@ async function walkMetronome(page, label, { expectSingleScreen = false } = {}) {
   }
   console.log(`✓ ${label}: transport starts, highlights beats, and stops (click + Space)`);
 
-  // The mic picker must not follow the user into the metronome.
+  // The mic picker must not follow the user into the metronome, and the
+  // metronome must not hold the input session open.
   if ((await page.locator(".source-actions").count()) !== 0) {
     throw new Error(`${label}: the audio source bar should stay in the tuning tool`);
   }

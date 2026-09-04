@@ -8,6 +8,7 @@
  */
 import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 import { useI18n } from "../../composables/useI18n.js";
+import { useAudioInput } from "../../composables/useAudioInput.js";
 import AnswerPad from "./components/AnswerPad.vue";
 import SingStage from "./components/SingStage.vue";
 import SourceBar from "../../shared/components/SourceBar.vue";
@@ -29,6 +30,10 @@ import {
 } from "./stores/ear.js";
 
 const { t } = useI18n();
+
+// Sight-singing needs the microphone; the other modes do not, but the
+// retention is per view and stopping mid-session would be worse.
+useAudioInput();
 
 /**
  * Sight-singing is a mode of the same tool rather than a route of its own:

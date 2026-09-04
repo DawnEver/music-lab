@@ -10,6 +10,7 @@ import { closeSession, setSourceInfo, setStatus, sourceStore } from "./source.js
 import { startMicrophone as startMic, micStream, stopMicStream } from "./mic-input.js";
 import { fileObjectUrl, startAudioFile as startFile, teardownFile } from "./file-input.js";
 import { stopAnalysis } from "./analysis.js";
+import { createInputRetention } from "./retention.js";
 
 export { sourceStore, type AudioDevice, type SourceMode } from "./source.js";
 export { populateDevices } from "./devices.js";
@@ -39,6 +40,14 @@ export function startAudioFile(file: File | undefined): Promise<void> {
 export function stop(): Promise<void> {
   return stopSource(true);
 }
+
+/**
+ * Tools declare that they need the input while they are on screen. The
+ * session survives navigation between them and stops once none is left.
+ */
+export const inputRetention = createInputRetention(() => {
+  void stop();
+});
 
 /** Best-effort teardown for beforeunload. */
 export function cleanup(): void {
