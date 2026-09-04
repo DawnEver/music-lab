@@ -47,6 +47,11 @@ const presetId = ref(
 );
 const autoMode = ref(loadStored(STORAGE_AUTO, "1") === "1");
 
+/** Reed layout within the instrument (harmonica: Richter vs Paddy Richter). */
+const variantId = ref(
+  loadStored(`tcl-tuner-variant-${instrumentId.value}`, getInstrument(instrumentId.value)!.defaultVariantId ?? "")
+);
+
 /** Manually selected target. */
 const activeString = ref<number | null>(null);
 const activeCell = ref<{
@@ -65,8 +70,14 @@ export const preset = computed(() =>
   instrument.value ? getPreset(instrument.value, presetId.value) : null
 );
 
+export const variant = computed(() => {
+  const variants = instrument.value?.harmonicaVariants;
+  if (!variants?.length) return null;
+  return variants.find((candidate) => candidate.id === variantId.value) ?? variants[0];
+});
+
 export const harmonicaCells = computed(() => {
-  const layout = instrument.value?.harmonica;
+  const layout = variant.value?.harmonica ?? instrument.value?.harmonica;
   if (!layout || !preset.value) return [];
   const root = preset.value.notes[0] - layout.blowOffsets[0];
   return buildHarmonicaCells(layout, root);
@@ -78,6 +89,7 @@ function setInstrument(id: string): void {
   instrumentId.value = id;
   saveStored(STORAGE_INSTRUMENT, id);
   presetId.value = loadStored(`tcl-tuner-preset-${id}`, next.defaultPresetId);
+  variantId.value = loadStored(`tcl-tuner-variant-${id}`, next.defaultVariantId ?? "");
   setDetectorRange(next.range);
   resetTargets();
 }
@@ -85,6 +97,12 @@ function setInstrument(id: string): void {
 function setPreset(id: string): void {
   presetId.value = id;
   saveStored(`tcl-tuner-preset-${instrumentId.value}`, id);
+  resetTargets();
+}
+
+function setVariant(id: string): void {
+  variantId.value = id;
+  saveStored(`tcl-tuner-variant-${instrumentId.value}`, id);
   resetTargets();
 }
 
@@ -212,6 +230,8 @@ export function useTuner() {
   return {
     instrumentId,
     presetId,
+    variantId,
+    variant,
     autoMode,
     instrument,
     preset,
@@ -223,6 +243,7 @@ export function useTuner() {
     needleTarget,
     setInstrument,
     setPreset,
+    setVariant,
     toggleAuto,
     selectString,
     selectPosition,

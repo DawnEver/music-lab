@@ -181,3 +181,30 @@ describe("nearestString / stringStatus", () => {
     }
   });
 });
+
+describe("harmonica tuning variants", () => {
+  const paddy = () => harmonica.harmonicaVariants!.find((variant) => variant.id === "paddy")!.harmonica;
+
+  it("standard is the first variant and matches the instrument layout", () => {
+    expect(harmonica.harmonicaVariants!.map((variant) => variant.id)).toEqual(["standard", "paddy"]);
+    expect(harmonica.harmonicaVariants![0].harmonica).toBe(HARMONICA_LAYOUT);
+    expect(harmonica.defaultVariantId).toBe("standard");
+  });
+
+  it("Paddy Richter raises hole 3 blow a whole tone, leaving every other note alone", () => {
+    const cells = buildHarmonicaCells(paddy(), 60);
+    const blow = cells.filter((cell) => cell.breath === "blow");
+    const draw = cells.filter((cell) => cell.breath === "draw");
+    expect(blow.map((cell) => cell.positions[0].midi)).toEqual([60, 64, 69, 72, 76, 79, 84, 88, 91, 96]);
+    expect(draw.map((cell) => cell.positions[0].midi)).toEqual([62, 67, 71, 74, 77, 81, 83, 86, 89, 93]);
+  });
+
+  it("Paddy hole 3 draw keeps only the half-step bend (the blow reed sits at A)", () => {
+    const cells = buildHarmonicaCells(paddy(), 60);
+    const byKey = (hole: number, breath: "blow" | "draw") =>
+      cells.find((cell) => cell.hole === hole && cell.breath === breath)!;
+    expect(byKey(3, "draw").positions.map((p) => p.midi)).toEqual([71, 70]); // B4 + half-step bend only
+    expect(byKey(3, "blow").positions.map((p) => p.midi)).toEqual([69, 70]); // A4 + overblow
+    expect(byKey(2, "draw").positions.map((p) => p.midi)).toEqual([67, 66, 65]); // untouched
+  });
+});

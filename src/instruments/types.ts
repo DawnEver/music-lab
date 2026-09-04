@@ -67,6 +67,17 @@ export interface HarmonicaLayout {
   overdrawHoles: number[];
 }
 
+/**
+ * An alternative reed layout of the same instrument (harmonica tunings:
+ * Richter standard, Paddy Richter…). Keys stay in `presets`; the variant
+ * only changes which reed sits in which hole.
+ */
+export interface HarmonicaVariant {
+  id: string;
+  name: LocalizedName;
+  harmonica: HarmonicaLayout;
+}
+
 export interface InstrumentDefinition {
   id: string;
   name: LocalizedName;
@@ -77,6 +88,9 @@ export interface InstrumentDefinition {
   defaultPresetId: string;
   /** Detector band for this instrument (fed into the PitchRange). */
   range: PitchBounds;
-  /** Present when layout === "harmonica". */
+  /** Present when layout === "harmonica" — the default reed layout. */
   harmonica?: HarmonicaLayout;
+  /** Selectable reed layouts; the first one is the default layout. */
+  harmonicaVariants?: HarmonicaVariant[];
+  defaultVariantId?: string;
 }

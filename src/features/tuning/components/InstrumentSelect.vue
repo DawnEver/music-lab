@@ -14,6 +14,14 @@ const instrumentItems = computed(() =>
   }))
 );
 
+const variantItems = computed(
+  () =>
+    tuner.instrument.value?.harmonicaVariants?.map((item) => ({
+      title: item.name[lang.value],
+      value: item.id
+    })) ?? []
+);
+
 const presetItems = computed(
   () =>
     tuner.instrument.value?.presets.map((preset) => ({
@@ -32,6 +40,15 @@ const presetItems = computed(
       density="compact"
       hide-details
       @update:model-value="tuner.setInstrument(String($event))"
+    />
+    <v-select
+      v-if="variantItems.length"
+      :items="variantItems"
+      :model-value="tuner.variant.value?.id"
+      :label="t('tunerSelectHarpTuning')"
+      density="compact"
+      hide-details
+      @update:model-value="tuner.setVariant(String($event))"
     />
     <v-select
       :items="presetItems"

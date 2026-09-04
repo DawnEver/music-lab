@@ -1,4 +1,4 @@
-import type { InstrumentDefinition, HarmonicaLayout, TuningPreset } from "./types.js";
+import type { InstrumentDefinition, HarmonicaLayout, HarmonicaVariant, TuningPreset } from "./types.js";
 
 /**
  * 10-hole diatonic blues harp, Richter tuning. The blow notes are the key
@@ -30,6 +30,28 @@ export const HARMONICA_LAYOUT: HarmonicaLayout = {
   overblowHoles: [1, 2, 3, 4, 5, 6],
   overdrawHoles: [7, 8, 9, 10]
 };
+
+/**
+ * Paddy Richter: hole 3 blow is raised a whole tone (G -> A on a C harp),
+ * putting the 6th of the key under the blow reed so Irish/folk melodies
+ * need no bend. Everything else is Richter. The raised blow reed also
+ * caps hole 3's draw bend at a half step (the bend can only reach down
+ * toward the blow reed, now a whole tone higher), and hole 3 no longer
+ * blow-bends.
+ */
+const PADDY_BLOW_OFFSETS = BLOW_OFFSETS.map((offset, index) => (index === 2 ? offset + 2 : offset));
+const PADDY_DRAW_BEND_DEPTH: Record<number, number> = { ...DRAW_BEND_DEPTH, 3: 1 };
+
+export const PADDY_LAYOUT: HarmonicaLayout = {
+  ...HARMONICA_LAYOUT,
+  blowOffsets: PADDY_BLOW_OFFSETS,
+  drawBendDepth: PADDY_DRAW_BEND_DEPTH
+};
+
+export const HARMONICA_VARIANTS: HarmonicaVariant[] = [
+  { id: "standard", name: { zh: "标准 Richter", en: "Standard Richter" }, harmonica: HARMONICA_LAYOUT },
+  { id: "paddy", name: { zh: "Paddy Richter", en: "Paddy Richter" }, harmonica: PADDY_LAYOUT }
+];
 
 /** All 12 standard keys, root note = hole 1 blow (midi 55 G3 … 66 F♯4). */
 const KEYS: Array<{ id: string; rootMidi: number }> = [
@@ -68,5 +90,7 @@ export const harmonica: InstrumentDefinition = {
   defaultPresetId: "C",
   range: { minHz: 190, maxHz: 3000, minMidi: 55, maxMidi: 102 },
   harmonica: HARMONICA_LAYOUT,
+  harmonicaVariants: HARMONICA_VARIANTS,
+  defaultVariantId: "standard",
   presets: KEYS.map(makeKeyPreset)
 };
