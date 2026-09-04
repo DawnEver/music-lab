@@ -4,7 +4,9 @@
  * importable in Node (getLang() falls back gracefully).
  */
 
-const STORAGE_KEY = "tcl-lang";
+import { storedString } from "./persist.js";
+
+
 
 export type Lang = "zh" | "en";
 
@@ -406,13 +408,11 @@ export const messages: Record<Lang, Record<string, string>> = {
 
 let currentLang: Lang | null = null;
 
+const storedLang = storedString("lang", "", "tcl-lang");
+
 export function getLang(): Lang {
-  try {
-    const stored = window.localStorage.getItem(STORAGE_KEY);
-    if (stored === "zh" || stored === "en") return stored;
-  } catch (_) {
-    // No localStorage in Node or blocked in the browser.
-  }
+  const stored = storedLang.read();
+  if (stored === "zh" || stored === "en") return stored;
   try {
     if (typeof navigator !== "undefined" && navigator.language) {
       return /^zh/i.test(navigator.language) ? "zh" : "en";
@@ -426,11 +426,7 @@ export function getLang(): Lang {
 export function setLang(lang: string): Lang {
   const next: Lang = lang === "en" ? "en" : "zh";
   currentLang = next;
-  try {
-    window.localStorage.setItem(STORAGE_KEY, next);
-  } catch (_) {
-    // Persistence is best-effort.
-  }
+  storedLang.write(next);
   return next;
 }
 

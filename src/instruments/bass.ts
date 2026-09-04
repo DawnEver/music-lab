@@ -5,9 +5,8 @@ export const bass: InstrumentDefinition = {
   id: "bass",
   name: { zh: "贝斯", en: "Bass Guitar" },
   category: "plucked",
-  layout: "strings",
+  layout: "list",
   defaultPresetId: "standard4",
-  range: { minHz: 26, maxHz: 110, minMidi: 21, maxMidi: 46 },
   presets: [
     {
       id: "standard4",

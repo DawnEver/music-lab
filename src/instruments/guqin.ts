@@ -22,9 +22,8 @@ export const guqin: InstrumentDefinition = {
   id: "guqin",
   name: { zh: "古琴", en: "Guqin" },
   category: "plucked",
-  layout: "strings",
+  layout: "list",
   defaultPresetId: "zheng",
-  range: { minHz: 55, maxHz: 160, minMidi: 33, maxMidi: 52 },
   presets: [
     makePreset("zheng", { zh: "正调 (仲吕调)", en: "Standard" }, [36, 38, 41, 43, 45, 48, 50]),
     makePreset("man1", { zh: "慢一弦 (慢角调)", en: "Slow 1st string" }, [35, 38, 41, 43, 45, 48, 50]),

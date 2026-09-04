@@ -13,8 +13,12 @@ import ChordCard from "./components/ChordCard.vue";
 import SpectrumCard from "./components/SpectrumCard.vue";
 import SettingsCard from "./components/SettingsCard.vue";
 import { useTuningLifecycle } from "./composables/useTuningLifecycle.js";
+import { hydrateTuner } from "./stores/tuner.js";
 
 const { t } = useI18n();
+// Reading persisted state is an action of the view, not a side effect of
+// importing the store.
+hydrateTuner();
 useTuningLifecycle();
 </script>
 

@@ -9,9 +9,8 @@ export const doubleBass: InstrumentDefinition = {
   id: "double-bass",
   name: { zh: "低音提琴", en: "Double Bass" },
   category: "bowed",
-  layout: "strings",
+  layout: "list",
   defaultPresetId: "standard4",
-  range: { minHz: 26, maxHz: 120, minMidi: 21, maxMidi: 46 },
   presets: [
     {
       id: "standard4",

@@ -1,10 +1,10 @@
 <script setup lang="ts">
-import { reactive, watch } from "vue";
+import { computed, reactive, watch } from "vue";
 import { midiToFrequency, NOTE_NAMES } from "../../../lib/music-theory.js";
 import { formatCents } from "../../../lib/format.js";
 import { useAnalysis } from "../../../composables/useAnalysis.js";
 import { useI18n } from "../../../composables/useI18n.js";
-import { useTuner } from "../composables/useTuner.js";
+import { useTuner } from "../stores/tuner.js";
 import { stringStatus, type StringStatus } from "../../../instruments/index.js";
 import { audioStore } from "../stores/audio.js";
 
@@ -24,37 +24,39 @@ const STATUS_KEYS: Record<StringStatus, string> = {
   sharp: "tunerStSharp"
 };
 
+/** One row per target; list instruments have exactly one pitch per target. */
 const rows = reactive<RowState[]>([]);
+const targets = computed(() => tuner.targets.value);
 
 function initRows(): void {
   rows.splice(0, rows.length);
-  for (const _ of tuner.preset.value?.notes ?? []) {
-    rows.push({ status: "idle", centsText: "" });
-  }
+  for (const _ of targets.value) rows.push({ status: "idle", centsText: "" });
 }
 
 function syncRows(): void {
-  const notes = tuner.preset.value?.notes;
-  if (!notes) return;
   const p = pitch.value;
   const hasSignal = Boolean(p && p.confidence >= 0.35);
   const confidence = p?.confidence ?? 0;
 
-  for (let index = 0; index < notes.length; index += 1) {
-    const target = midiToFrequency(notes[index], audioStore.tuning);
-    const cents = p ? 1200 * Math.log2(p.frequency / target) : 0;
+  targets.value.forEach((target, index) => {
+    const frequency = midiToFrequency(target.positions[0].midi, audioStore.tuning);
+    const cents = p ? 1200 * Math.log2(p.frequency / frequency) : 0;
     const status = stringStatus(cents, hasSignal, confidence);
     const text = status === "idle" ? "" : formatCents(cents);
     const row = rows[index];
-    if (row.status !== status || row.centsText !== text) {
+    if (row && (row.status !== status || row.centsText !== text)) {
       row.status = status;
       row.centsText = text;
     }
-  }
+  });
+}
+
+function noteName(midi: number): string {
+  return `${NOTE_NAMES[midi % 12]}${Math.floor(midi / 12) - 1}`;
 }
 
 watch(
-  () => tuner.preset.value?.id,
+  targets,
   () => {
     initRows();
     syncRows();
@@ -70,27 +72,25 @@ watch(tick, syncRows);
 <template>
   <div class="strings-panel" role="list" :aria-label="t('tunerSelectTuning')">
     <div
-      v-for="(midi, index) in tuner.preset.value?.notes ?? []"
-      :key="index"
+      v-for="(target, index) in targets"
+      :key="target.id"
       class="string-row"
       role="button"
       :tabindex="0"
       :class="[
         `st-${rows[index]?.status ?? 'idle'}`,
         {
-          'is-selected': tuner.activeString.value === index,
-          'is-auto': tuner.autoMode.value && tuner.autoString.value === index
+          'is-selected': tuner.selection.value?.targetIndex === index,
+          'is-auto': tuner.autoMode.value && tuner.autoMatch.value?.targetIndex === index
         }
       ]"
-      @click="tuner.selectString(index)"
-      @keydown.enter.prevent="tuner.selectString(index)"
-      @keydown.space.prevent="tuner.selectString(index)"
+      @click="tuner.selectTarget(index)"
+      @keydown.enter.prevent="tuner.selectTarget(index)"
+      @keydown.space.prevent="tuner.selectTarget(index)"
     >
       <div class="string-top">
-        <span class="string-label">
-          {{ tuner.preset.value?.noteLabels?.[index]?.[lang] ?? String(index + 1) }}
-        </span>
-        <span class="string-note">{{ NOTE_NAMES[midi % 12] }}{{ Math.floor(midi / 12) - 1 }}</span>
+        <span class="string-label">{{ target.label[lang] }}</span>
+        <span class="string-note">{{ noteName(target.positions[0].midi) }}</span>
       </div>
       <div class="string-bottom">
         <span class="string-cents">{{ rows[index]?.centsText ?? "" }}</span>

@@ -5,9 +5,8 @@ export const viola: InstrumentDefinition = {
   id: "viola",
   name: { zh: "中提琴", en: "Viola" },
   category: "bowed",
-  layout: "strings",
+  layout: "list",
   defaultPresetId: "standard",
-  range: { minHz: 110, maxHz: 470, minMidi: 45, maxMidi: 72 },
   presets: [
     {
       id: "standard",

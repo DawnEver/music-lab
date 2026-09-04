@@ -8,9 +8,8 @@ export const mandolin: InstrumentDefinition = {
   id: "mandolin",
   name: { zh: "曼陀林", en: "Mandolin" },
   category: "plucked",
-  layout: "strings",
+  layout: "list",
   defaultPresetId: "standard",
-  range: { minHz: 180, maxHz: 700, minMidi: 53, maxMidi: 77 },
   presets: [
     {
       id: "standard",

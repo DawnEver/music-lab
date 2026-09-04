@@ -5,9 +5,8 @@ export const zhonghu: InstrumentDefinition = {
   id: "zhonghu",
   name: { zh: "中胡", en: "Zhonghu" },
   category: "bowed",
-  layout: "strings",
+  layout: "list",
   defaultPresetId: "standard",
-  range: { minHz: 165, maxHz: 350, minMidi: 53, maxMidi: 66 },
   presets: [
     {
       id: "standard",

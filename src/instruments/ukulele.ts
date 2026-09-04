@@ -9,9 +9,8 @@ export const ukulele: InstrumentDefinition = {
   id: "ukulele",
   name: { zh: "尤克里里", en: "Ukulele" },
   category: "plucked",
-  layout: "strings",
+  layout: "list",
   defaultPresetId: "standard",
-  range: { minHz: 130, maxHz: 470, minMidi: 48, maxMidi: 70 },
   presets: [
     {
       id: "standard",

@@ -30,9 +30,8 @@ export const kalimba: InstrumentDefinition = {
   id: "kalimba",
   name: { zh: "卡林巴", en: "Kalimba" },
   category: "other",
-  layout: "strings",
+  layout: "list",
   defaultPresetId: "c17",
-  range: { minHz: 240, maxHz: 1400, minMidi: 60, maxMidi: 88 },
   presets: [
     {
       id: "c17",

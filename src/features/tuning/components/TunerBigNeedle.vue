@@ -2,7 +2,7 @@
 import { computed } from "vue";
 import { NOTE_NAMES } from "../../../lib/music-theory.js";
 import { useI18n } from "../../../composables/useI18n.js";
-import { useTuner } from "../composables/useTuner.js";
+import { useTuner } from "../stores/tuner.js";
 import CentsGauge from "./CentsGauge.vue";
 
 const { t, lang } = useI18n();
@@ -19,20 +19,22 @@ const noteName = computed(() => {
 const targetText = computed(() => {
   const value = target.value;
   if (!value) return "";
-  if (value.label) return value.label[lang.value];
-  if (value.position) {
-    const kindKey =
-      value.position.kind === "bend"
-        ? (value.position.bendLevel ?? 0) >= 3
-          ? "tuner.kind.deepBend"
-          : "tuner.kind.bend"
-        : `tuner.kind.${value.position.kind}`;
-    const kindText = t(kindKey, { level: value.position.bendLevel ?? 0 });
-    return `${t("tunerHole", { hole: value.hole })} · ${
-      value.breath === "blow" ? t("tunerBlow") : t("tunerDraw")
-    } · ${kindText}`;
-  }
-  return "";
+
+  // Grid targets read "hole 3 · draw · bend 2"; list targets are just the
+  // string / tine label.
+  const slot = value.target.slot;
+  if (!slot) return value.label[lang.value];
+
+  const { kind, bendLevel } = value.position;
+  const kindKey =
+    kind === "bend"
+      ? (bendLevel ?? 0) >= 3
+        ? "tuner.kind.deepBend"
+        : "tuner.kind.bend"
+      : `tuner.kind.${kind}`;
+  const parts = [t("tunerHole", { hole: slot.row }), t(`tuner.kind.${slot.column}`)];
+  if (kind !== slot.column) parts.push(t(kindKey, { level: bendLevel ?? 0 }));
+  return parts.join(" · ");
 });
 
 const frequencyText = computed(() =>

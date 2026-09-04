@@ -12,8 +12,9 @@
   <script>
     // Pre-apply the stored theme before first paint to avoid a theme flash.
     try {
-      document.documentElement.dataset.theme =
-        localStorage.getItem("tcl-theme") === "light" ? "light" : "dark";
+      // ml.theme is written by lib/persist.ts; tcl-theme is the pre-rename key.
+      var theme = localStorage.getItem("ml.theme") || localStorage.getItem("tcl-theme");
+      document.documentElement.dataset.theme = theme === "light" ? "light" : "dark";
     } catch (e) {
       document.documentElement.dataset.theme = "dark";
     }

@@ -5,9 +5,8 @@ export const gaohu: InstrumentDefinition = {
   id: "gaohu",
   name: { zh: "高胡", en: "Gaohu" },
   category: "bowed",
-  layout: "strings",
+  layout: "list",
   defaultPresetId: "standard",
-  range: { minHz: 340, maxHz: 700, minMidi: 62, maxMidi: 77 },
   presets: [
     {
       id: "standard",

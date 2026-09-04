@@ -29,29 +29,8 @@ export interface PitchBounds {
 
 /** Grouping in the instrument picker, by how the instrument is sounded. */
 export type InstrumentCategory = "plucked" | "bowed" | "winds" | "other";
-export type InstrumentLayout = "strings" | "harmonica";
-
-export type Breath = "blow" | "draw";
-
-/** A pitch target of a (hole × breath) cell: the standard note plus its
- *  bend / overblow / overdraw positions. */
-export interface HarmonicaPosition {
-  kind: "blow" | "draw" | "bend" | "overblow" | "overdraw";
-  /** Offset from the key root (semitones). */
-  semitone: number;
-  /** Absolute MIDI note of this position. */
-  midi: number;
-  /** 1..3 for bends (1 = shallowest, higher = deeper). */
-  bendLevel?: number;
-}
-
-export interface HarmonicaCell {
-  /** 1-based hole number. */
-  hole: number;
-  breath: Breath;
-  /** Standard position first, then bends, then overblow/overdraw. */
-  positions: HarmonicaPosition[];
-}
+/** How the targets are presented: a list of rows, or a hole x breath grid. */
+export type InstrumentLayout = "list" | "grid";
 
 /** Richter-style bend/overblow capabilities of the layout, per hole. */
 export interface HarmonicaLayout {
@@ -73,10 +52,10 @@ export interface HarmonicaLayout {
  * Richter standard, Paddy Richter…). Keys stay in `presets`; the variant
  * only changes which reed sits in which hole.
  */
-export interface HarmonicaVariant {
+export interface LayoutVariant {
   id: string;
   name: LocalizedName;
-  harmonica: HarmonicaLayout;
+  reeds: HarmonicaLayout;
 }
 
 export interface InstrumentDefinition {
@@ -87,11 +66,15 @@ export interface InstrumentDefinition {
   layout: InstrumentLayout;
   presets: TuningPreset[];
   defaultPresetId: string;
-  /** Detector band for this instrument (fed into the PitchRange). */
-  range: PitchBounds;
-  /** Present when layout === "harmonica" — the default reed layout. */
-  harmonica?: HarmonicaLayout;
-  /** Selectable reed layouts; the first one is the default layout. */
-  harmonicaVariants?: HarmonicaVariant[];
+  /**
+   * Detector band override. Normally omitted — `deriveRange()` computes it
+   * from every pitch the instrument can produce, so the band cannot drift
+   * away from the data.
+   */
+  range?: PitchBounds;
+  /** Present when layout === "grid" — the default reed layout. */
+  reeds?: HarmonicaLayout;
+  /** Selectable reed layouts; the first one is the default. */
+  variants?: LayoutVariant[];
   defaultVariantId?: string;
 }

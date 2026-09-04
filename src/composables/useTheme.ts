@@ -6,19 +6,12 @@
 
 import { ref } from "vue";
 import vuetify from "../plugins/vuetify.js";
+import { storedString } from "../lib/persist.js";
 
 export type ThemeName = "dark" | "light";
 
-const STORAGE_KEY = "tcl-theme";
-const theme = ref<ThemeName>(readStored());
-
-function readStored(): ThemeName {
-  try {
-    return localStorage.getItem(STORAGE_KEY) === "light" ? "light" : "dark";
-  } catch {
-    return "dark";
-  }
-}
+const stored = storedString("theme", "dark", "tcl-theme");
+const theme = ref<ThemeName>(stored.read() === "light" ? "light" : "dark");
 
 function apply(name: ThemeName): void {
   document.documentElement.dataset.theme = name;
@@ -27,11 +20,7 @@ function apply(name: ThemeName): void {
 
 export function setTheme(name: ThemeName): void {
   theme.value = name;
-  try {
-    localStorage.setItem(STORAGE_KEY, name);
-  } catch {
-    /* private mode: theme just won't persist */
-  }
+  stored.write(name);
   apply(name);
 }
 

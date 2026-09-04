@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { useI18n } from "../../../composables/useI18n.js";
-import { useTuner } from "../composables/useTuner.js";
+import { useTuner } from "../stores/tuner.js";
 import { instrumentCategories, instrumentsByCategory } from "../../../instruments/index.js";
 
 const { t, lang } = useI18n();
@@ -21,7 +21,7 @@ const instrumentItems = computed(() =>
 
 const variantItems = computed(
   () =>
-    tuner.instrument.value?.harmonicaVariants?.map((item) => ({
+    tuner.instrument.value?.variants?.map((item) => ({
       title: item.name[lang.value],
       value: item.id
     })) ?? []

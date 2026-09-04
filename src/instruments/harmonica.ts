@@ -1,4 +1,4 @@
-import type { InstrumentDefinition, HarmonicaLayout, HarmonicaVariant, TuningPreset } from "./types.js";
+import type { InstrumentDefinition, HarmonicaLayout, LayoutVariant, TuningPreset } from "./types.js";
 
 /**
  * 10-hole diatonic blues harp, Richter tuning. The blow notes are the key
@@ -48,9 +48,9 @@ export const PADDY_LAYOUT: HarmonicaLayout = {
   drawBendDepth: PADDY_DRAW_BEND_DEPTH
 };
 
-export const HARMONICA_VARIANTS: HarmonicaVariant[] = [
-  { id: "standard", name: { zh: "标准 Richter", en: "Standard Richter" }, harmonica: HARMONICA_LAYOUT },
-  { id: "paddy", name: { zh: "Paddy Richter", en: "Paddy Richter" }, harmonica: PADDY_LAYOUT }
+export const HARMONICA_VARIANTS: LayoutVariant[] = [
+  { id: "standard", name: { zh: "标准 Richter", en: "Standard Richter" }, reeds: HARMONICA_LAYOUT },
+  { id: "paddy", name: { zh: "Paddy Richter", en: "Paddy Richter" }, reeds: PADDY_LAYOUT }
 ];
 
 /** All 12 standard keys, root note = hole 1 blow (midi 55 G3 … 66 F♯4). */
@@ -86,12 +86,10 @@ export const harmonica: InstrumentDefinition = {
   id: "harmonica",
   name: { zh: "布鲁斯口琴", en: "Blues Harmonica" },
   category: "winds",
-  layout: "harmonica",
+  layout: "grid",
   defaultPresetId: "C",
-  // Top of the band is the hole-10 overdraw on an F♯ harp (midi 103).
-  range: { minHz: 190, maxHz: 3200, minMidi: 55, maxMidi: 103 },
-  harmonica: HARMONICA_LAYOUT,
-  harmonicaVariants: HARMONICA_VARIANTS,
+  reeds: HARMONICA_LAYOUT,
+  variants: HARMONICA_VARIANTS,
   defaultVariantId: "standard",
   presets: KEYS.map(makeKeyPreset)
 };

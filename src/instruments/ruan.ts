@@ -14,9 +14,8 @@ export const ruan: InstrumentDefinition = {
   id: "ruan",
   name: { zh: "阮", en: "Ruan" },
   category: "plucked",
-  layout: "strings",
+  layout: "list",
   defaultPresetId: "zhong",
-  range: { minHz: 55, maxHz: 640, minMidi: 33, maxMidi: 76 },
   presets: [
     makeRuanPreset("zhong", { zh: "中阮 (G-d-g-d1)", en: "Zhongruan (G-d-g-d1)" }, [43, 50, 55, 62]),
     makeRuanPreset("da", { zh: "大阮 (C-G-c-g)", en: "Daruan (C-G-c-g)" }, [36, 43, 48, 55]),

@@ -1,20 +1,19 @@
 <script setup lang="ts">
-import { reactive, ref, watch } from "vue";
+import { computed, reactive, ref, watch } from "vue";
 import { midiToFrequency, NOTE_NAMES } from "../../../lib/music-theory.js";
 import { formatCents } from "../../../lib/format.js";
 import { useAnalysis } from "../../../composables/useAnalysis.js";
 import { useI18n } from "../../../composables/useI18n.js";
-import { useTuner } from "../composables/useTuner.js";
-import { stringStatus, type Breath, type HarmonicaCell, type StringStatus } from "../../../instruments/index.js";
+import { useTuner } from "../stores/tuner.js";
+import { stringStatus, type StringStatus, type TuningTarget } from "../../../instruments/index.js";
 import { audioStore } from "../stores/audio.js";
 
 const { t } = useI18n();
 const tuner = useTuner();
 const { pitch, tick } = useAnalysis();
 
-const { harmonicaCells, activeCell, autoMatch, autoMode, selectPosition, clearSelection } = tuner;
-
-const expanded = ref<{ hole: number; breath: Breath } | null>(null);
+/** Index of the expanded target, or null. */
+const expanded = ref<number | null>(null);
 
 interface CellDisplay {
   status: StringStatus;
@@ -23,65 +22,75 @@ interface CellDisplay {
   isAuto: boolean;
 }
 
-const display = reactive<Record<string, CellDisplay>>({});
+const display = reactive<CellDisplay[]>([]);
 const positionDisplays = reactive<Array<{ status: StringStatus; centsText: string }>>([]);
 
-function cellBy(hole: number, breath: Breath): HarmonicaCell | undefined {
-  return harmonicaCells.value.find((cell) => cell.hole === hole && cell.breath === breath);
+const targets = computed(() => tuner.targets.value);
+
+/** The grid is derived from the targets' slots, not hardcoded. */
+const rows = computed(() => [...new Set(targets.value.map((target) => target.slot?.row ?? 0))].sort((a, b) => a - b));
+const columns = computed(() => [...new Set(targets.value.map((target) => target.slot?.column ?? ""))]);
+
+function indexAt(row: number, column: string): number {
+  return targets.value.findIndex((target) => target.slot?.row === row && target.slot?.column === column);
 }
 
-function cellKey(hole: number, breath: Breath): string {
-  return `${hole}-${breath}`;
+function targetAt(row: number, column: string): TuningTarget | undefined {
+  return targets.value[indexAt(row, column)];
+}
+
+function initCells(): void {
+  display.splice(0, display.length);
+  for (const _ of targets.value) {
+    display.push({ status: "idle", centsText: "", activeIndex: null, isAuto: false });
+  }
 }
 
 function syncDisplays(): void {
   const p = pitch.value;
   const hasSignal = Boolean(p && p.confidence >= 0.35);
   const confidence = p?.confidence ?? 0;
+  const auto = tuner.autoMatch.value;
+  const manual = tuner.selection.value;
 
-  for (const cell of harmonicaCells.value) {
-    const key = cellKey(cell.hole, cell.breath);
-    const auto =
-      autoMatch.value && autoMatch.value.hole === cell.hole && autoMatch.value.breath === cell.breath
-        ? { index: autoMatch.value.positionIndex, cents: autoMatch.value.cents }
-        : null;
-    const manual =
-      activeCell.value && activeCell.value.hole === cell.hole && activeCell.value.breath === cell.breath
-        ? { index: activeCell.value.positionIndex, midi: activeCell.value.midi }
-        : null;
+  targets.value.forEach((target, index) => {
+    const isAuto = auto?.targetIndex === index;
+    const isManual = manual?.targetIndex === index;
+    const activeIndex = isAuto ? auto!.positionIndex : isManual ? manual!.positionIndex : null;
 
-    const activeIndex = auto?.index ?? manual?.index ?? null;
     let cents = 0;
-    if (auto) {
-      cents = auto.cents;
-    } else if (manual && p) {
-      cents = 1200 * Math.log2(p.frequency / midiToFrequency(manual.midi, audioStore.tuning));
+    if (isAuto) {
+      cents = auto!.cents;
+    } else if (isManual && p) {
+      const midi = target.positions[manual!.positionIndex]?.midi ?? target.positions[0].midi;
+      cents = 1200 * Math.log2(p.frequency / midiToFrequency(midi, audioStore.tuning));
     }
     const status = activeIndex == null ? "idle" : stringStatus(cents, hasSignal, confidence);
     const text = status === "idle" ? "" : formatCents(cents);
 
-    const current = display[key] ?? (display[key] = { status: "idle", centsText: "", activeIndex: null, isAuto: false });
+    const current = display[index];
+    if (!current) return;
     if (
       current.status !== status ||
       current.centsText !== text ||
       current.activeIndex !== activeIndex ||
-      current.isAuto !== Boolean(auto)
+      current.isAuto !== isAuto
     ) {
       current.status = status;
       current.centsText = text;
       current.activeIndex = activeIndex;
-      current.isAuto = Boolean(auto);
+      current.isAuto = isAuto;
     }
-  }
+  });
 
-  const cell = expanded.value ? cellBy(expanded.value.hole, expanded.value.breath) : null;
-  if (cell) {
-    while (positionDisplays.length < cell.positions.length) {
+  const target = expanded.value == null ? null : targets.value[expanded.value];
+  if (target) {
+    while (positionDisplays.length < target.positions.length) {
       positionDisplays.push({ status: "idle", centsText: "" });
     }
-    cell.positions.forEach((position, index) => {
-      const target = midiToFrequency(position.midi, audioStore.tuning);
-      const cents = p ? 1200 * Math.log2(p.frequency / target) : 0;
+    target.positions.forEach((position, index) => {
+      const frequency = midiToFrequency(position.midi, audioStore.tuning);
+      const cents = p ? 1200 * Math.log2(p.frequency / frequency) : 0;
       const status = stringStatus(cents, hasSignal, confidence);
       const text = status === "idle" ? "" : formatCents(cents);
       if (positionDisplays[index].status !== status || positionDisplays[index].centsText !== text) {
@@ -95,14 +104,13 @@ function syncDisplays(): void {
 // Clicking a cell both expands its positions and pins it as the tuner
 // target (the plain note, position 0); clicking it again releases the
 // target back to auto-follow.
-function toggleCell(hole: number, breath: Breath): void {
-  const current = expanded.value;
-  if (current && current.hole === hole && current.breath === breath) {
+function toggleCell(index: number): void {
+  if (expanded.value === index) {
     expanded.value = null;
-    clearSelection();
+    tuner.clearSelection();
   } else {
-    expanded.value = { hole, breath };
-    selectPosition(hole, breath, 0);
+    expanded.value = index;
+    tuner.selectTarget(index, 0);
   }
   syncDisplays();
 }
@@ -119,9 +127,10 @@ function noteName(midi: number): string {
 }
 
 watch(
-  () => tuner.preset.value?.id,
+  targets,
   () => {
     expanded.value = null;
+    initCells();
     syncDisplays();
   },
   { immediate: true }
@@ -134,68 +143,63 @@ watch(tick, syncDisplays);
   <div class="harmonica">
     <div class="harmonica-grid" :aria-label="t('tunerSelectTuning')">
       <div class="harmonica-grid-head">#</div>
-      <div class="harmonica-grid-head">{{ t("tunerBlow") }}</div>
-      <div class="harmonica-grid-head">{{ t("tunerDraw") }}</div>
+      <div v-for="column in columns" :key="column" class="harmonica-grid-head">
+        {{ t(`tuner.kind.${column}`) }}
+      </div>
 
-      <template v-for="hole in 10" :key="hole">
-        <div class="harmonica-hole-label">{{ hole }}</div>
+      <template v-for="row in rows" :key="row">
+        <div class="harmonica-hole-label">{{ row }}</div>
         <div
-          v-for="breath in (['blow', 'draw'] as const)"
-          :key="breath"
+          v-for="column in columns"
+          :key="column"
           class="harmonica-cell"
           role="button"
           :tabindex="0"
           :class="[
-            `st-${display[cellKey(hole, breath)]?.status ?? 'idle'}`,
+            `st-${display[indexAt(row, column)]?.status ?? 'idle'}`,
             {
-              'is-auto': autoMode && display[cellKey(hole, breath)]?.isAuto,
-              'is-expanded':
-                expanded &&
-                expanded.hole === hole &&
-                expanded.breath === breath
+              'is-auto': tuner.autoMode.value && display[indexAt(row, column)]?.isAuto,
+              'is-expanded': expanded === indexAt(row, column)
             }
           ]"
-          @click="toggleCell(hole, breath)"
-          @keydown.enter.prevent="toggleCell(hole, breath)"
-          @keydown.space.prevent="toggleCell(hole, breath)"
+          @click="toggleCell(indexAt(row, column))"
+          @keydown.enter.prevent="toggleCell(indexAt(row, column))"
+          @keydown.space.prevent="toggleCell(indexAt(row, column))"
         >
           <span class="cell-note">
-            {{ noteName(cellBy(hole, breath)?.positions[0]?.midi ?? 0) }}
+            {{ noteName(targetAt(row, column)?.positions[0]?.midi ?? 0) }}
           </span>
-          <span
-            v-if="(display[cellKey(hole, breath)]?.activeIndex ?? 0) > 0"
-            class="cell-badge"
-          >
+          <span v-if="(display[indexAt(row, column)]?.activeIndex ?? 0) > 0" class="cell-badge">
             {{
               positionKindText(
-                cellBy(hole, breath)?.positions[display[cellKey(hole, breath)].activeIndex ?? 0]?.kind ?? '',
-                cellBy(hole, breath)?.positions[display[cellKey(hole, breath)].activeIndex ?? 0]?.bendLevel
+                targetAt(row, column)?.positions[display[indexAt(row, column)].activeIndex ?? 0]?.kind ?? '',
+                targetAt(row, column)?.positions[display[indexAt(row, column)].activeIndex ?? 0]?.bendLevel
               )
             }}
           </span>
-          <span v-if="display[cellKey(hole, breath)]?.centsText" class="cell-cents">
-            {{ display[cellKey(hole, breath)]?.centsText }}
+          <span v-if="display[indexAt(row, column)]?.centsText" class="cell-cents">
+            {{ display[indexAt(row, column)]?.centsText }}
           </span>
         </div>
       </template>
     </div>
 
-    <div v-if="expanded" class="harmonica-expand">
+    <div v-if="expanded !== null && targets[expanded]" class="harmonica-expand">
       <p class="expand-title">
-        {{ t("tunerHole", { hole: expanded.hole }) }} ·
-        {{ expanded.breath === "blow" ? t("tunerBlow") : t("tunerDraw") }} ·
+        {{ t("tunerHole", { hole: targets[expanded].slot?.row ?? 0 }) }} ·
+        {{ t(`tuner.kind.${targets[expanded].slot?.column ?? "blow"}`) }} ·
         {{ t("tunerExpand") }}
       </p>
       <div class="position-chips">
         <button
-          v-for="(position, index) in cellBy(expanded.hole, expanded.breath)?.positions ?? []"
+          v-for="(position, index) in targets[expanded].positions"
           :key="index"
           class="position-chip"
           :class="[
             `st-${positionDisplays[index]?.status ?? 'idle'}`,
-            { 'is-selected': activeCell?.hole === expanded.hole && activeCell?.breath === expanded.breath && activeCell?.positionIndex === index }
+            { 'is-selected': tuner.selection.value?.targetIndex === expanded && tuner.selection.value?.positionIndex === index }
           ]"
-          @click="selectPosition(expanded.hole, expanded.breath, index)"
+          @click="tuner.selectTarget(expanded, index)"
         >
           <span class="chip-kind">{{ positionKindText(position.kind, position.bendLevel) }}</span>
           <span class="chip-note">{{ noteName(position.midi) }}</span>

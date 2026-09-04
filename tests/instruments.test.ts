@@ -3,14 +3,14 @@ import {
   allInstruments,
   getInstrument,
   getPreset,
-  nearestString,
-  nearestPosition,
+  nearestTarget,
   stringStatus,
-  buildHarmonicaCells,
+  buildTargets,
+  deriveRange,
   instrumentCategories,
   instrumentsByCategory
 } from "../src/instruments/index.js";
-import { harmonica, HARMONICA_LAYOUT } from "../src/instruments/harmonica.js";
+import { harmonica } from "../src/instruments/harmonica.js";
 import { midiToFrequency, frequencyToMidi } from "../src/lib/music-theory.js";
 
 describe("registry", () => {
@@ -28,17 +28,25 @@ describe("registry", () => {
     }
   });
 
-  it("every note of every preset sits inside its instrument range", () => {
+  it("the derived detector band covers every pitch the instrument can make", () => {
     for (const instrument of allInstruments) {
+      const range = deriveRange(instrument);
+      const variants = instrument.variants ?? [null];
       for (const preset of instrument.presets) {
-        for (const midi of preset.notes) {
-          const hz = midiToFrequency(midi);
-          expect(hz).toBeGreaterThanOrEqual(instrument.range.minHz);
-          expect(hz).toBeLessThanOrEqual(instrument.range.maxHz);
-          expect(midi).toBeGreaterThanOrEqual(instrument.range.minMidi);
-          expect(midi).toBeLessThanOrEqual(instrument.range.maxMidi);
+        for (const variant of variants) {
+          for (const target of buildTargets(instrument, preset, variant?.reeds)) {
+            for (const position of target.positions) {
+              expect(position.midi, `${instrument.id}/${preset.id}`).toBeGreaterThanOrEqual(range.minMidi);
+              expect(position.midi, `${instrument.id}/${preset.id}`).toBeLessThanOrEqual(range.maxMidi);
+              const hz = midiToFrequency(position.midi);
+              expect(hz).toBeGreaterThanOrEqual(range.minHz);
+              expect(hz).toBeLessThanOrEqual(range.maxHz);
+            }
+          }
         }
       }
+      // The band is snug: no more than an octave of slack either side.
+      expect(range.maxMidi - range.minMidi).toBeLessThan(60);
     }
   });
 
@@ -49,7 +57,7 @@ describe("registry", () => {
         expect(preset.notes.length).toBeGreaterThan(0);
         if (preset.noteLabels) expect(preset.noteLabels.length).toBe(preset.notes.length);
       }
-      if (instrument.layout === "harmonica") expect(instrument.harmonica).toBeTruthy();
+      if (instrument.layout === "grid") expect(instrument.reeds).toBeTruthy();
     }
     // The grouped picker shows each instrument exactly once.
     const grouped = instrumentCategories.flatMap((category) => instrumentsByCategory(category));
@@ -159,32 +167,30 @@ describe("guqin", () => {
 });
 
 describe("harmonica", () => {
-  const keyCells = (keyId: string) => {
-    const preset = getPreset(harmonica, keyId);
-    const root = preset.notes[0] - HARMONICA_LAYOUT.blowOffsets[0];
-    return buildHarmonicaCells(HARMONICA_LAYOUT, root);
-  };
+  const keyCells = (keyId: string) => buildTargets(harmonica, getPreset(harmonica, keyId));
+  const column = (targets: ReturnType<typeof keyCells>, name: string) =>
+    targets.filter((target) => target.slot?.column === name);
 
   it("C key blow/draw standard rows are exact", () => {
     const cells = keyCells("C");
-    const blow = cells.filter((cell) => cell.breath === "blow");
-    const draw = cells.filter((cell) => cell.breath === "draw");
-    expect(blow.map((cell) => cell.positions[0].midi)).toEqual([60, 64, 67, 72, 76, 79, 84, 88, 91, 96]);
-    expect(draw.map((cell) => cell.positions[0].midi)).toEqual([62, 67, 71, 74, 77, 81, 83, 86, 89, 93]);
+    const blow = column(cells, "blow");
+    const draw = column(cells, "draw");
+    expect(blow.map((target) => target.positions[0].midi)).toEqual([60, 64, 67, 72, 76, 79, 84, 88, 91, 96]);
+    expect(draw.map((target) => target.positions[0].midi)).toEqual([62, 67, 71, 74, 77, 81, 83, 86, 89, 93]);
   });
 
   it("G key transposes every note by −5", () => {
     const cells = keyCells("G");
-    const blow = cells.filter((cell) => cell.breath === "blow");
-    const draw = cells.filter((cell) => cell.breath === "draw");
-    expect(blow.map((cell) => cell.positions[0].midi)).toEqual([55, 59, 62, 67, 71, 74, 79, 83, 86, 91]);
-    expect(draw.map((cell) => cell.positions[0].midi)).toEqual([57, 62, 66, 69, 72, 76, 78, 81, 84, 88]);
+    const blow = column(cells, "blow");
+    const draw = column(cells, "draw");
+    expect(blow.map((target) => target.positions[0].midi)).toEqual([55, 59, 62, 67, 71, 74, 79, 83, 86, 91]);
+    expect(draw.map((target) => target.positions[0].midi)).toEqual([57, 62, 66, 69, 72, 76, 78, 81, 84, 88]);
   });
 
   it("bend/overblow/overdraw positions per hole are exact (C key)", () => {
     const cells = keyCells("C");
     const byKey = (hole: number, breath: "blow" | "draw") =>
-      cells.find((cell) => cell.hole === hole && cell.breath === breath)!;
+      cells.find((target) => target.slot?.row === hole && target.slot?.column === breath)!;
 
     expect(byKey(2, "draw").positions.map((p) => p.midi)).toEqual([67, 66, 65]); // G4 F♯4 F4
     expect(byKey(3, "draw").positions.map((p) => p.midi)).toEqual([71, 70, 69, 68]); // B4 B♭4 A4 G♯4
@@ -198,12 +204,12 @@ describe("harmonica", () => {
 
   it("every overblow is the draw reed + 1 and every overdraw the blow reed + 1 (C key)", () => {
     const cells = keyCells("C");
-    const overblows = cells
-      .filter((cell) => cell.breath === "blow")
-      .map((cell) => cell.positions.find((p) => p.kind === "overblow")?.midi ?? null);
-    const overdraws = cells
-      .filter((cell) => cell.breath === "draw")
-      .map((cell) => cell.positions.find((p) => p.kind === "overdraw")?.midi ?? null);
+    const overblows = column(cells, "blow").map(
+      (target) => target.positions.find((p) => p.kind === "overblow")?.midi ?? null
+    );
+    const overdraws = column(cells, "draw").map(
+      (target) => target.positions.find((p) => p.kind === "overdraw")?.midi ?? null
+    );
     // holes 1-6 overblow: E♭4 A♭4 C5 E♭5 G♭5 B♭5
     expect(overblows).toEqual([63, 68, 72, 75, 78, 82, null, null, null, null]);
     // holes 7-10 overdraw: C♯6 F6 A♭6 C♯7
@@ -211,43 +217,39 @@ describe("harmonica", () => {
   });
 
   it("F4 on a C harp resolves to draw-hole-2 bend 2, not the overblow", () => {
-    const result = nearestPosition(349.2282, keyCells("C")); // F4
+    const result = nearestTarget(349.2282, keyCells("C")); // F4
     expect(result).toBeTruthy();
-    expect(result!.hole).toBe(2);
-    expect(result!.breath).toBe("draw");
+    expect(result!.target.slot).toEqual({ row: 2, column: "draw" });
     expect(result!.position.kind).toBe("bend");
     expect(result!.position.bendLevel).toBe(2);
     expect(Math.abs(result!.cents)).toBeLessThan(1);
   });
 
-  it("12 keys × 20 cells × positions all sit inside the instrument range", () => {
+  it("every key builds 20 targets (10 holes × blow/draw)", () => {
     for (const preset of harmonica.presets) {
-      const root = preset.notes[0];
-      const cells = buildHarmonicaCells(HARMONICA_LAYOUT, root);
-      expect(cells).toHaveLength(20);
-      for (const cell of cells) {
-        for (const position of cell.positions) {
-          expect(position.midi).toBeGreaterThanOrEqual(harmonica.range.minMidi);
-          expect(position.midi).toBeLessThanOrEqual(harmonica.range.maxMidi);
-        }
-      }
+      const targets = buildTargets(harmonica, preset);
+      expect(targets).toHaveLength(20);
+      expect(new Set(targets.map((target) => target.id)).size).toBe(20);
     }
   });
 });
 
-describe("nearestString / stringStatus", () => {
-  it("maps 330 Hz to the guitar high E string", () => {
+describe("nearestTarget / stringStatus", () => {
+  const guitarTargets = () => {
     const guitar = getInstrument("guitar")!;
-    const result = nearestString(330, getPreset(guitar, "standard").notes);
-    expect(result!.index).toBe(5);
-    expect(result!.targetMidi).toBe(64); // E4
+    return buildTargets(guitar, getPreset(guitar, "standard"));
+  };
+
+  it("maps 330 Hz to the guitar high E string", () => {
+    const result = nearestTarget(330, guitarTargets());
+    expect(result!.targetIndex).toBe(5);
+    expect(result!.position.midi).toBe(64); // E4
     expect(Math.abs(result!.cents - 1.94)).toBeLessThan(0.5);
   });
 
   it("maps 440 Hz to the nearest guitar string with a large sharp offset", () => {
-    const guitar = getInstrument("guitar")!;
-    const result = nearestString(440, getPreset(guitar, "standard").notes);
-    expect(result!.targetMidi).toBe(64);
+    const result = nearestTarget(440, guitarTargets());
+    expect(result!.position.midi).toBe(64);
     expect(result!.cents).toBeGreaterThan(450); // ~+500 cents vs E4
   });
 
@@ -271,26 +273,30 @@ describe("nearestString / stringStatus", () => {
 });
 
 describe("harmonica tuning variants", () => {
-  const paddy = () => harmonica.harmonicaVariants!.find((variant) => variant.id === "paddy")!.harmonica;
+  const paddyPreset = () => getPreset(harmonica, "C");
+  const paddyTargets = () =>
+    buildTargets(harmonica, paddyPreset(), harmonica.variants!.find((variant) => variant.id === "paddy")!.reeds);
+  const column = (targets: ReturnType<typeof paddyTargets>, name: string) =>
+    targets.filter((target) => target.slot?.column === name);
 
   it("standard is the first variant and matches the instrument layout", () => {
-    expect(harmonica.harmonicaVariants!.map((variant) => variant.id)).toEqual(["standard", "paddy"]);
-    expect(harmonica.harmonicaVariants![0].harmonica).toBe(HARMONICA_LAYOUT);
+    expect(harmonica.variants!.map((variant) => variant.id)).toEqual(["standard", "paddy"]);
+    expect(harmonica.variants![0].reeds).toBe(harmonica.reeds);
     expect(harmonica.defaultVariantId).toBe("standard");
   });
 
   it("Paddy Richter raises hole 3 blow a whole tone, leaving every other note alone", () => {
-    const cells = buildHarmonicaCells(paddy(), 60);
-    const blow = cells.filter((cell) => cell.breath === "blow");
-    const draw = cells.filter((cell) => cell.breath === "draw");
-    expect(blow.map((cell) => cell.positions[0].midi)).toEqual([60, 64, 69, 72, 76, 79, 84, 88, 91, 96]);
-    expect(draw.map((cell) => cell.positions[0].midi)).toEqual([62, 67, 71, 74, 77, 81, 83, 86, 89, 93]);
+    const cells = paddyTargets();
+    const blow = column(cells, "blow");
+    const draw = column(cells, "draw");
+    expect(blow.map((target) => target.positions[0].midi)).toEqual([60, 64, 69, 72, 76, 79, 84, 88, 91, 96]);
+    expect(draw.map((target) => target.positions[0].midi)).toEqual([62, 67, 71, 74, 77, 81, 83, 86, 89, 93]);
   });
 
   it("Paddy hole 3 draw keeps only the half-step bend (the blow reed sits at A)", () => {
-    const cells = buildHarmonicaCells(paddy(), 60);
+    const cells = paddyTargets();
     const byKey = (hole: number, breath: "blow" | "draw") =>
-      cells.find((cell) => cell.hole === hole && cell.breath === breath)!;
+      cells.find((target) => target.slot?.row === hole && target.slot?.column === breath)!;
     expect(byKey(3, "draw").positions.map((p) => p.midi)).toEqual([71, 70]); // B4 + half-step bend only
     expect(byKey(3, "blow").positions.map((p) => p.midi)).toEqual([69, 72]); // A4 + overblow C5 (draw B4 + 1)
     expect(byKey(2, "draw").positions.map((p) => p.midi)).toEqual([67, 66, 65]); // untouched

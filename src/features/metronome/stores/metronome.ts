@@ -23,8 +23,7 @@ import { defaultPractice, practiceForBar, type PracticeConfig } from "../domain/
 import { DEFAULT_BANK_ID } from "../engine/sound-bank.js";
 import { createNativeTransport } from "../engine/native-transport.js";
 import type { ClickTransport } from "../engine/transport.js";
-
-const STORAGE_KEY = "tcl-metronome";
+import { storedJson } from "../../../lib/persist.js";
 
 export interface MetronomeState {
   bpm: number;
@@ -61,12 +60,11 @@ function initialState(): MetronomeState {
   };
 }
 
-function load(): MetronomeState {
-  const state = initialState();
-  try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
-    if (!raw) return state;
-    const saved = JSON.parse(raw) as Partial<MetronomeState>;
+const stored = storedJson<MetronomeState>(
+  "metronome",
+  initialState,
+  (raw, state) => {
+    const saved = raw as Partial<MetronomeState>;
     if (typeof saved.bpm === "number") state.bpm = clampBpm(saved.bpm);
     if (saved.beatUnit) state.beatUnit = saved.beatUnit;
     if (saved.meter?.groups?.length) {
@@ -79,14 +77,13 @@ function load(): MetronomeState {
     if (typeof saved.bankId === "string") state.bankId = saved.bankId;
     if (typeof saved.volume === "number") state.volume = saved.volume;
     if (saved.practice) state.practice = { ...state.practice, ...saved.practice };
-  } catch (_) {
-    // Corrupted storage falls back to defaults.
-  }
-  state.effectiveBpm = state.bpm;
-  return state;
-}
+    state.effectiveBpm = state.bpm;
+    return state;
+  },
+  "tcl-metronome"
+);
 
-export const metronome = reactive<MetronomeState>(load());
+export const metronome = reactive<MetronomeState>(stored.read());
 
 /** Beat highlighted in the grid; shallow so the rAF loop stays cheap. */
 export const activeBeat = shallowRef<{ pulse: number; tick: number; voice: string; bar: number } | null>(
@@ -99,14 +96,11 @@ let transport: ClickTransport | null = null;
 let rafId = 0;
 
 function persist(): void {
-  try {
-    const { running, effectiveBpm, ...rest } = metronome;
-    void running;
-    void effectiveBpm;
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(rest));
-  } catch (_) {
-    // Persistence is best-effort.
-  }
+  // Transport state (running / the live ramp) is a session fact, not a setting.
+  const { running, effectiveBpm, ...settings } = metronome;
+  void running;
+  void effectiveBpm;
+  stored.write(settings as MetronomeState);
 }
 
 export function currentPattern(): RhythmPattern {

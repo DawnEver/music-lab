@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { onBeforeUnmount, onMounted } from "vue";
 import { useI18n } from "../../../composables/useI18n.js";
-import { useTuner } from "../composables/useTuner.js";
+import { useTuner } from "../stores/tuner.js";
 import CollapsibleCard from "../../../shared/components/CollapsibleCard.vue";
 import InstrumentSelect from "./InstrumentSelect.vue";
 import TunerBigNeedle from "./TunerBigNeedle.vue";
@@ -28,7 +28,7 @@ onBeforeUnmount(() => tuner.deactivateTuner());
     <div class="tuner-main">
       <TunerBigNeedle />
 
-      <StringsPanel v-if="tuner.instrument.value?.layout === 'strings'" />
+      <StringsPanel v-if="tuner.instrument.value?.layout === 'list'" />
       <HarmonicaPanel v-else />
     </div>
 

@@ -5,9 +5,8 @@ export const violin: InstrumentDefinition = {
   id: "violin",
   name: { zh: "小提琴", en: "Violin" },
   category: "bowed",
-  layout: "strings",
+  layout: "list",
   defaultPresetId: "standard",
-  range: { minHz: 180, maxHz: 700, minMidi: 53, maxMidi: 77 },
   presets: [
     {
       id: "standard",

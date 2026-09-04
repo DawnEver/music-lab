@@ -5,10 +5,8 @@ export const guitar: InstrumentDefinition = {
   id: "guitar",
   name: { zh: "吉他", en: "Guitar" },
   category: "plucked",
-  layout: "strings",
+  layout: "list",
   defaultPresetId: "standard",
-  // Extremes across all presets: 7-string low B1 (61.7 Hz) … Open G high G4 (392 Hz).
-  range: { minHz: 55, maxHz: 420, minMidi: 33, maxMidi: 68 },
   presets: [
     {
       id: "standard",

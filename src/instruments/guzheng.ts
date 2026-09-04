@@ -24,10 +24,8 @@ export const guzheng: InstrumentDefinition = {
   id: "guzheng",
   name: { zh: "古筝", en: "Guzheng" },
   category: "plucked",
-  layout: "strings",
+  layout: "list",
   defaultPresetId: "dTune",
-  // C 调 low string is C2 (65.4 Hz); D 调 high string is D6 (1174.7 Hz).
-  range: { minHz: 60, maxHz: 1250, minMidi: 36, maxMidi: 88 },
   presets: [
     makeGuzhengPreset("dTune", 86, { zh: "D 调", en: "Key of D" }), // 1弦 D6 … 21弦 D2
     makeGuzhengPreset("cTune", 84, { zh: "C 调", en: "Key of C" }) //  1弦 C6 … 21弦 C2

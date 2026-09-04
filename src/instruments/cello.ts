@@ -5,9 +5,8 @@ export const cello: InstrumentDefinition = {
   id: "cello",
   name: { zh: "大提琴", en: "Cello" },
   category: "bowed",
-  layout: "strings",
+  layout: "list",
   defaultPresetId: "standard",
-  range: { minHz: 55, maxHz: 240, minMidi: 33, maxMidi: 60 },
   presets: [
     {
       id: "standard",

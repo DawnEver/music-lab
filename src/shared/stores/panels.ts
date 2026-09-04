@@ -5,8 +5,7 @@
  */
 
 import { reactive } from "vue";
-
-const STORAGE_KEY = "tcl-panels";
+import { storedJson } from "../../lib/persist.js";
 
 export const PANEL_IDS = ["tuner", "pitch", "chord", "spectrum", "settings"] as const;
 export type PanelId = (typeof PANEL_IDS)[number];
@@ -19,31 +18,26 @@ const DEFAULT_OPEN: Record<PanelId, boolean> = {
   settings: true
 };
 
-function load(): Record<PanelId, boolean> {
-  const state = { ...DEFAULT_OPEN };
-  try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
-    if (!raw) return state;
-    const parsed = JSON.parse(raw) as { open?: Partial<Record<PanelId, boolean>> };
+const stored = storedJson<Record<PanelId, boolean>>(
+  "panels",
+  () => ({ ...DEFAULT_OPEN }),
+  (raw, base) => {
+    // Accepts both the current flat record and the legacy { v, open } shape.
+    const parsed = raw as (Partial<Record<PanelId, boolean>> & { open?: Partial<Record<PanelId, boolean>> }) | null;
+    const source = parsed?.open ?? parsed;
+    if (!source) return base;
     for (const id of PANEL_IDS) {
-      if (typeof parsed.open?.[id] === "boolean") {
-        state[id] = parsed.open[id]!;
-      }
+      if (typeof source[id] === "boolean") base[id] = source[id]!;
     }
-  } catch (_) {
-    // Corrupted storage falls back to defaults.
-  }
-  return state;
-}
+    return base;
+  },
+  "tcl-panels"
+);
 
-const open = reactive<Record<PanelId, boolean>>(load());
+const open = reactive<Record<PanelId, boolean>>(stored.read());
 
 function persist(): void {
-  try {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify({ v: 1, open }));
-  } catch (_) {
-    // Persistence is best-effort.
-  }
+  stored.write({ ...open });
 }
 
 export function isOpen(id: PanelId): boolean {

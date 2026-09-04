@@ -5,9 +5,8 @@ export const liuqin: InstrumentDefinition = {
   id: "liuqin",
   name: { zh: "柳琴", en: "Liuqin" },
   category: "plucked",
-  layout: "strings",
+  layout: "list",
   defaultPresetId: "standard",
-  range: { minHz: 180, maxHz: 640, minMidi: 53, maxMidi: 76 },
   presets: [
     {
       id: "standard",

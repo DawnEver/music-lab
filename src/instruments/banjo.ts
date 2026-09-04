@@ -9,9 +9,8 @@ export const banjo: InstrumentDefinition = {
   id: "banjo",
   name: { zh: "班卓琴", en: "Banjo" },
   category: "plucked",
-  layout: "strings",
+  layout: "list",
   defaultPresetId: "openG",
-  range: { minHz: 110, maxHz: 470, minMidi: 45, maxMidi: 72 },
   presets: [
     {
       id: "openG",

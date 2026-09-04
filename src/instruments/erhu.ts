@@ -5,9 +5,8 @@ export const erhu: InstrumentDefinition = {
   id: "erhu",
   name: { zh: "二胡", en: "Erhu" },
   category: "bowed",
-  layout: "strings",
+  layout: "list",
   defaultPresetId: "standard",
-  range: { minHz: 280, maxHz: 470, minMidi: 60, maxMidi: 70 },
   presets: [
     {
       id: "standard",

@@ -5,9 +5,8 @@ export const pipa: InstrumentDefinition = {
   id: "pipa",
   name: { zh: "琵琶", en: "Pipa" },
   category: "plucked",
-  layout: "strings",
+  layout: "list",
   defaultPresetId: "standard",
-  range: { minHz: 95, maxHz: 260, minMidi: 43, maxMidi: 61 },
   presets: [
     {
       id: "standard",
