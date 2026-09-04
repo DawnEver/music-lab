@@ -88,7 +88,8 @@ export const harmonica: InstrumentDefinition = {
   category: "winds",
   layout: "harmonica",
   defaultPresetId: "C",
-  range: { minHz: 190, maxHz: 3000, minMidi: 55, maxMidi: 102 },
+  // Top of the band is the hole-10 overdraw on an F♯ harp (midi 103).
+  range: { minHz: 190, maxHz: 3200, minMidi: 55, maxMidi: 103 },
   harmonica: HARMONICA_LAYOUT,
   harmonicaVariants: HARMONICA_VARIANTS,
   defaultVariantId: "standard",

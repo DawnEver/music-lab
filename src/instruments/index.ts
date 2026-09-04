@@ -138,7 +138,18 @@ export function buildHarmonicaCells(
 ): HarmonicaCell[] {
   const cells: HarmonicaCell[] = [];
 
-  const buildBreath = (breath: Breath, standard: number[], depth: Record<number, number>, extras: number[]) => {
+  // An overblow/overdraw sounds the *opposite* reed of the hole, driven one
+  // semitone above its own pitch: an overblow is the draw reed + 1, an
+  // overdraw the blow reed + 1. That is why overblows only exist where the
+  // draw reed is the higher one (holes 1-6) and overdraws where the blow
+  // reed is (holes 7-10).
+  const buildBreath = (
+    breath: Breath,
+    standard: number[],
+    depth: Record<number, number>,
+    extras: number[],
+    opposite: number[]
+  ) => {
     for (let hole = 1; hole <= layout.holeCount; hole += 1) {
       const standardSemitone = standard[hole - 1];
       const positions: HarmonicaPosition[] = [
@@ -161,7 +172,7 @@ export function buildHarmonicaCells(
       }
 
       if (extras.includes(hole)) {
-        const semitone = standardSemitone + 1;
+        const semitone = opposite[hole - 1] + 1;
         positions.push({
           kind: breath === "blow" ? "overblow" : "overdraw",
           semitone,
@@ -173,8 +184,8 @@ export function buildHarmonicaCells(
     }
   };
 
-  buildBreath("blow", layout.blowOffsets, layout.blowBendDepth, layout.overblowHoles);
-  buildBreath("draw", layout.drawOffsets, layout.drawBendDepth, layout.overdrawHoles);
+  buildBreath("blow", layout.blowOffsets, layout.blowBendDepth, layout.overblowHoles, layout.drawOffsets);
+  buildBreath("draw", layout.drawOffsets, layout.drawBendDepth, layout.overdrawHoles, layout.blowOffsets);
 
   return cells;
 }

@@ -114,12 +114,26 @@ describe("harmonica", () => {
 
     expect(byKey(2, "draw").positions.map((p) => p.midi)).toEqual([67, 66, 65]); // G4 F♯4 F4
     expect(byKey(3, "draw").positions.map((p) => p.midi)).toEqual([71, 70, 69, 68]); // B4 B♭4 A4 G♯4
-    expect(byKey(2, "blow").positions.map((p) => p.midi)).toEqual([64, 65]); // E4 + overblow F4
+    expect(byKey(2, "blow").positions.map((p) => p.midi)).toEqual([64, 68]); // E4 + overblow A♭4 (draw G4 + 1)
     expect(byKey(8, "blow").positions.map((p) => p.midi)).toEqual([88, 87, 86]); // E6 E♭6 D6
-    expect(byKey(8, "draw").positions.map((p) => p.midi)).toEqual([86, 85, 87]); // D6 C♯6 + overdraw E♭6
-    expect(byKey(1, "blow").positions.map((p) => p.midi)).toEqual([60, 61]); // C4 + overblow C♯4
+    expect(byKey(8, "draw").positions.map((p) => p.midi)).toEqual([86, 85, 89]); // D6 C♯6 + overdraw F6 (blow E6 + 1)
+    expect(byKey(1, "blow").positions.map((p) => p.midi)).toEqual([60, 63]); // C4 + overblow E♭4 (draw D4 + 1)
 
     expect(byKey(3, "draw").positions[3]).toMatchObject({ kind: "bend", bendLevel: 3 });
+  });
+
+  it("every overblow is the draw reed + 1 and every overdraw the blow reed + 1 (C key)", () => {
+    const cells = keyCells("C");
+    const overblows = cells
+      .filter((cell) => cell.breath === "blow")
+      .map((cell) => cell.positions.find((p) => p.kind === "overblow")?.midi ?? null);
+    const overdraws = cells
+      .filter((cell) => cell.breath === "draw")
+      .map((cell) => cell.positions.find((p) => p.kind === "overdraw")?.midi ?? null);
+    // holes 1-6 overblow: E♭4 A♭4 C5 E♭5 G♭5 B♭5
+    expect(overblows).toEqual([63, 68, 72, 75, 78, 82, null, null, null, null]);
+    // holes 7-10 overdraw: C♯6 F6 A♭6 C♯7
+    expect(overdraws).toEqual([null, null, null, null, null, null, 85, 89, 92, 97]);
   });
 
   it("F4 on a C harp resolves to draw-hole-2 bend 2, not the overblow", () => {
@@ -204,7 +218,7 @@ describe("harmonica tuning variants", () => {
     const byKey = (hole: number, breath: "blow" | "draw") =>
       cells.find((cell) => cell.hole === hole && cell.breath === breath)!;
     expect(byKey(3, "draw").positions.map((p) => p.midi)).toEqual([71, 70]); // B4 + half-step bend only
-    expect(byKey(3, "blow").positions.map((p) => p.midi)).toEqual([69, 70]); // A4 + overblow
+    expect(byKey(3, "blow").positions.map((p) => p.midi)).toEqual([69, 72]); // A4 + overblow C5 (draw B4 + 1)
     expect(byKey(2, "draw").positions.map((p) => p.midi)).toEqual([67, 66, 65]); // untouched
   });
 });

@@ -61,9 +61,9 @@ export interface HarmonicaLayout {
   drawBendDepth: Record<number, number>;
   /** Hole -> max blow-bend depth in semitones (holes 7–10). */
   blowBendDepth: Record<number, number>;
-  /** Holes with a usable overblow (+1 semitone on blow). */
+  /** Holes with a usable overblow (the draw reed + 1 semitone). */
   overblowHoles: number[];
-  /** Holes with a usable overdraw (+1 semitone on draw). */
+  /** Holes with a usable overdraw (the blow reed + 1 semitone). */
   overdrawHoles: number[];
 }
 
