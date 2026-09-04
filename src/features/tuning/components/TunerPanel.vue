@@ -7,6 +7,7 @@ import InstrumentSelect from "./InstrumentSelect.vue";
 import TunerBigNeedle from "./TunerBigNeedle.vue";
 import StringsPanel from "./StringsPanel.vue";
 import HarmonicaPanel from "./HarmonicaPanel.vue";
+import FingeringPanel from "./FingeringPanel.vue";
 
 const { t } = useI18n();
 const tuner = useTuner();
@@ -29,6 +30,7 @@ onBeforeUnmount(() => tuner.deactivateTuner());
       <TunerBigNeedle />
 
       <StringsPanel v-if="tuner.instrument.value?.layout === 'list'" />
+      <FingeringPanel v-else-if="tuner.instrument.value?.layout === 'fingering'" />
       <HarmonicaPanel v-else />
     </div>
 

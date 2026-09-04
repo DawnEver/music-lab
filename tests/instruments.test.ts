@@ -302,3 +302,81 @@ describe("harmonica tuning variants", () => {
     expect(byKey(2, "draw").positions.map((p) => p.midi)).toEqual([67, 66, 65]); // untouched
   });
 });
+
+describe("wind instruments (fingering charts)", () => {
+  const targetsOf = (id: string, presetId: string) => {
+    const instrument = getInstrument(id)!;
+    return buildTargets(instrument, getPreset(instrument, presetId));
+  };
+  const closed = (target: { fingering?: { holes: string[] } }) =>
+    target.fingering!.holes.filter((hole) => hole === "closed").length;
+
+  it("a six-hole flute walks the scale by lifting fingers from the bottom", () => {
+    const targets = targetsOf("dizi", "D");
+    // 筒音作5: every hole closed sounds sol (A4 on a D dizi), and each
+    // further open hole steps up the scale.
+    expect(targets.slice(0, 7).map((target) => target.positions[0].midi)).toEqual([
+      69, 71, 73, 74, 76, 78, 80
+    ]);
+    expect(targets.slice(0, 7).map(closed)).toEqual([6, 5, 4, 3, 2, 1, 0]);
+    expect(targets[0].fingering!.holes).toEqual(
+      ["closed", "closed", "closed", "closed", "closed", "closed"]
+    );
+    expect(targets[1].fingering!.holes[5]).toBe("open"); // the bottom hole lifts first
+  });
+
+  it("the upper octave repeats the fingerings, overblown", () => {
+    const targets = targetsOf("dizi", "D");
+    expect(targets).toHaveLength(14);
+    for (let index = 0; index < 7; index += 1) {
+      const low = targets[index];
+      const high = targets[index + 7];
+      expect(high.positions[0].midi - low.positions[0].midi).toBe(12);
+      expect(high.fingering!.holes).toEqual(low.fingering!.holes);
+      expect(high.fingering!.keys).toEqual(["overblow"]);
+      expect(low.fingering!.keys).toBeUndefined();
+    }
+  });
+
+  it("a key is one number: the pitch of 筒音", () => {
+    const bottomOf = (presetId: string) => targetsOf("dizi", presetId)[0].positions[0].midi;
+    expect(bottomOf("C")).toBe(67); // G4
+    expect(bottomOf("D")).toBe(69); // A4
+    expect(bottomOf("G")).toBe(74); // D5
+    // The xiao is fingered identically, an octave below.
+    expect(targetsOf("xiao", "G")[0].positions[0].midi).toBe(62); // D4
+    expect(targetsOf("xiao", "G")[0].fingering!.holes).toEqual(targetsOf("dizi", "D")[0].fingering!.holes);
+  });
+
+  it("the saxophone targets sounding pitch and labels the written note", () => {
+    const alto = targetsOf("saxophone", "alto");
+    const tenor = targetsOf("saxophone", "tenor");
+
+    // Written D4 sounds F3 on an alto (a major sixth down) and C3 on a
+    // tenor (a major ninth down); both read "D4" on the page.
+    expect(alto[0].label.en).toBe("D4");
+    expect(alto[0].positions[0].midi).toBe(53);
+    expect(tenor[0].label.en).toBe("D4");
+    expect(tenor[0].positions[0].midi).toBe(48);
+
+    // Same fingering, whatever the size.
+    expect(alto[0].fingering!.holes).toEqual(tenor[0].fingering!.holes);
+    // C5 is the second finger alone, not a lifted stack.
+    const c5 = alto.find((target) => target.label.en === "C5")!;
+    expect(c5.fingering!.holes).toEqual(["open", "closed", "open", "open", "open", "open"]);
+    // The upper octave adds the octave key.
+    expect(alto.find((target) => target.label.en === "D5")!.fingering!.keys).toEqual(["octave"]);
+  });
+
+  it("every wind instrument declares its hole geometry and fingers every note", () => {
+    for (const instrument of allInstruments.filter((entry) => entry.layout === "fingering")) {
+      expect(instrument.wind, instrument.id).toBeTruthy();
+      for (const preset of instrument.presets) {
+        expect(preset.fingerings?.length, `${instrument.id}/${preset.id}`).toBe(preset.notes.length);
+        for (const fingering of preset.fingerings!) {
+          expect(fingering.holes).toHaveLength(instrument.wind!.holeCount);
+        }
+      }
+    }
+  });
+});

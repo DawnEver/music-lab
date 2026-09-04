@@ -298,7 +298,7 @@ async function walkWorkbench(page, label) {
   const groups = await page.locator(".v-list-subheader").count();
   const options = await page.locator(".v-list-item").count();
   if (groups < 3) throw new Error(`${label}: expected category subheaders, got ${groups}`);
-  if (options !== 19) throw new Error(`${label}: expected 19 instruments, got ${options}`);
+  if (options !== 22) throw new Error(`${label}: expected 22 instruments, got ${options}`);
   console.log(`✓ ${label}: instrument picker groups ${options} instruments into ${groups} categories`);
   await page.keyboard.press("Escape");
   await page.waitForTimeout(200);
@@ -320,6 +320,19 @@ async function walkWorkbench(page, label) {
   await page.locator(".harmonica-cell").nth(3).click();
   await page.waitForSelector(".position-chips", { timeout: 5000 });
   console.log(`✓ ${label}: harmonica grid renders and expands in the browser`);
+
+  // A wind instrument swaps in the fingering chart.
+  await page.locator(".v-select").nth(0).click();
+  await page.locator(".v-list-item").filter({ hasText: /^(Dizi|笛子)$/ }).first().click();
+  await page.waitForSelector(".fingering-panel", { timeout: 8000 });
+  const holes = await page.locator(".fingering-card").first().locator(".fingering-hole").count();
+  if (holes !== 6) throw new Error(`${label}: expected a 6-hole diagram, got ${holes}`);
+  console.log(`✓ ${label}: dizi renders a fingering chart`);
+
+  // Back to the harmonica: the layout checks below measure that panel.
+  await page.locator(".v-select").nth(0).click();
+  await page.locator(".v-list-item").filter({ hasText: /Harmonica|口琴/ }).first().click();
+  await page.waitForSelector(".harmonica-grid", { timeout: 8000 });
 
   await assertNoHOverflow(page, label);
 }

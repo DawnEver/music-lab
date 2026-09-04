@@ -4,6 +4,7 @@ import { nextTick } from "vue";
 import StringsPanel from "../../src/features/tuning/components/StringsPanel.vue";
 import HarmonicaPanel from "../../src/features/tuning/components/HarmonicaPanel.vue";
 import SourceBar from "../../src/features/tuning/components/SourceBar.vue";
+import FingeringPanel from "../../src/features/tuning/components/FingeringPanel.vue";
 import { audioStore } from "../../src/features/tuning/stores/audio.js";
 import { setLang } from "../../src/lib/i18n/index.js";
 import { useTuner } from "../../src/features/tuning/stores/tuner.js";
@@ -113,6 +114,56 @@ describe("HarmonicaPanel", () => {
     await nextTick();
     expect(hole3Blow()).toBe("A4");
     tuner.setVariant("standard");
+  });
+});
+
+describe("FingeringPanel", () => {
+  beforeEach(async () => {
+    await selectInstrument("dizi", "D");
+  });
+
+  it("draws one card per note with its hole diagram", () => {
+    const wrapper = mount(FingeringPanel);
+    const cards = wrapper.findAll(".fingering-card");
+    expect(cards).toHaveLength(14);
+
+    const bottom = cards[0];
+    expect(bottom.find(".fingering-note").text()).toBe("A4"); // 筒音 of a D dizi
+    expect(bottom.findAll(".fingering-hole.is-closed")).toHaveLength(6);
+
+    // One hole open on the next note, and it is the bottom one.
+    const next = cards[1];
+    expect(next.findAll(".fingering-hole.is-closed")).toHaveLength(5);
+    expect(next.findAll(".fingering-hole")[5].classes()).toContain("is-open");
+  });
+
+  it("names the technique the upper octave needs", () => {
+    const wrapper = mount(FingeringPanel);
+    const cards = wrapper.findAll(".fingering-card");
+    expect(cards[0].find(".fingering-key").exists()).toBe(false);
+    expect(cards[7].find(".fingering-key").text()).toBe("Overblow");
+  });
+
+  it("marks a thumb hole on the back of a xiao", async () => {
+    const wrapper = mount(FingeringPanel);
+    await selectInstrument("xiao", "G");
+    const holes = wrapper.findAll(".fingering-card")[0].findAll(".fingering-hole");
+    expect(holes[0].classes()).toContain("is-back");
+    expect(holes[1].classes()).not.toContain("is-back");
+  });
+
+  it("shows the sounding note and the written note for a transposing sax", async () => {
+    const wrapper = mount(FingeringPanel);
+    await selectInstrument("saxophone", "alto");
+    const first = wrapper.findAll(".fingering-card")[0];
+    expect(first.find(".fingering-note").text()).toBe("F3"); // what the tuner hears
+    expect(first.find(".fingering-degree").text()).toBe("D4"); // what the player reads
+  });
+
+  it("clicking a note pins it as the tuner target", async () => {
+    const wrapper = mount(FingeringPanel);
+    await wrapper.findAll(".fingering-card")[3].trigger("click");
+    expect(tuner.selection.value?.targetIndex).toBe(3);
   });
 });
 

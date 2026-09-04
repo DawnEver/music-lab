@@ -1327,6 +1327,105 @@
   font-size: 13px;
 }
 
+/* Fingering panel — one card per note, with its hole diagram */
+.fingering-panel {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(104px, 1fr));
+  gap: 8px;
+  align-content: start;
+}
+
+.fingering-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  background: rgba(148, 163, 184, 0.05);
+  border: 1px solid var(--line);
+  cursor: pointer;
+  transition: border-color 0.16s ease, background 0.16s ease;
+}
+
+.fingering-card:hover {
+  border-color: var(--line-strong);
+}
+
+.fingering-card.is-selected {
+  border-color: var(--accent-2);
+}
+
+.fingering-card.is-auto {
+  background: rgba(124, 156, 255, 0.1);
+}
+
+.fingering-card.st-in-tune {
+  border-color: var(--ok);
+}
+
+.fingering-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.fingering-note {
+  font-family: var(--font-mono);
+  font-size: 15px;
+  color: var(--text);
+}
+
+.fingering-degree {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+/* The diagram reads top to bottom, like the instrument in the hands. */
+.fingering-holes {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-items: center;
+}
+
+.fingering-hole {
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  border: 1.5px solid var(--line-strong);
+}
+
+.fingering-hole.is-closed {
+  background: var(--text);
+  border-color: var(--text);
+}
+
+.fingering-hole.is-half {
+  background: linear-gradient(to right, var(--text) 50%, transparent 50%);
+}
+
+/* A thumb hole on the back, drawn as a ring around the circle. */
+.fingering-hole.is-back {
+  outline: 1.5px solid var(--line);
+  outline-offset: 2px;
+}
+
+.fingering-foot {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 6px;
+  min-height: 16px;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.fingering-cents {
+  font-family: var(--font-mono);
+  color: var(--text);
+}
+
 /* Strings panel — adaptive grid of per-string cards */
 .strings-panel {
   display: grid;

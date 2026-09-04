@@ -24,6 +24,9 @@ import { liuqin } from "./liuqin.js";
 import { zhonghu } from "./zhonghu.js";
 import { gaohu } from "./gaohu.js";
 import { kalimba } from "./kalimba.js";
+import { dizi } from "./dizi.js";
+import { xiao } from "./xiao.js";
+import { saxophone } from "./saxophone.js";
 
 export * from "./types.js";
 export * from "./targets.js";
@@ -51,6 +54,9 @@ export const allInstruments: InstrumentDefinition[] = [
   gaohu,
   // winds
   harmonica,
+  dizi,
+  xiao,
+  saxophone,
   // other
   kalimba
 ];

@@ -13,7 +13,7 @@
 - The metronome depends on the `Transport` interface, never on the native implementation, so a Tone.js transport can replace it without touching a feature.
 - Tuning is layered the same way: `AnalysisPipeline` owns every analysis decision (cadence, YIN/spectral arbitration, smoothing, silence) and takes frames plus a clock; `analysis-loop.ts` is only the rAF + AnalyserNode adapter. Analysis behaviour is tested without a browser.
 - Keep pure logic (DSP / instrument data / chords) as framework-agnostic pure functions directly testable in Node.
-- One tuning model: a preset is a list of `TuningTarget`s (label, positions, optional grid slot). Strings, tines and harmonica holes differ only in data, so matching, selection and the needle exist once — never add a parallel path for an instrument.
+- One tuning model: a preset is a list of `TuningTarget`s (label, positions, optional grid slot, optional fingering). Strings, tines, harmonica holes and wind fingerings differ only in data, so matching, selection and the needle exist once — never add a parallel path for an instrument. A new instrument family adds a renderer (`list` / `grid` / `fingering`), never a second model.
 - Adding an instrument ≈ adding one data file and registering it — never touch the UI or the analysis loop. The detector band is derived from the pitches the instrument can produce (`deriveRange`); only override `range` with a reason.
 - Real-time analysis: the spectrum is drawn imperatively and never enters Vue reactivity; display results update via shallowRef at analysis cadence; large subtrees sync change-only.
 - Feature state lives in `features/*/stores/`, and importing a store must have no side effect: read persisted state in an explicit `hydrate*()` the view calls.

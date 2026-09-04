@@ -12,6 +12,7 @@
 
 import { midiToFrequency } from "../lib/music-theory.js";
 import type {
+  Fingering,
   HarmonicaLayout,
   InstrumentDefinition,
   LocalizedName,
@@ -43,6 +44,8 @@ export interface TuningTarget {
   positions: TargetPosition[];
   /** Grid placement; absent for list layouts. */
   slot?: { row: number; column: Breath };
+  /** How to produce this note on a wind instrument. */
+  fingering?: Fingering;
 }
 
 const POSITION_PRECEDENCE: Record<PositionKind, number> = {
@@ -68,7 +71,8 @@ export function buildTargets(
   return preset.notes.map((midi, index) => ({
     id: `s${index + 1}`,
     label: preset.noteLabels?.[index] ?? { zh: String(index + 1), en: String(index + 1) },
-    positions: [{ kind: "open", midi }]
+    positions: [{ kind: "open", midi }],
+    fingering: preset.fingerings?.[index]
   }));
 }
 
