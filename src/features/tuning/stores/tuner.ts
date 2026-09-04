@@ -21,6 +21,7 @@ import { midiToFrequency } from "../../../lib/music-theory.js";
 import { pitchRef, setDetectorRange } from "../../../audio/analysis.js";
 import { storedJson, storedString } from "../../../lib/persist.js";
 import { analysisSettings } from "../../../audio/analysis.js";
+import { clearReference, publishReference } from "../../../shared/stores/reference.js";
 
 /** Below this confidence the display reads as idle. */
 const CONFIDENCE_FLOOR = 0.35;
@@ -157,7 +158,22 @@ export function activateTuner(): void {
 /** Leave the tuner: restore the default detector band. */
 export function deactivateTuner(): void {
   setDetectorRange(null);
+  clearReference();
 }
+
+// Publish whatever is being tuned, so other tools (the trace) can draw it
+// without either feature knowing about the other.
+watch(
+  () => {
+    const active = selection.value ?? autoMatch.value;
+    if (!active) return null;
+    const target = targets.value[active.targetIndex];
+    const position = target?.positions[active.positionIndex];
+    return target && position ? { midi: position.midi, label: target.label } : null;
+  },
+  (value) => publishReference(value),
+  { immediate: true }
+);
 
 // Auto-detect: follow the nearest target while the user hasn't pinned one.
 watch(pitchRef, (pitch) => {

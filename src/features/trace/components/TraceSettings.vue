@@ -1,51 +1,51 @@
 <script setup lang="ts">
 /**
- * How the scope looks. Reached from the chip that shows the value it
- * changes, so the scope stays one canvas rather than a canvas plus a
+ * How the trace looks. Reached from the chip that shows the value it
+ * changes, so the trace stays one canvas rather than a canvas plus a
  * settings panel.
  */
 import { useI18n } from "../../../composables/useI18n.js";
 import { COLORMAP_IDS, type ColormapId } from "../../../lib/colormap.js";
 import { setHistoryResolution, type ResolutionId } from "../../../audio/history.js";
-import { persistScope, scope } from "../stores/scope.js";
+import { persistTrace, traceView } from "../stores/trace.js";
 
 const { t } = useI18n();
 const RESOLUTIONS: ResolutionId[] = ["time", "balanced", "frequency"];
 
 function setResolution(id: ResolutionId): void {
-  scope.resolution = id;
+  traceView.resolution = id;
   setHistoryResolution(id);
-  persistScope();
+  persistTrace();
 }
 
 function setColormap(id: ColormapId): void {
-  scope.colormap = id;
-  persistScope();
+  traceView.colormap = id;
+  persistTrace();
 }
 
 function setFloor(value: number): void {
   // The floor may not cross the ceiling, or the ramp inverts.
-  scope.floorDb = Math.min(value, scope.ceilingDb - 10);
-  persistScope();
+  traceView.floorDb = Math.min(value, traceView.ceilingDb - 10);
+  persistTrace();
 }
 
 function setCeiling(value: number): void {
-  scope.ceilingDb = Math.max(value, scope.floorDb + 10);
-  persistScope();
+  traceView.ceilingDb = Math.max(value, traceView.floorDb + 10);
+  persistTrace();
 }
 </script>
 
 <template>
   <div class="control-group">
     <div class="metro-field">
-      <span class="slider-label">{{ t("scopeColormap") }}</span>
+      <span class="slider-label">{{ t("traceColormap") }}</span>
       <div class="metro-chips">
         <button
           v-for="id in COLORMAP_IDS"
           :key="id"
           type="button"
           class="metro-chip"
-          :class="{ 'is-active': scope.colormap === id }"
+          :class="{ 'is-active': traceView.colormap === id }"
           @click="setColormap(id)"
         >
           {{ t(`colormap.${id}`) }}
@@ -54,31 +54,31 @@ function setCeiling(value: number): void {
     </div>
 
     <div class="metro-field">
-      <span class="slider-label">{{ t("scopeResolution") }}</span>
+      <span class="slider-label">{{ t("traceResolution") }}</span>
       <div class="metro-chips">
         <button
           v-for="id in RESOLUTIONS"
           :key="id"
           type="button"
           class="metro-chip"
-          :class="{ 'is-active': scope.resolution === id }"
+          :class="{ 'is-active': traceView.resolution === id }"
           @click="setResolution(id)"
         >
-          {{ t(`scopeResolution.${id}`) }}
+          {{ t(`traceResolution.${id}`) }}
         </button>
       </div>
     </div>
 
     <div class="slider-field">
       <div class="slider-head">
-        <span class="slider-label">{{ t("scopeFloor") }}</span>
-        <output class="slider-output">{{ String(scope.floorDb).replace("-", "−") }} dB</output>
+        <span class="slider-label">{{ t("traceFloor") }}</span>
+        <output class="slider-output">{{ String(traceView.floorDb).replace("-", "−") }} dB</output>
       </div>
       <v-slider
         :min="-120"
         :max="-40"
         :step="5"
-        :model-value="scope.floorDb"
+        :model-value="traceView.floorDb"
         hide-details
         density="compact"
         @update:model-value="(value: number) => setFloor(value)"
@@ -87,14 +87,14 @@ function setCeiling(value: number): void {
 
     <div class="slider-field">
       <div class="slider-head">
-        <span class="slider-label">{{ t("scopeCeiling") }}</span>
-        <output class="slider-output">{{ String(scope.ceilingDb).replace("-", "−") }} dB</output>
+        <span class="slider-label">{{ t("traceCeiling") }}</span>
+        <output class="slider-output">{{ String(traceView.ceilingDb).replace("-", "−") }} dB</output>
       </div>
       <v-slider
         :min="-60"
         :max="0"
         :step="5"
-        :model-value="scope.ceilingDb"
+        :model-value="traceView.ceilingDb"
         hide-details
         density="compact"
         @update:model-value="(value: number) => setCeiling(value)"
@@ -102,13 +102,13 @@ function setCeiling(value: number): void {
     </div>
 
     <div class="metro-field">
-      <span class="slider-label">{{ t("scopeHarmonics") }}</span>
+      <span class="slider-label">{{ t("traceHarmonics") }}</span>
       <div class="metro-chips">
         <button
           type="button"
           class="metro-chip"
-          :class="{ 'is-active': scope.showHarmonics }"
-          @click="scope.showHarmonics = !scope.showHarmonics; persistScope()"
+          :class="{ 'is-active': traceView.showHarmonics }"
+          @click="traceView.showHarmonics = !traceView.showHarmonics; persistTrace()"
         >
           2× 3× 4×
         </button>

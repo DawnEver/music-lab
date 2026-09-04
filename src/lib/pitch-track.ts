@@ -117,6 +117,19 @@ function holdsFor(
   return held >= sustain;
 }
 
+/**
+ * What a view draws: octave artefacts folded back, then split into voiced
+ * runs. The two rules are never useful apart — segmenting without
+ * correcting draws a clean octave step that never happened — so this is
+ * the one entry point a renderer should use.
+ */
+export function trackSegments(
+  columns: readonly SpectrogramColumn[],
+  options: SegmentOptions & OctaveOptions = {}
+): SpectrogramColumn[][] {
+  return pitchSegments(correctOctaveJumps(columns, options), options);
+}
+
 export interface RangeEnd {
   hz: number;
   midi: number;

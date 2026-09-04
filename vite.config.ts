@@ -26,7 +26,7 @@ export default defineConfig({
       manifest: {
         name: "Music Lab",
         short_name: "Music Lab",
-        description: "Instrument tuning, pitch and chord analysis, and a practice metronome.",
+        description: "Instrument tuning, a time-frequency trace, a practice metronome, and ear training with sight-singing.",
         theme_color: "#0b1020",
         background_color: "#0b1020",
         display: "standalone",

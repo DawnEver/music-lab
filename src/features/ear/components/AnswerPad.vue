@@ -30,7 +30,7 @@ function state(choice: string): string {
 <template>
   <div class="ear-pad" data-ear-pad>
     <button
-      v-for="choice in choices"
+      v-for="(choice, index) in choices"
       :key="choice"
       type="button"
       class="ear-choice"
@@ -38,6 +38,7 @@ function state(choice: string): string {
       :disabled="session.answered !== null"
       @click="answer(choice)"
     >
+      <span class="ear-choice-key" aria-hidden="true">{{ index + 1 }}</span>
       {{ label(choice) }}
     </button>
   </div>

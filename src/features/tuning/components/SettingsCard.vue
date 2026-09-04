@@ -1,16 +1,20 @@
 <script setup lang="ts">
-import { analysisSettings, applyStability } from "../../../audio/analysis.js";
+import { analysisSettings, applyStability, persistAnalysisSettings } from "../../../audio/analysis.js";
 import { useI18n } from "../../../composables/useI18n.js";
 import CollapsibleCard from "../../../shared/components/CollapsibleCard.vue";
 
 const { t } = useI18n();
 
 function onTuning(value: number | null): void {
-  if (value != null) analysisSettings.tuning = value;
+  if (value == null) return;
+  analysisSettings.tuning = value;
+  persistAnalysisSettings();
 }
 
 function onGate(value: number | null): void {
-  if (value != null) analysisSettings.gateDb = value;
+  if (value == null) return;
+  analysisSettings.gateDb = value;
+  persistAnalysisSettings();
 }
 
 function onStability(value: number | null): void {

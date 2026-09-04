@@ -1,8 +1,8 @@
 # 音乐实验室 · Music Lab
 
-> 浏览器内的音乐练习工具台:**调音** + **声音观察** + **专业节拍器** + **视唱练耳**。实时音高/和弦分析 + 多乐器调音器 — 吉他、贝斯、尤克里里、小提琴、二胡、古筝、古琴、布鲁斯口琴(含压音/超吹目标)。Vue 3 + Vuetify 构建,音频只在浏览器本地处理,**不会上传**。
+> 浏览器内的音乐练习工具台:**调音** + **声图** + **专业节拍器** + **视唱练耳**。实时音高/和弦分析 + 多乐器调音器 — 吉他、贝斯、尤克里里、小提琴、二胡、古筝、古琴、布鲁斯口琴(含压音/超吹目标)。Vue 3 + Vuetify 构建,音频只在浏览器本地处理,**不会上传**。
 >
-> A browser music-practice workbench: **tuning**, a **scope** for looking at sound over time, a **professional metronome**, and **ear training with sight-singing**. Real-time pitch & chord analysis, a multi-instrument per-note tuner — guitar, bass, ukulele, violin, erhu, guzheng, guqin, and blues harmonica (with bend/overblow targets). Built with Vue 3 + Vuetify; audio never leaves your browser.
+> A browser music-practice workbench: **tuning**, a **trace** for looking at sound over time, a **professional metronome**, and **ear training with sight-singing**. Real-time pitch & chord analysis, a multi-instrument per-note tuner — guitar, bass, ukulele, violin, erhu, guzheng, guqin, and blues harmonica (with bend/overblow targets). Built with Vue 3 + Vuetify; audio never leaves your browser.
 
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Node](https://img.shields.io/badge/node-%3E%3D20-brightgreen)](#开发)
@@ -32,16 +32,19 @@
   - **复节奏**:2/3/4/5/7 均分小节的第二声部(3:2、4:3、5:4 …)
   - **练习模式**:渐进提速(每 N 小节 +X BPM,带上限)、静音小节循环、随机静音
   - 打拍取速(Tap)、六种音色(合成 / 电子 / 木鱼 / 响棒 / 牛铃 / 踩镲)、音量与设置持久化
-- 📈 **声音观察**(`/scope`):时频图 + 音高曲线两个图层叠在同一时间轴上
+- 📈 **声图**(`/trace`):时频图 + 音高曲线两个图层叠在同一时间轴上
   - x 轴时间、y 轴频率、颜色是能量;色标本身就是 dB 轴(可调下限/上限),五种感知均匀配色
   - 纵轴可切**对数 Hz** 或**半音**(半音刻度下"高半音"处处等距,视唱最需要)
-  - 时间窗口 2/5/10/30 秒随选随缩放;**冻结**后可回看刚才唱的那一句
+  - 时间窗口 2/5/10/30 秒随选随缩放;**冻结**后可拖动回看刚才唱的那一句;悬停读出时间/音名/频率/电平
+  - **瞬时谱**(原调音页的实时频谱)并入同一页,与时频图共用一次输入
+  - 桌面把图层、纵轴、窗口、分辨率、配色、dB 上下限、参考音**全部平铺**在画布下方;手机收进抽屉
   - 时间/频率分辨率可选(短窗时间锐利 ↔ 长窗频率锐利),参考音一条横线 + 可选 2×/3×/4× 泛音辅助线
   - 音高曲线在换气处断开(不画出没唱过的滑音),并纠正一帧的八度误判;take 结束给出**音域**
-- 👂 **视唱练耳**(`/ear`):听辨 + 视唱一处完成
-  - 音程 / 和弦性质 / 音阶听辨:出题、发声、作答、判分、记录一条闭环
+- 👂 **视唱练耳**(`/ear`):听辨 + 视唱一处完成,全流程自动连续
+  - 音程 / 和弦性质 / 音阶听辨:出题、发声、作答、判分、记录一条闭环;**答完自动进下一题**(数字键作答,可关自动)
+  - **出题不重样**:拒绝连续重复,并让最近做错的题更早回来
   - **难度自适应**:按最近 20 次正确率升降级(>85% 升,<60% 降),答案键盘顺序固定
-  - **视唱**:给主音 → 预备拍 → 唱 → 逐音判分(音准容差 ±25/±50 音分),写的旋律与唱的曲线画在同一对坐标轴上
+  - **视唱**:给主音 → 预备拍 → 唱 → 逐音判分(音准容差 ±25/±50 音分)→ **自动换下一条**,写的旋律与唱的曲线画在同一对坐标轴上;调 / 速度 / 小节可选
   - 起音滑音被排除在判分之外;整八度移调算"音域问题",不算唱错
 - 🌗 深色 / 浅色双主题,一键切换并记住选择
 - 🌐 中英双语界面,一键切换并记住选择;📱 响应式
@@ -110,7 +113,7 @@ music-lab/
 │   ├── lib/                # 框架无关纯模块
 │   │   ├── music-theory.ts dsp.ts chord.ts key.ts interval.ts i18n/
 │   │   ├── spectrogram.ts pitch-track.ts colormap.ts
-│   │   ├── plot/           # scale / palette / canvas / spectrum / scope(唯一的刻度真相)
+│   │   ├── plot/           # scale / palette / canvas / spectrum / trace(唯一的刻度真相)
 │   │   └── format.ts
 │   ├── instruments/        # 乐器数据层(types / 注册表 / 8 个数据文件)
 │   ├── features/
@@ -119,7 +122,7 @@ music-lab/
 │   │   │   ├── stores/      # 输入会话 / 状态 / 设备发现
 │   │   │   ├── composables/ # 调音专用状态与生命周期
 │   │   │   └── TuningView.vue
-│   │   ├── scope/          # 声音观察(时频图 + 音高曲线)
+│   │   ├── trace/          # 声图(时频图 + 音高曲线 + 瞬时谱)
 │   │   ├── ear/            # 练耳与视唱(domain 出题/判分 → engine 发声 → stores → UI)
 │   │   └── metronome/
 │   │       ├── domain/     # meter / accent / tempo / rhythm / practice / presets(纯函数)
@@ -130,7 +133,7 @@ music-lab/
 │   ├── shared/             # 跨工具复用:AppShell / ToolNav / 主题语言开关 / CollapsibleCard / panels store
 │   ├── composables/        # 跨工具的 useAnalysis / useI18n / useTheme / useToast
 │   ├── styles/             # tokens.css(深/浅双主题变量)+ style.css
-│   └── router/             # /tune、/scope、/rhythm、/ear(懒加载;旧路径全部重定向)
+│   └── router/             # /tune、/trace、/rhythm、/ear(懒加载;旧路径全部重定向)
 ├── tests/                  # Vitest:算法 + 乐器数据 + 节拍器领域/调度
 └── vercel.json
 ```
@@ -143,7 +146,7 @@ music-lab/
 
 ```bash
 npm test        # Vitest 单元测试
-npm run smoke   # Playwright 冒烟(桌面+移动视口:布局、折叠、主题切换、四个工具路由、节拍器、观察、练耳)
+npm run smoke   # Playwright 冒烟(桌面+移动视口:布局、折叠、主题切换、四个工具路由、节拍器、声图、练耳)
 ```
 
 覆盖:YIN 音高检测(含 B0/D6/A6 宽音域)、合成频谱主导音与色度、和弦识别、级数标注(C 大调/A 小调各级、副属 V/x、KeyTracker 滞后)、i18n 键集一致性、乐器数据逐音符/逐孔位断言(吉他 E2–E4、古筝 21 弦、古琴五调式、口琴 C/G 调与压音表、F4 优先级裁决);节拍器领域(7/8 [2,2,3] 产生 7 个 pulse、6/8 在第 1/4 个八分音符重音、120 BPM 四分音符严格 0.5s、三连音偏移、swing 0%/100%、3:2 复节奏、练习模式逐小节计划)与前瞻调度器(仅调度 horizon 内的事件、跨小节间隔恒定、停止后不再排程);节奏游标(小节内改速度下一个点即生效、改拍号保持当前小节长度、练习模式每小节只掷一次骰、全静音小节跳过后仍对齐)。

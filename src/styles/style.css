@@ -2365,29 +2365,31 @@
   }
 }
 
-/* ---- Scope: one wide stage, like the metronome but for looking ---- */
-.scope-stage {
+/* ---- Trace: one wide stage, like the metronome but for looking ---- */
+.trace-stage {
   grid-column: 1 / -1;
   position: relative;
-  padding: 14px;
+  padding: 10px;
 }
 
-.scope-wrap {
+.trace-wrap {
   position: relative;
   width: 100%;
-  height: clamp(320px, 52vh, 560px);
+  /* The canvas shares the screen with its controls: a picture you cannot
+     adjust without scrolling is worse than a slightly smaller picture. */
+  height: clamp(190px, 28vh, 380px);
   border-radius: var(--radius-md);
   background: var(--screen);
   overflow: hidden;
 }
 
-.scope-wrap canvas {
+.trace-wrap canvas {
   display: block;
   width: 100%;
   height: 100%;
 }
 
-.scope-empty {
+.trace-empty {
   position: absolute;
   inset: auto 0 26px;
   text-align: center;
@@ -2396,23 +2398,23 @@
   pointer-events: none;
 }
 
-.scope-toggles {
+.trace-toggles {
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
   gap: 8px;
 }
 
-.scope-range {
+.trace-range {
   grid-column: 1 / -1;
 }
 
 @media (max-width: 720px) {
-  .scope-stage {
+  .trace-stage {
     padding: 10px;
   }
 
-  .scope-wrap {
+  .trace-wrap {
     height: clamp(260px, 46vh, 420px);
   }
 }
@@ -2537,7 +2539,7 @@
   }
 }
 
-/* Sight-singing shares the scope's canvas shell; the line is the content. */
+/* Sight-singing shares the trace's canvas shell; the line is the content. */
 .sing-stage {
   display: grid;
   gap: 14px;
@@ -2545,6 +2547,154 @@
   justify-items: center;
 }
 
-.sing-stage .scope-wrap {
+.sing-stage .trace-wrap {
   height: clamp(240px, 42vh, 420px);
+}
+
+.trace-readout,
+.trace-group-label {
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+.trace-readout {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  min-height: 1.2em;
+  margin: 0;
+  font-family: var(--font-mono);
+}
+
+.trace-frozen {
+  color: var(--warn);
+}
+
+.trace-group-label {
+  align-self: center;
+  margin-right: 2px;
+}
+
+.ear-choice-key {
+  display: inline-block;
+  min-width: 1.1em;
+  margin-right: 6px;
+  color: var(--muted-2);
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+}
+
+/* The instant spectrum sits under the time view, sharing its width. */
+.trace-stage .spectrum-wrap {
+  width: 100%;
+  height: clamp(72px, 10vh, 130px);
+  margin-top: 10px;
+  border-radius: var(--radius-md);
+  background: var(--screen);
+  overflow: hidden;
+}
+
+.trace-stage .spectrum-wrap canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.trace-stage .level-row {
+  margin-top: 10px;
+}
+
+/* ---- Trace controls: flat on a wide screen, sheeted on a phone ---- */
+/* Actions and the pointer readout share a line: both are about the
+   moment on screen, and neither deserves a row of its own. */
+.trace-actions {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  min-height: 28px;
+}
+
+.trace-controls {
+  display: grid;
+  gap: 7px;
+  width: 100%;
+  font-size: 0.8rem;
+}
+
+.trace-controls .metro-chip {
+  padding: 5px 10px;
+  font-size: 0.78rem;
+}
+
+.trace-controls--flat {
+  grid-column: 1 / -1;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--glass);
+}
+
+.trace-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 5px;
+}
+
+.trace-row--sliders {
+  gap: 22px;
+}
+
+.trace-slider {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 220px;
+  flex: 1 1 220px;
+}
+
+.trace-slider input[type="range"] {
+  flex: 1 1 auto;
+  accent-color: var(--accent);
+}
+
+.trace-swatch::before {
+  content: "";
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  margin-right: 6px;
+  border-radius: 3px;
+  vertical-align: -1px;
+}
+
+.trace-swatch--magma::before { background: linear-gradient(90deg, #000004, #b5367a, #fcfdbf); }
+.trace-swatch--viridis::before { background: linear-gradient(90deg, #440154, #21918c, #fde725); }
+.trace-swatch--inferno::before { background: linear-gradient(90deg, #000004, #ba3655, #fcffa4); }
+.trace-swatch--ice::before { background: linear-gradient(90deg, #020618, #106096, #f0fcff); }
+.trace-swatch--gray::before { background: linear-gradient(90deg, #000, #fff); }
+
+.metro-chip--tight {
+  min-width: 34px;
+  padding-left: 8px;
+  padding-right: 8px;
+}
+
+/* One definition, two placements: the flat panel is the desktop form and
+   the chip row is the phone form, so exactly one is ever visible. */
+.trace-chip-row {
+  display: none;
+}
+
+@media (max-width: 900px) {
+  .trace-controls--flat {
+    display: none;
+  }
+
+  .trace-chip-row {
+    display: flex;
+  }
 }

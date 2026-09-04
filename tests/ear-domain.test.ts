@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { EXERCISE_KINDS, generateExercise } from "../src/features/ear/domain/exercise.js";
+import {
+  chooseExercise,
+  EXERCISE_KINDS,
+  generateExercise
+} from "../src/features/ear/domain/exercise.js";
 import { grade, isCorrect, levelFor, nextLevel } from "../src/features/ear/domain/grade.js";
 
 /** Deterministic "random": walks a fixed list, so a test can name the question. */
@@ -112,3 +116,54 @@ describe("difficulty ladder", () => {
     expect(levelFor({ interval: streak(Array(10).fill(true)) } as never, "interval")).toBe(2);
   });
 });
+
+describe("choosing the next question", () => {
+  const rng = () => 0.42;
+
+  it("never asks the same thing twice in a row", () => {
+    // Pure random repeats: at level 1 chords there are two answers, so a
+    // fair coin lands on the same one half the time and practice stalls.
+    let previous: string | null = null;
+    for (let i = 0; i < 40; i += 1) {
+      const exercise = chooseExercise("chord", 1, seeded(i), { lastAnswer: previous });
+      expect(exercise.answer).not.toBe(previous);
+      previous = exercise.answer;
+    }
+  });
+
+  it("still works when only one answer is possible", () => {
+    const only = chooseExercise("chord", 1, rng, { lastAnswer: "major", exhaust: 2 });
+    expect(only.answer).toBeTruthy();
+  });
+
+  it("prefers what you have been getting wrong", () => {
+    const missed = { TT: 3 };
+    const answers = new Set<string>();
+    for (let i = 0; i < 30; i += 1) {
+      answers.add(chooseExercise("interval", 3, seeded(i), { missed }).answer);
+    }
+    const tritones = Array.from({ length: 30 }, (_, i) =>
+      chooseExercise("interval", 3, seeded(i), { missed }).answer
+    ).filter((answer) => answer === "TT").length;
+    const withoutBias = Array.from({ length: 30 }, (_, i) =>
+      chooseExercise("interval", 3, seeded(i), {}).answer
+    ).filter((answer) => answer === "TT").length;
+    expect(tritones).toBeGreaterThan(withoutBias);
+    expect(answers.size).toBeGreaterThan(1);
+  });
+
+  it("is still fully determined by the rng", () => {
+    const a = chooseExercise("interval", 2, seeded(7), { lastAnswer: "P5" });
+    const b = chooseExercise("interval", 2, seeded(7), { lastAnswer: "P5" });
+    expect(b).toEqual(a);
+  });
+});
+
+/** A deterministic pseudo-random stream from a seed. */
+function seeded(seed: number): () => number {
+  let state = seed * 2654435761 + 1;
+  return () => {
+    state = (state * 1103515245 + 12345) & 0x7fffffff;
+    return state / 0x7fffffff;
+  };
+}

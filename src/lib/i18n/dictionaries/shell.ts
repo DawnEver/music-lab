@@ -15,7 +15,7 @@ export const shell = {
     themeToDark: "切换到深色主题",
     navLabel: "工具",
     navTuning: "调音",
-    navScope: "观察",
+    navTrace: "声图",
     navMetronome: "节拍",
     navEar: "练耳"
   },
@@ -34,7 +34,7 @@ export const shell = {
     themeToDark: "Switch to dark theme",
     navLabel: "Tools",
     navTuning: "Tune",
-    navScope: "Scope",
+    navTrace: "Trace",
     navMetronome: "Rhythm",
     navEar: "Ear"
   }

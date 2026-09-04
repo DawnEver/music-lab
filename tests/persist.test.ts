@@ -90,3 +90,30 @@ describe("persist", () => {
     expect(() => value.write("light")).not.toThrow();
   });
 });
+
+describe("analysis settings", () => {
+  it("survive a reload: A4 is not something to set twice", async () => {
+    const { analysisSettings, hydrateAnalysisSettings, persistAnalysisSettings } = await import(
+      "../src/audio/analysis.js"
+    );
+
+    analysisSettings.tuning = 442;
+    analysisSettings.gateDb = -60;
+    persistAnalysisSettings();
+
+    analysisSettings.tuning = 440;
+    analysisSettings.gateDb = -52;
+    hydrateAnalysisSettings();
+    expect(analysisSettings.tuning).toBe(442);
+    expect(analysisSettings.gateDb).toBe(-60);
+  });
+
+  it("reject stored values outside the ranges the UI allows", async () => {
+    const { analysisSettings, hydrateAnalysisSettings } = await import("../src/audio/analysis.js");
+    storage.setItem("ml.analysis", JSON.stringify({ tuning: 5, gateDb: 900, stability: 12 }));
+    hydrateAnalysisSettings();
+    expect(analysisSettings.tuning).toBe(440);
+    expect(analysisSettings.gateDb).toBe(-52);
+    expect(analysisSettings.stability).toBe(0.72);
+  });
+});

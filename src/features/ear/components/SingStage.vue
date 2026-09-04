@@ -6,13 +6,14 @@
  */
 import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 import { useI18n } from "../../../composables/useI18n.js";
+import { useAudioInput } from "../../../composables/useAudioInput.js";
 import { audioContext, sourceStore } from "../../../audio/source.js";
 import { analysisSettings } from "../../../audio/analysis.js";
 import { historyBuffer } from "../../../audio/history.js";
 import { bandFrequencies, SPECTROGRAM_BANDS } from "../../../lib/spectrogram.js";
 import { colormapLut } from "../../../lib/colormap.js";
 import { semitoneScale } from "../../../lib/plot/scale.js";
-import { drawScope } from "../../../lib/plot/scope.js";
+import { drawTrace } from "../../../lib/plot/trace.js";
 import { frequencyToMidi } from "../../../lib/music-theory.js";
 import { melodySeconds } from "../domain/melody.js";
 import {
@@ -21,13 +22,21 @@ import {
   newMelody,
   playMelody,
   playTonic,
+  setLoop,
   sing,
   startTake,
+  stopLoop,
   targetSegments,
   verdict
 } from "../stores/sing.js";
+import { NOTE_NAMES } from "../../../lib/music-theory.js";
 
 const { t } = useI18n();
+
+// Only this mode listens. The other ear-training modes have no use for a
+// microphone, and holding one open there would be a privacy cost for
+// nothing.
+useAudioInput();
 
 const wrap = ref<HTMLElement | null>(null);
 const canvas = ref<HTMLCanvasElement | null>(null);
@@ -46,6 +55,36 @@ const scoreText = computed(() =>
 );
 
 const phaseText = computed(() => t(`sing.phase.${sing.phase}`));
+
+/** Whole-octave misses are a range problem, and worth saying out loud. */
+const octaveNote = computed(() => {
+  const off = verdict.value?.notes.filter((note) => note.sung && note.octaveOff !== 0) ?? [];
+  if (!off.length || off.length < (verdict.value?.notes.length ?? 0) / 2) return "";
+  return t("singOctaveOff", { octaves: off[0].octaveOff });
+});
+
+const TONICS = [55, 57, 59, 60, 62, 64, 65, 67];
+const TEMPOS = [56, 72, 88, 104];
+const BAR_CHOICES = [1, 2, 4];
+
+function tonicLabel(midi: number): string {
+  return `${NOTE_NAMES[((midi % 12) + 12) % 12]}${Math.floor(midi / 12) - 1}`;
+}
+
+function setTonic(midi: number): void {
+  sing.tonicMidi = midi;
+  newMelody();
+}
+
+function setTempo(bpm: number): void {
+  sing.bpm = bpm;
+  newMelody();
+}
+
+function setBars(bars: number): void {
+  sing.bars = bars;
+  newMelody();
+}
 
 /** The window is the take: the written line decides what is on screen. */
 function timeWindow(): { start: number; end: number } {
@@ -74,7 +113,7 @@ function verticalScale() {
 function frame(): void {
   if (canvas.value && wrap.value) {
     const { start, end } = timeWindow();
-    drawScope({
+    drawTrace({
       canvas: canvas.value,
       wrap: wrap.value,
       columns: historyBuffer.window(end, end - start),
@@ -112,7 +151,7 @@ onBeforeUnmount(() => {
 
 <template>
   <div class="sing-stage">
-    <div ref="wrap" class="scope-wrap" data-sing-canvas>
+    <div ref="wrap" class="trace-wrap" data-sing-canvas>
       <canvas ref="canvas"></canvas>
     </div>
 
@@ -120,7 +159,7 @@ onBeforeUnmount(() => {
       {{ t("singNeedsMic") }}
     </p>
 
-    <div class="scope-toggles">
+    <div class="trace-toggles">
       <button type="button" class="metro-chip" data-sing-tonic @click="playTonic">
         {{ t("singTonic") }}
       </button>
@@ -128,21 +167,67 @@ onBeforeUnmount(() => {
       <button
         type="button"
         class="metro-chip"
-        :class="{ 'is-active': sing.phase === 'recording' || sing.phase === 'countIn' }"
+        :class="{ 'is-active': sing.running }"
         :disabled="sourceStore.mode === 'idle'"
         data-sing-start
-        @click="startTake"
+        @click="sing.running ? stopLoop() : startTake()"
       >
-        {{ t("singStart") }}
+        {{ sing.running ? t("singStop") : t("singStart") }}
+      </button>
+      <button
+        type="button"
+        class="metro-chip"
+        :class="{ 'is-active': sing.loop }"
+        data-sing-loop
+        @click="setLoop(!sing.loop)"
+      >
+        {{ t("singLoop") }}
       </button>
       <button type="button" class="metro-chip" data-sing-new @click="newMelody">
         {{ t("singNew") }}
       </button>
     </div>
 
+    <div class="trace-toggles sing-setup">
+      <span class="trace-group-label">{{ t("singKey") }}</span>
+      <button
+        v-for="midi in TONICS"
+        :key="midi"
+        type="button"
+        class="metro-chip"
+        :class="{ 'is-active': sing.tonicMidi === midi }"
+        @click="setTonic(midi)"
+      >
+        {{ tonicLabel(midi) }}
+      </button>
+      <span class="trace-group-label">{{ t("singTempo") }}</span>
+      <button
+        v-for="bpm in TEMPOS"
+        :key="bpm"
+        type="button"
+        class="metro-chip"
+        :class="{ 'is-active': sing.bpm === bpm }"
+        @click="setTempo(bpm)"
+      >
+        {{ bpm }}
+      </button>
+      <span class="trace-group-label">{{ t("singBars") }}</span>
+      <button
+        v-for="bars in BAR_CHOICES"
+        :key="bars"
+        type="button"
+        class="metro-chip"
+        :class="{ 'is-active': sing.bars === bars }"
+        @click="setBars(bars)"
+      >
+        {{ bars }}
+      </button>
+    </div>
+
     <p class="ear-verdict" data-sing-verdict>
       <span>{{ phaseText }}</span>
       <span v-if="verdict"> · {{ t("singScore", { percent: scoreText }) }}</span>
+      <span v-if="octaveNote"> · {{ octaveNote }}</span>
     </p>
   </div>
 </template>

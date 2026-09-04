@@ -8,7 +8,6 @@
  */
 import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 import { useI18n } from "../../composables/useI18n.js";
-import { useAudioInput } from "../../composables/useAudioInput.js";
 import AnswerPad from "./components/AnswerPad.vue";
 import SingStage from "./components/SingStage.vue";
 import SourceBar from "../../shared/components/SourceBar.vue";
@@ -19,6 +18,7 @@ import { accuracy } from "./domain/grade.js";
 import type { IntervalKey } from "../../lib/interval.js";
 import type { ChordTypeKey } from "../../lib/music-theory.js";
 import {
+  answer,
   exercise,
   hydrateEar,
   nextQuestion,
@@ -26,14 +26,11 @@ import {
   releaseEar,
   replay,
   session,
+  setAuto,
   setKind
 } from "./stores/ear.js";
 
 const { t } = useI18n();
-
-// Sight-singing needs the microphone; the other modes do not, but the
-// retention is per view and stopping mid-session would be worse.
-useAudioInput();
 
 /**
  * Sight-singing is a mode of the same tool rather than a route of its own:
@@ -78,11 +75,23 @@ function onKeydown(event: KeyboardEvent): void {
   const target = event.target as HTMLElement | null;
   if (target && /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName)) return;
   if (singing.value) return;
+
   if (event.code === "Space") {
     event.preventDefault();
     // Space is the whole loop: hear it again, or move on once answered.
     if (session.answered === null) void replay();
     else nextQuestion();
+    return;
+  }
+
+  // Number keys answer, so a whole session can be done from the keyboard.
+  const digit = Number(event.key);
+  if (Number.isInteger(digit) && digit >= 1 && exercise.value) {
+    const choice = exercise.value.choices[digit - 1];
+    if (choice) {
+      event.preventDefault();
+      answer(choice);
+    }
   }
 }
 
@@ -116,7 +125,17 @@ onBeforeUnmount(() => {
     <p v-if="!singing" class="ear-stats" data-ear-stats>
       <span>{{ t("earLevel", { level: session.level }) }}</span>
       <span>{{ accuracyText }}</span>
+      <span>{{ t("earAttempts", { count: stats.attempts }) }}</span>
       <span v-if="session.streak > 1">{{ t("earStreak", { count: session.streak }) }}</span>
+      <button
+        type="button"
+        class="metro-chip"
+        :class="{ 'is-active': session.auto }"
+        data-ear-auto
+        @click="setAuto(!session.auto)"
+      >
+        {{ t("earAuto") }}
+      </button>
     </p>
   </div>
 
@@ -148,7 +167,7 @@ onBeforeUnmount(() => {
       data-ear-next
       @click="nextQuestion"
     >
-      {{ t("earNext") }}
+      {{ session.countdown > 0 ? t("earNextIn", { seconds: session.countdown.toFixed(1) }) : t("earNext") }}
     </button>
   </section>
 

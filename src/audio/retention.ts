@@ -2,7 +2,7 @@
  * Who still needs the input.
  *
  * The session is application-level: a player chooses a microphone once and
- * moving between the tuner and the scope must not drop it. But a live
+ * moving between the tuner and the trace must not drop it. But a live
  * microphone in a tool that has no use for one is a privacy problem, so
  * the session stops when the last tool that needs it goes away.
  *

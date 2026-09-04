@@ -15,13 +15,13 @@ import { storedString } from "../persist.js";
 import { shell } from "./dictionaries/shell.js";
 import { tuning } from "./dictionaries/tuning.js";
 import { metronome } from "./dictionaries/metronome.js";
-import { scope } from "./dictionaries/scope.js";
+import { trace } from "./dictionaries/trace.js";
 import { ear } from "./dictionaries/ear.js";
 
 export type Lang = "zh" | "en";
 
-const zh = { ...shell.zh, ...tuning.zh, ...metronome.zh, ...scope.zh, ...ear.zh };
-const en = { ...shell.en, ...tuning.en, ...metronome.en, ...scope.en, ...ear.en };
+const zh = { ...shell.zh, ...tuning.zh, ...metronome.zh, ...trace.zh, ...ear.zh };
+const en = { ...shell.en, ...tuning.en, ...metronome.en, ...trace.en, ...ear.en };
 
 export type MessageKey = keyof typeof zh;
 

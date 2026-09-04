@@ -44,7 +44,7 @@ export interface ToolRoute {
 
 export const TOOLS: ToolRoute[] = [
   { name: "tune", path: "/tune", labelKey: "navTuning", icon: "♪" },
-  { name: "scope", path: "/scope", labelKey: "navScope", icon: "▚" },
+  { name: "trace", path: "/trace", labelKey: "navTrace", icon: "▚" },
   { name: "rhythm", path: "/rhythm", labelKey: "navMetronome", icon: "▮▯" },
   { name: "ear", path: "/ear", labelKey: "navEar", icon: "◉" }
 ];
@@ -56,9 +56,9 @@ const routes: RouteRecordRaw[] = [
     component: () => import("../features/tuning/TuningView.vue")
   },
   {
-    path: "/scope",
-    name: "scope",
-    component: () => import("../features/scope/ScopeView.vue")
+    path: "/trace",
+    name: "trace",
+    component: () => import("../features/trace/TraceView.vue")
   },
   {
     path: "/rhythm",
@@ -75,6 +75,7 @@ const routes: RouteRecordRaw[] = [
   { path: "/tuner", redirect: "/tune" },
   { path: "/analyzer", redirect: "/tune" },
   { path: "/metronome", redirect: "/rhythm" },
+  { path: "/scope", redirect: "/trace" },
   { path: "/:pathMatch(.*)*", redirect: "/tune" }
 ];
 

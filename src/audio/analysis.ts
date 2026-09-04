@@ -23,6 +23,7 @@ import type { ChordResult } from "../lib/chord.js";
 import type { KeyEstimate } from "../lib/key.js";
 import { AnalysisPipeline, type AnalysisSnapshot } from "../lib/analysis-pipeline.js";
 import { clamp } from "../lib/dsp-core.js";
+import { storedJson } from "../lib/persist.js";
 import { createCapture, type Capture } from "./capture.js";
 import { audioContext } from "./source.js";
 
@@ -30,13 +31,48 @@ import { audioContext } from "./source.js";
 export const FFT_SIZE = 16384;
 export { PITCH_INTERVAL_MS, SPECTRUM_INTERVAL_MS } from "../lib/analysis-pipeline.js";
 
-/** Analysis knobs the settings panel edits. */
-export const analysisSettings = reactive({
-  tuning: 440,
-  gateDb: -52,
+export interface AnalysisSettings {
+  tuning: number;
+  gateDb: number;
   /** Analyser smoothing; also the chroma smoothing factor. */
-  stability: 0.72
+  stability: number;
+}
+
+function defaultSettings(): AnalysisSettings {
+  return { tuning: 440, gateDb: -52, stability: 0.72 };
+}
+
+/**
+ * Analysis knobs the settings panel edits. A4 in particular is a property
+ * of the ensemble the player is in, not of a session — asking for it again
+ * every visit is asking the same question twice.
+ */
+export const analysisSettings = reactive<AnalysisSettings>(defaultSettings());
+
+const storedSettings = storedJson<AnalysisSettings>("analysis", defaultSettings, (raw, base) => {
+  const value = (raw ?? {}) as Partial<AnalysisSettings>;
+  return {
+    tuning: inRange(value.tuning, 390, 500) ?? base.tuning,
+    gateDb: inRange(value.gateDb, -90, -20) ?? base.gateDb,
+    stability: inRange(value.stability, 0.2, 0.92) ?? base.stability
+  };
 });
+
+function inRange(value: unknown, min: number, max: number): number | null {
+  return typeof value === "number" && Number.isFinite(value) && value >= min && value <= max
+    ? value
+    : null;
+}
+
+/** Read persisted knobs; a view that shows them calls this once. */
+export function hydrateAnalysisSettings(): void {
+  Object.assign(analysisSettings, storedSettings.read());
+  capture?.setSmoothing(clamp(analysisSettings.stability, 0.2, 0.92));
+}
+
+export function persistAnalysisSettings(): void {
+  storedSettings.write({ ...analysisSettings });
+}
 
 // Display results, replaced at analysis cadence (never mutated in place).
 export const pitchRef = shallowRef<PitchResult | null>(null);
@@ -83,6 +119,7 @@ export function setDetectorRange(range: PitchRange | null): void {
 export function applyStability(value: number): void {
   analysisSettings.stability = value;
   capture?.setSmoothing(clamp(value, 0.2, 0.92));
+  persistAnalysisSettings();
 }
 
 function publish(snapshot: AnalysisSnapshot): void {

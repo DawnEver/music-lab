@@ -1,5 +1,5 @@
 /**
- * The scope canvas: a time axis with layers on it.
+ * The trace canvas: a time axis with layers on it.
  *
  * The heat map and the pitch line are two readings of one history — energy
  * per band, and the fundamental — so they share the buffer, the time axis
@@ -9,14 +9,25 @@
  */
 
 import { frequencyToNote, midiToFrequency } from "../music-theory.js";
-import { pitchSegments } from "../pitch-track.js";
+import { trackSegments } from "../pitch-track.js";
 import type { SpectrogramColumn } from "../spectrogram.js";
 import { spectrogramImage } from "./spectrogram-image.js";
 import { frequencyTicks, semitoneTicks, type Scale, type Tick } from "./scale.js";
 import { plotFont, plotPalette, type PlotPalette } from "./palette.js";
-import { plotBox, resizeCanvas, unitToX, unitToY, type PlotBox, type PlotInsets } from "./canvas.js";
+import {
+  plotBox,
+  resizeCanvas,
+  unitToX,
+  unitToY,
+  xToUnit,
+  yToUnit,
+  type PlotBox,
+  type PlotInsets
+} from "./canvas.js";
 
-const INSETS: PlotInsets = { left: 46, right: 62, top: 12, bottom: 26 };
+/** Exported so hit-testing can rebuild the same plot box the draw used. */
+export const TRACE_INSETS: PlotInsets = { left: 46, right: 62, top: 12, bottom: 26 };
+const INSETS = TRACE_INSETS;
 /** Width of the colour bar, in CSS pixels, inside the right gutter. */
 const COLORBAR_WIDTH = 12;
 
@@ -35,7 +46,7 @@ export interface TargetSegment {
   grade?: "good" | "close" | "out" | "missed";
 }
 
-export interface ScopeDrawOptions {
+export interface TraceDrawOptions {
   canvas: HTMLCanvasElement;
   wrap: HTMLElement;
   columns: readonly SpectrogramColumn[];
@@ -58,7 +69,7 @@ export interface ScopeDrawOptions {
   tuning: number;
 }
 
-export function drawScope(options: ScopeDrawOptions): void {
+export function drawTrace(options: TraceDrawOptions): void {
   const { canvas, wrap } = options;
   resizeCanvas(canvas, wrap);
   const ctx = canvas.getContext("2d");
@@ -82,7 +93,7 @@ export function drawScope(options: ScopeDrawOptions): void {
 function drawHeatmap(
   ctx: CanvasRenderingContext2D,
   area: PlotBox,
-  options: ScopeDrawOptions
+  options: TraceDrawOptions
 ): void {
   const width = Math.max(1, Math.round(area.width));
   const height = Math.max(1, Math.round(area.height));
@@ -100,7 +111,7 @@ function drawHeatmap(
   ctx.putImageData(new ImageData(image.data, width, height), area.left, area.top);
 }
 
-function axisTicks(options: ScopeDrawOptions): Tick[] {
+function axisTicks(options: TraceDrawOptions): Tick[] {
   return options.semitoneAxis
     ? semitoneTicks(options.frequency, options.tuning)
     : frequencyTicks(options.frequency);
@@ -109,7 +120,7 @@ function axisTicks(options: ScopeDrawOptions): Tick[] {
 function drawGrid(
   ctx: CanvasRenderingContext2D,
   area: PlotBox,
-  options: ScopeDrawOptions,
+  options: TraceDrawOptions,
   palette: PlotPalette
 ): void {
   const dpr = area.dpr;
@@ -161,7 +172,7 @@ function trim(value: number): string {
 function drawTargets(
   ctx: CanvasRenderingContext2D,
   area: PlotBox,
-  options: ScopeDrawOptions,
+  options: TraceDrawOptions,
   palette: PlotPalette
 ): void {
   const span = Math.max(options.endTime - options.startTime, 1e-6);
@@ -193,7 +204,7 @@ function drawTargets(
 function drawReferences(
   ctx: CanvasRenderingContext2D,
   area: PlotBox,
-  options: ScopeDrawOptions,
+  options: TraceDrawOptions,
   palette: PlotPalette
 ): void {
   if (!options.references.length) return;
@@ -225,7 +236,7 @@ function drawReferences(
 function drawPitchLine(
   ctx: CanvasRenderingContext2D,
   area: PlotBox,
-  options: ScopeDrawOptions,
+  options: TraceDrawOptions,
   palette: PlotPalette
 ): void {
   const span = Math.max(options.endTime - options.startTime, 1e-6);
@@ -238,9 +249,10 @@ function drawPitchLine(
   ctx.shadowColor = palette.trackGlow;
   ctx.shadowBlur = 6 * dpr;
 
-  // One path per voiced run: joining across a breath would draw a
-  // glissando the player never made.
-  for (const segment of pitchSegments(options.columns)) {
+  // One path per voiced run, with octave artefacts folded back: joining
+  // across a breath would draw a glissando the player never made, and a
+  // halved frame would draw a leap they never sang.
+  for (const segment of trackSegments(options.columns)) {
     ctx.beginPath();
     segment.forEach((column, index) => {
       const x = unitToX(area, (column.time - options.startTime) / span);
@@ -256,7 +268,7 @@ function drawPitchLine(
 function drawPlayhead(
   ctx: CanvasRenderingContext2D,
   area: PlotBox,
-  options: ScopeDrawOptions,
+  options: TraceDrawOptions,
   palette: PlotPalette
 ): void {
   if (options.playheadTime === null) return;
@@ -278,7 +290,7 @@ function drawPlayhead(
 function drawColorbar(
   ctx: CanvasRenderingContext2D,
   area: PlotBox,
-  options: ScopeDrawOptions,
+  options: TraceDrawOptions,
   palette: PlotPalette
 ): void {
   if (!options.showSpectrogram) return;
@@ -307,6 +319,66 @@ function drawColorbar(
   ctx.fillText(`${options.ceilingDb}`, x + width + 4 * dpr, area.top + 4 * dpr);
   ctx.fillText(`${options.floorDb}`, x + width + 4 * dpr, area.top + area.height - 4 * dpr);
   ctx.restore();
+}
+
+export interface ReadoutOptions {
+  area: PlotBox;
+  frequency: Scale;
+  bandCentres: Float32Array;
+  columns: readonly SpectrogramColumn[];
+  startTime: number;
+  endTime: number;
+  tuning: number;
+}
+
+export interface TraceReadout {
+  /** Audio-clock seconds under the pointer. */
+  time: number;
+  secondsAgo: number;
+  hz: number;
+  note: string;
+  cents: number;
+  /** Level of the nearest captured column, or null where nothing was heard. */
+  db: number | null;
+}
+
+/**
+ * What is under the pointer. Pure, and built from the same scales the draw
+ * used, so the number in the tooltip is by construction the number that
+ * was plotted.
+ */
+export function readoutAt(x: number, y: number, options: ReadoutOptions): TraceReadout | null {
+  const { area } = options;
+  if (x < area.left || x > area.left + area.width) return null;
+  if (y < area.top || y > area.top + area.height) return null;
+
+  const span = Math.max(options.endTime - options.startTime, 1e-6);
+  const time = options.startTime + xToUnit(area, x) * span;
+  const hz = options.frequency.invert(yToUnit(area, y));
+  const note = frequencyToNote(hz, options.tuning);
+
+  let nearest: SpectrogramColumn | null = null;
+  for (const column of options.columns) {
+    if (!nearest || Math.abs(column.time - time) < Math.abs(nearest.time - time)) nearest = column;
+  }
+
+  let db: number | null = null;
+  if (nearest && nearest.db.length) {
+    let index = 0;
+    for (let i = 1; i < options.bandCentres.length; i += 1) {
+      if (Math.abs(options.bandCentres[i] - hz) < Math.abs(options.bandCentres[index] - hz)) index = i;
+    }
+    db = nearest.db[index];
+  }
+
+  return {
+    time,
+    secondsAgo: options.endTime - time,
+    hz,
+    note: `${note.name}${note.octave}`,
+    cents: note.cents,
+    db
+  };
 }
 
 /** Label for a reference line, e.g. "A4 · 440.0 Hz". */

@@ -7,14 +7,13 @@
 import { reactive } from "vue";
 import { storedJson } from "../../lib/persist.js";
 
-export const PANEL_IDS = ["tuner", "pitch", "chord", "spectrum", "settings"] as const;
+export const PANEL_IDS = ["tuner", "pitch", "chord", "settings"] as const;
 export type PanelId = (typeof PANEL_IDS)[number];
 
 const DEFAULT_OPEN: Record<PanelId, boolean> = {
   tuner: true,
   pitch: true,
   chord: true,
-  spectrum: true,
   settings: true
 };
 

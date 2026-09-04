@@ -84,7 +84,7 @@ describe("feature boundaries", () => {
     expect(featureImports.sort()).toEqual([
       "features/ear/EarView",
       "features/metronome/MetronomeView",
-      "features/scope/ScopeView",
+      "features/trace/TraceView",
       "features/tuning/TuningView"
     ]);
   });

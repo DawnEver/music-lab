@@ -1,7 +1,7 @@
 /**
  * Sight-singing material.
  *
- * A melody is a list of notes on a beat grid — the same shape the scope
+ * A melody is a list of notes on a beat grid — the same shape the trace
  * draws as reference segments and the judge compares against, so nothing
  * has to be converted between "what you see", "what you hear" and "what
  * you are scored on".

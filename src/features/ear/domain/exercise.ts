@@ -159,4 +159,43 @@ export function generateExercise(kind: ExerciseKind, level: Level, rng: Rng): Ex
 }
 
 /** The level a kind should be asked at, from its recent results. */
+export interface AskHistory {
+  /** The answer to the previous question, which must not come up again now. */
+  lastAnswer?: string | null;
+  /** How many times each answer has been missed recently. */
+  missed?: Record<string, number>;
+  /** How many candidates to draw before giving up on the constraints. */
+  exhaust?: number;
+}
+
+/**
+ * The next question to ask.
+ *
+ * Uniform random is the wrong distribution for practice: it repeats (with
+ * two possible answers a fair coin lands on the same one half the time)
+ * and it spends as much time on what you know as on what you do not. This
+ * draws candidates, refuses an immediate repeat, and leans towards what
+ * has recently been missed — while staying a pure function of the rng.
+ */
+export function chooseExercise(
+  kind: ExerciseKind,
+  level: Level,
+  rng: Rng,
+  history: AskHistory = {}
+): Exercise {
+  const attempts = history.exhaust ?? 8;
+  const missed = history.missed ?? {};
+  let fallback: Exercise | null = null;
+
+  for (let i = 0; i < attempts; i += 1) {
+    const candidate = generateExercise(kind, level, rng);
+    if (candidate.answer === history.lastAnswer) continue;
+    if (!fallback) fallback = candidate;
+    // A missed answer is taken as soon as it appears; anything else needs
+    // to survive one coin toss, so the bias is a lean and not a rut.
+    if ((missed[candidate.answer] ?? 0) > 0 || rng() < 0.5) return candidate;
+  }
+  return fallback ?? generateExercise(kind, level, rng);
+}
+
 export { type IntervalKey };

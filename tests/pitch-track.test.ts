@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { correctOctaveJumps, pitchSegments, vocalRange } from "../src/lib/pitch-track.js";
+import {
+  correctOctaveJumps,
+  pitchSegments,
+  trackSegments,
+  vocalRange
+} from "../src/lib/pitch-track.js";
 import type { SpectrogramColumn } from "../src/lib/spectrogram.js";
 
 function track(values: (number | null)[], step = 0.05): SpectrogramColumn[] {
@@ -83,5 +88,25 @@ describe("vocal range", () => {
     const range = vocalRange(track(Array(40).fill(440)))!;
     expect(range.semitones).toBe(0);
     expect(range.lowest.name).toBe("A4");
+  });
+});
+
+describe("track segments (what a view actually draws)", () => {
+  it("corrects octave artefacts before segmenting, in one call", () => {
+    // The two rules always apply together: a view that segments without
+    // correcting draws a clean octave step that never happened.
+    const segments = trackSegments(track([220, 220, 110, 220, 220]));
+    expect(segments).toHaveLength(1);
+    expect(segments[0].map((column) => column.pitchHz)).toEqual([220, 220, 220, 220, 220]);
+  });
+
+  it("still breaks on silence", () => {
+    expect(trackSegments(track([220, 220, null, null, 330, 331]))).toHaveLength(2);
+  });
+
+  it("leaves the source columns untouched", () => {
+    const columns = track([220, 220, 110, 220]);
+    trackSegments(columns);
+    expect(columns[2].pitchHz).toBe(110);
   });
 });

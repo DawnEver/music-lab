@@ -5,7 +5,7 @@ import { messages, t, getLang, setLang, type MessageKey } from "../src/lib/i18n/
 import { shell } from "../src/lib/i18n/dictionaries/shell.js";
 import { tuning } from "../src/lib/i18n/dictionaries/tuning.js";
 import { metronome } from "../src/lib/i18n/dictionaries/metronome.js";
-import { scope } from "../src/lib/i18n/dictionaries/scope.js";
+import { trace } from "../src/lib/i18n/dictionaries/trace.js";
 import { ear } from "../src/lib/i18n/dictionaries/ear.js";
 
 describe("dictionary", () => {
@@ -40,7 +40,7 @@ describe("dictionary", () => {
   });
 
   it("each dictionary owns its keys, with zh/en parity and no overlap", () => {
-    const parts = { shell, tuning, metronome, scope, ear };
+    const parts = { shell, tuning, metronome, trace, ear };
     const seen = new Map<string, string>();
 
     for (const [name, part] of Object.entries(parts)) {

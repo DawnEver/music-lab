@@ -19,7 +19,7 @@ import { generateMelody, melodySeconds, type Melody } from "../domain/melody.js"
 import { judgeSinging, type TakeVerdict } from "../domain/sing-judge.js";
 import { noteSpec } from "../engine/player.js";
 
-export type SingPhase = "idle" | "countIn" | "recording" | "judged";
+export type SingPhase = "idle" | "tonic" | "countIn" | "recording" | "judged";
 
 export const sing = reactive({
   phase: "idle" as SingPhase,
@@ -27,8 +27,18 @@ export const sing = reactive({
   bars: 2,
   tonicMidi: 60,
   /** Audio-clock time the melody starts at; 0 when not running. */
-  startedAt: 0
+  startedAt: 0,
+  /**
+   * Keep going: tonic, count-in, sing, verdict, next line. A singer with
+   * a phone on a music stand cannot press a button between every attempt.
+   */
+  loop: true,
+  /** True while a loop is running, so the button reads "stop". */
+  running: false
 });
+
+/** How long the verdict stays up before the next line. */
+const REVIEW_MS = 2600;
 
 export const melody = shallowRef<Melody | null>(null);
 export const verdict = shallowRef<TakeVerdict | null>(null);
@@ -36,6 +46,7 @@ export const verdict = shallowRef<TakeVerdict | null>(null);
 let lease: AudioEngineHandle | null = null;
 let voices: VoicePlayer | null = null;
 let timer = 0;
+let loopTimer = 0;
 
 async function ensureOutput(): Promise<AudioEngineHandle> {
   if (!lease) {
@@ -76,9 +87,9 @@ export async function playMelody(): Promise<void> {
 }
 
 /**
- * Count in, then record. Recording is not a separate capture: it is a
- * window of the history the scope is already keeping, so the take can be
- * judged the instant it ends.
+ * Sound the tonic, count in, then record. Recording is not a separate
+ * capture: it is a window of the history the trace view already keeps, so
+ * the take can be judged the instant it ends.
  */
 export async function startTake(): Promise<void> {
   const current = melody.value;
@@ -88,10 +99,19 @@ export async function startTake(): Promise<void> {
   const handle = await ensureOutput();
   startHistory();
   verdict.value = null;
+  sing.running = true;
 
   const beat = 60 / sing.bpm;
   const countIn = 4;
-  const begin = handle.context.currentTime + 0.15;
+  // The tonic first, always: nobody can start a line without a pitch to
+  // start from, and asking for it by hand every time is friction.
+  const tonicSeconds = 1.1;
+  voices?.play(
+    noteSpec(sing.tonicMidi, tonicSeconds, analysisSettings.tuning),
+    handle.context.currentTime + 0.05
+  );
+  sing.phase = "tonic";
+  const begin = handle.context.currentTime + 0.15 + tonicSeconds;
   for (let index = 0; index < countIn; index += 1) {
     voices?.play(
       {
@@ -123,13 +143,41 @@ function finishTake(): void {
   if (!current) return;
   verdict.value = judgeSinging(current, historyBuffer.columns(), sing.startedAt);
   sing.phase = "judged";
+
+  if (!sing.loop) {
+    sing.running = false;
+    return;
+  }
+  // Look at the result, then go again on a new line.
+  loopTimer = window.setTimeout(() => {
+    newMelody();
+    void startTake();
+  }, REVIEW_MS);
+}
+
+/** Stop the loop where it is; the verdict on screen stays. */
+export function stopLoop(): void {
+  window.clearTimeout(loopTimer);
+  window.clearTimeout(timer);
+  loopTimer = 0;
+  timer = 0;
+  sing.running = false;
+  if (sing.phase !== "judged") sing.phase = "idle";
 }
 
 export function cancelTake(): void {
   window.clearTimeout(timer);
+  window.clearTimeout(loopTimer);
   timer = 0;
+  loopTimer = 0;
+  sing.running = false;
   sing.phase = "idle";
   sing.startedAt = 0;
+}
+
+export function setLoop(value: boolean): void {
+  sing.loop = value;
+  if (!value) window.clearTimeout(loopTimer);
 }
 
 /** Leaving the tool: drop the lease and stop capturing. */

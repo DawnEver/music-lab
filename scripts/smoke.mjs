@@ -224,24 +224,28 @@ async function walkMetronome(page, label, { expectSingleScreen = false } = {}) {
   await gotoTool(page, "tune");
 }
 
-/** The scope: one canvas, its layer/window chips, and the freeze toggle. */
-async function walkScope(page, label) {
-  await gotoTool(page, "scope");
-  await page.waitForSelector("[data-scope-canvas] canvas", { timeout: 8000 });
+/** The trace: one canvas, its knobs, and the freeze toggle. */
+async function walkTrace(page, label) {
+  await gotoTool(page, "trace");
+  await page.waitForSelector("[data-trace-canvas] canvas", { timeout: 8000 });
 
-  const size = await page.locator("[data-scope-canvas] canvas").boundingBox();
+  // Both readings of the same instant: across time, and across frequency now.
+  await page.waitForSelector(".trace-stage .spectrum-wrap canvas", { timeout: 8000 });
+  await page.waitForSelector(".trace-stage .level-row", { timeout: 8000 });
+
+  const size = await page.locator("[data-trace-canvas] canvas").boundingBox();
   if (!size || size.height < 200) {
     throw new Error(`${label}: the scope canvas should be a stage, got ${size?.height}px`);
   }
-  console.log(`✓ ${label}: scope renders one wide canvas`);
+  console.log(`✓ ${label}: trace renders one wide canvas`);
 
-  // Layers and windows are chips on the stage, not a settings panel.
-  const chips = await page.locator(".scope-toggles .metro-chip").count();
-  if (chips < 7) {
-    throw new Error(`${label}: expected layer, window, freeze and clear chips, got ${chips}`);
+  // Freeze and clear stay on the stage at every size.
+  const actions = await page.locator(".trace-actions .metro-chip").count();
+  if (actions < 2) {
+    throw new Error(`${label}: expected freeze and clear on the stage, got ${actions}`);
   }
 
-  const freeze = page.locator("[data-scope-freeze]");
+  const freeze = page.locator("[data-trace-freeze]");
   const before = await freeze.innerText();
   await freeze.click();
   await page.waitForTimeout(120);
@@ -252,7 +256,35 @@ async function walkScope(page, label) {
   console.log(`✓ ${label}: freeze toggles and releases`);
 
   // The range summary is always present, even before anything is heard.
-  await page.waitForSelector("[data-scope-range]", { timeout: 8000 });
+  await page.waitForSelector("[data-trace-range]", { timeout: 8000, state: "attached" });
+
+  // Ergonomics: a dB floor is set by nudging it while watching the picture.
+  // On a wide screen the knobs must therefore share the screen with the
+  // canvas — not sit below the fold.
+  const flat = page.locator("[data-trace-controls].trace-controls--flat");
+  const wide = await page.evaluate(() => window.innerWidth >= 900);
+  if (wide) {
+    const box = await flat.boundingBox();
+    const canvas = await page.locator("[data-trace-canvas] canvas").boundingBox();
+    const height = await page.evaluate(() => window.innerHeight);
+    if (!box || box.y + box.height > height) {
+      throw new Error(`${label}: the trace controls fall below the fold (${box?.y}+${box?.height} > ${height})`);
+    }
+    if (!canvas || canvas.height < 180) {
+      throw new Error(`${label}: the trace canvas got squeezed to ${canvas?.height}px`);
+    }
+    // Every knob in one place: layers, axis, window, resolution, colours,
+    // both dB limits and the reference.
+    const sliders = await flat.locator('input[type="range"]').count();
+    if (sliders !== 2) throw new Error(`${label}: expected floor and ceiling sliders, got ${sliders}`);
+    console.log(`✓ ${label}: canvas and every knob share one screen`);
+  } else {
+    if (await flat.isVisible()) {
+      throw new Error(`${label}: the flat control panel should collapse on a phone`);
+    }
+    await page.waitForSelector(".trace-chip-row .sheet-anchor", { timeout: 8000 });
+    console.log(`✓ ${label}: controls collapse into a sheet on a phone`);
+  }
 
   await assertNoHOverflow(page, `${label} scope`);
   await gotoTool(page, "tune");
@@ -316,9 +348,12 @@ async function walkWorkbench(page, label) {
   await page.waitForSelector(".strings-panel", { timeout: 8000 });
   await page.waitForSelector('[data-panel="pitch"]', { timeout: 8000 });
   await page.waitForSelector('[data-panel="chord"]', { timeout: 8000 });
-  await page.waitForSelector('[data-panel="spectrum"] .spectrum-wrap canvas', { timeout: 8000 });
   await page.waitForSelector('[data-panel="settings"] .v-slider', { timeout: 8000 });
-  console.log(`✓ ${label}: workbench renders all 5 panels`);
+  // The spectrum moved to the scope: a tuner's answer is one number.
+  if ((await page.locator('[data-panel="spectrum"]').count()) !== 0) {
+    throw new Error(`${label}: the spectrum panel should live in the scope now`);
+  }
+  console.log(`✓ ${label}: workbench renders all 4 panels`);
 
   // Panel content must stay inside the card padding — overflow: hidden
   // would otherwise clip text at the rounded corners (regression guard).
@@ -356,16 +391,14 @@ async function walkWorkbench(page, label) {
   }
   await page.click('[data-panel="pitch"] .card-toggle');
   await page.waitForSelector('[data-panel="pitch"] .micro-badge', { timeout: 5000 });
-  await page.click('[data-panel="spectrum"] .card-toggle');
+  // Collapsing must unmount the content, not just hide it.
+  await page.click('[data-panel="chord"] .card-toggle');
   await page.waitForTimeout(250);
-  if ((await page.locator('[data-panel="spectrum"] canvas').count()) !== 0) {
-    throw new Error(`${label}: collapsed spectrum canvas did not unmount`);
+  if ((await page.locator('[data-panel="chord"] .chroma').count()) !== 0) {
+    throw new Error(`${label}: collapsed chord panel did not unmount its content`);
   }
-  if ((await page.locator('[data-panel="spectrum"] .spectrum-meta').count()) !== 0) {
-    throw new Error(`${label}: spectrum meta should hide when the panel collapses`);
-  }
-  await page.click('[data-panel="spectrum"] .card-toggle');
-  await page.waitForSelector('[data-panel="spectrum"] canvas', { timeout: 5000 });
+  await page.click('[data-panel="chord"] .card-toggle');
+  await page.waitForSelector('[data-panel="chord"] .chroma', { timeout: 5000 });
   console.log(`✓ ${label}: collapse hides content and header badges`);
 
   // Row *count* is a component test; what only a browser can answer is
@@ -489,7 +522,7 @@ try {
   await desktop.waitForTimeout(200);
   console.log("✓ desktop: theme toggle switches dark/light without overflow");
 
-  await walkScope(desktop, "desktop");
+  await walkTrace(desktop, "desktop");
   await walkEar(desktop, "desktop");
   await walkMetronome(desktop, "desktop", { expectSingleScreen: true });
 
@@ -508,7 +541,7 @@ try {
   }
   console.log("✓ mobile: tuner falls back to a single column");
 
-  await walkScope(mobile, "mobile");
+  await walkTrace(mobile, "mobile");
   await walkEar(mobile, "mobile");
   await walkMetronome(mobile, "mobile");
 
