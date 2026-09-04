@@ -12,9 +12,15 @@ const hostEl = ref<HTMLElement | null>(null);
 
 const active = computed(() => store.mode !== "idle");
 
-const micButtonText = computed(() =>
-  store.mode === "file" ? t("switchMic") : store.mode === "mic" ? t("micRunning") : t("micButton")
-);
+// One control for one thing: is a source live or not. Pressing it starts
+// the microphone when nothing is running and stops whatever is running
+// otherwise, so the button always states what it will do next.
+const sourceButtonText = computed(() => (active.value ? t("stop") : t("micButton")));
+
+function toggleSource(): void {
+  if (active.value) void stop();
+  else void startMic();
+}
 
 const sourceInfoText = computed(() =>
   store.sourceInfoOverride || t(store.sourceInfoKey, store.sourceInfoParams)
@@ -42,13 +48,15 @@ onBeforeUnmount(() => {
 <template>
   <div class="button-row source-actions">
     <button
-      class="btn primary"
+      class="btn"
+      :class="active ? 'ghost is-live' : 'primary'"
       type="button"
-      :disabled="store.isStarting || store.mode === 'mic'"
-      @click="startMic()"
+      :disabled="store.isStarting"
+      :aria-pressed="active"
+      @click="toggleSource()"
     >
-      <span class="btn-icon" aria-hidden="true">●</span>
-      <span>{{ micButtonText }}</span>
+      <span class="btn-icon" aria-hidden="true">{{ active ? "■" : "●" }}</span>
+      <span>{{ sourceButtonText }}</span>
     </button>
 
     <label
@@ -63,15 +71,6 @@ onBeforeUnmount(() => {
     </label>
     <input id="fileInput" ref="fileInput" type="file" accept="audio/*" hidden @change="onFileChange" />
 
-    <button
-      class="btn ghost"
-      type="button"
-      :disabled="!active && !store.isStarting"
-      @click="stop()"
-    >
-      <span class="btn-icon" aria-hidden="true">■</span>
-      <span>{{ t("stop") }}</span>
-    </button>
   </div>
 
   <div class="source-device">

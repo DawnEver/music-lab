@@ -918,6 +918,14 @@
       background: var(--glass);
     }
 
+    /* The source toggle while a source is live: still the stop action, but
+       clearly "something is running" rather than a neutral ghost button. */
+    .btn.is-live {
+      color: var(--text);
+      border-color: var(--accent-2);
+      background: var(--glass-strong);
+    }
+
     .btn:disabled {
       cursor: not-allowed;
       opacity: 0.38;
