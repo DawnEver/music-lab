@@ -39,8 +39,27 @@
       --status-error-text: #fecdd3;
       --notice-text: #fde68a;
       --notice-strong: #fef3c7;
-      /* Spectrum "screen" behind the canvas (canvas colors: lib/draw.ts palettes). */
+      /* Spectrum "screen" behind the canvas (canvas colours: --plot-* below). */
       --screen: linear-gradient(180deg, rgba(124, 156, 255, 0.035), rgba(5, 9, 20, 0.38)), #080d1c;
+      /* Plot colours. Canvas cannot read CSS vars, so lib/plot/palette.ts
+         reads these once per theme and hands them to the renderers. */
+      --plot-axis: rgba(148, 163, 184, 0.56);
+      --plot-grid: rgba(148, 163, 184, 0.105);
+      --plot-fill-1: rgba(94, 234, 212, 0.36);
+      --plot-fill-2: rgba(124, 156, 255, 0.18);
+      --plot-fill-3: rgba(124, 156, 255, 0.01);
+      --plot-stroke-1: #5eead4;
+      --plot-stroke-2: #7c9cff;
+      --plot-stroke-3: #c084fc;
+      --plot-glow: rgba(124, 156, 255, 0.34);
+      --plot-marker: rgba(255, 255, 255, 0.65);
+      --plot-chip-bg: rgba(15, 23, 42, 0.9);
+      --plot-chip-border: rgba(255, 255, 255, 0.18);
+      --plot-chip-text: rgba(248, 250, 252, 0.92);
+      --plot-track: #4ade80;
+      --plot-track-glow: rgba(74, 222, 128, 0.35);
+      --plot-reference: rgba(251, 191, 36, 0.9);
+      --plot-harmonic: rgba(251, 191, 36, 0.34);
       --radius-xl: 28px;
       --radius-lg: 22px;
       --radius-md: 16px;
@@ -88,4 +107,21 @@
       --notice-text: #92400e;
       --notice-strong: #78350f;
       --screen: linear-gradient(180deg, rgba(79, 95, 213, 0.05), rgba(15, 23, 42, 0.04)), #f3f6fc;
+      --plot-axis: rgba(15, 23, 42, 0.6);
+      --plot-grid: rgba(15, 23, 42, 0.09);
+      --plot-fill-1: rgba(13, 148, 136, 0.24);
+      --plot-fill-2: rgba(79, 95, 213, 0.13);
+      --plot-fill-3: rgba(79, 95, 213, 0.02);
+      --plot-stroke-1: #0d9488;
+      --plot-stroke-2: #4f5fd5;
+      --plot-stroke-3: #9333ea;
+      --plot-glow: rgba(79, 95, 213, 0.22);
+      --plot-marker: rgba(15, 23, 42, 0.5);
+      --plot-chip-bg: rgba(255, 255, 255, 0.94);
+      --plot-chip-border: rgba(15, 23, 42, 0.16);
+      --plot-chip-text: rgba(15, 23, 42, 0.92);
+      --plot-track: #15803d;
+      --plot-track-glow: rgba(21, 128, 61, 0.28);
+      --plot-reference: rgba(180, 83, 9, 0.95);
+      --plot-harmonic: rgba(180, 83, 9, 0.35);
     }

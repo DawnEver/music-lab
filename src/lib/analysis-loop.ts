@@ -17,7 +17,7 @@ import { shallowRef } from "vue";
 import type { PitchRange, PitchResult } from "./dsp.js";
 import type { ChordResult } from "./chord.js";
 import type { KeyEstimate } from "./key.js";
-import { drawSpectrum, type SpectrumTarget } from "./draw.js";
+import { drawSpectrum, type SpectrumTarget } from "./plot/spectrum.js";
 import { AnalysisPipeline, type AnalysisSnapshot } from "./analysis-pipeline.js";
 
 export const FFT_SIZE = 16384;
