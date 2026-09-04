@@ -27,7 +27,8 @@ export interface PitchBounds {
   maxMidi: number;
 }
 
-export type InstrumentCategory = "strings" | "winds";
+/** Grouping in the instrument picker, by how the instrument is sounded. */
+export type InstrumentCategory = "plucked" | "bowed" | "winds" | "other";
 export type InstrumentLayout = "strings" | "harmonica";
 
 export type Breath = "blow" | "draw";

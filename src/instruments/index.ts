@@ -11,6 +11,7 @@ import type {
   HarmonicaCell,
   HarmonicaPosition,
   HarmonicaLayout,
+  InstrumentCategory,
   Breath
 } from "./types.js";
 import { guitar } from "./guitar.js";
@@ -21,19 +22,55 @@ import { erhu } from "./erhu.js";
 import { guzheng } from "./guzheng.js";
 import { guqin } from "./guqin.js";
 import { harmonica } from "./harmonica.js";
+import { viola } from "./viola.js";
+import { cello } from "./cello.js";
+import { doubleBass } from "./double-bass.js";
+import { mandolin } from "./mandolin.js";
+import { banjo } from "./banjo.js";
+import { pipa } from "./pipa.js";
+import { ruan } from "./ruan.js";
+import { liuqin } from "./liuqin.js";
+import { zhonghu } from "./zhonghu.js";
+import { gaohu } from "./gaohu.js";
+import { kalimba } from "./kalimba.js";
 
 export * from "./types.js";
 
+/** Picker order: by category, western before Chinese inside each group. */
 export const allInstruments: InstrumentDefinition[] = [
+  // plucked
   guitar,
   bass,
   ukulele,
-  violin,
-  erhu,
+  mandolin,
+  banjo,
+  pipa,
+  ruan,
+  liuqin,
   guzheng,
   guqin,
-  harmonica
+  // bowed
+  violin,
+  viola,
+  cello,
+  doubleBass,
+  erhu,
+  zhonghu,
+  gaohu,
+  // winds
+  harmonica,
+  // other
+  kalimba
 ];
+
+/** Group order of the instrument picker. */
+export const instrumentCategories: InstrumentCategory[] = ["plucked", "bowed", "winds", "other"];
+
+export function instrumentsByCategory(
+  category: InstrumentCategory
+): InstrumentDefinition[] {
+  return allInstruments.filter((instrument) => instrument.category === category);
+}
 
 export function getInstrument(id: string): InstrumentDefinition | null {
   return allInstruments.find((instrument) => instrument.id === id) ?? null;

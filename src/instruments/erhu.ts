@@ -4,7 +4,7 @@ import type { InstrumentDefinition } from "./types.js";
 export const erhu: InstrumentDefinition = {
   id: "erhu",
   name: { zh: "二胡", en: "Erhu" },
-  category: "strings",
+  category: "bowed",
   layout: "strings",
   defaultPresetId: "standard",
   range: { minHz: 280, maxHz: 470, minMidi: 60, maxMidi: 70 },

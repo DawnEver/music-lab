@@ -247,9 +247,22 @@ async function walkWorkbench(page, label) {
   if (card0.y !== card1.y) throw new Error(`${label}: guitar strings should be laid out horizontally`);
   console.log(`✓ ${label}: guitar renders 6 strings in a horizontal grid`);
 
-  // Instrument switch to erhu (2 strings).
+  // The instrument picker is grouped: category subheaders are rendered as
+  // subheaders, not as selectable rows.
   await page.locator(".v-select").nth(0).click();
-  await page.locator(".v-list-item").nth(4).click();
+  await page.waitForSelector(".v-list-item", { timeout: 5000 });
+  const groups = await page.locator(".v-list-subheader").count();
+  const options = await page.locator(".v-list-item").count();
+  if (groups < 3) throw new Error(`${label}: expected category subheaders, got ${groups}`);
+  if (options !== 19) throw new Error(`${label}: expected 19 instruments, got ${options}`);
+  console.log(`✓ ${label}: instrument picker groups ${options} instruments into ${groups} categories`);
+  await page.keyboard.press("Escape");
+  await page.waitForTimeout(200);
+
+  // Instrument switch to erhu (2 strings) — picked by name, the list is
+  // grouped by category so positions shift as instruments are added.
+  await page.locator(".v-select").nth(0).click();
+  await page.locator(".v-list-item").filter({ hasText: /^(Erhu|二胡)$/ }).first().click();
   await page.waitForTimeout(250);
   if ((await page.locator(".string-row").count()) !== 2) {
     throw new Error(`${label}: expected 2 erhu strings`);
@@ -258,7 +271,7 @@ async function walkWorkbench(page, label) {
 
   // Harmonica: 10×2 grid + position expansion.
   await page.locator(".v-select").nth(0).click();
-  await page.locator(".v-list-item").last().click();
+  await page.locator(".v-list-item").filter({ hasText: /Harmonica|口琴/ }).first().click();
   await page.waitForSelector(".harmonica-grid", { timeout: 8000 });
   if ((await page.locator(".harmonica-cell").count()) !== 20) {
     throw new Error(`${label}: expected 20 harmonica cells`);

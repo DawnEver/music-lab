@@ -6,7 +6,9 @@ import {
   nearestString,
   nearestPosition,
   stringStatus,
-  buildHarmonicaCells
+  buildHarmonicaCells,
+  instrumentCategories,
+  instrumentsByCategory
 } from "../src/instruments/index.js";
 import { harmonica, HARMONICA_LAYOUT } from "../src/instruments/harmonica.js";
 import { midiToFrequency, frequencyToMidi } from "../src/lib/music-theory.js";
@@ -38,6 +40,78 @@ describe("registry", () => {
         }
       }
     }
+  });
+
+  it("every preset labels every note, and every instrument sits in a picker group", () => {
+    for (const instrument of allInstruments) {
+      expect(instrumentCategories).toContain(instrument.category);
+      for (const preset of instrument.presets) {
+        expect(preset.notes.length).toBeGreaterThan(0);
+        if (preset.noteLabels) expect(preset.noteLabels.length).toBe(preset.notes.length);
+      }
+      if (instrument.layout === "harmonica") expect(instrument.harmonica).toBeTruthy();
+    }
+    // The grouped picker shows each instrument exactly once.
+    const grouped = instrumentCategories.flatMap((category) => instrumentsByCategory(category));
+    expect(grouped.map((instrument) => instrument.id).sort()).toEqual(
+      allInstruments.map((instrument) => instrument.id).sort()
+    );
+  });
+});
+
+describe("added instruments (tunings are locked data)", () => {
+  const notes = (id: string, presetId: string) => getPreset(getInstrument(id)!, presetId).notes;
+
+  it("bowed family runs in fifths, the double bass in fourths", () => {
+    expect(notes("violin", "standard")).toEqual([55, 62, 69, 76]); // G3 D4 A4 E5
+    expect(notes("viola", "standard")).toEqual([48, 55, 62, 69]); //  C3 G3 D4 A4
+    expect(notes("cello", "standard")).toEqual([36, 43, 50, 57]); //  C2 G2 D3 A3
+    expect(notes("double-bass", "standard4")).toEqual([28, 33, 38, 43]); // E1 A1 D2 G2
+    expect(notes("double-bass", "standard5")).toEqual([23, 28, 33, 38, 43]); // + B0
+    expect(notes("double-bass", "lowC")).toEqual([24, 33, 38, 43]); // C1 extension
+  });
+
+  it("huqin family: erhu, zhonghu a fifth below, gaohu a fourth above", () => {
+    expect(notes("erhu", "standard")).toEqual([62, 69]); //    D4 A4
+    expect(notes("zhonghu", "standard")).toEqual([55, 62]); // G3 D4
+    expect(notes("gaohu", "standard")).toEqual([67, 74]); //   G4 D5
+    expect(notes("gaohu", "cantonese")).toEqual([69, 76]); //  A4 E5
+  });
+
+  it("mandolin matches the violin; the banjo 5th string is re-entrant", () => {
+    expect(notes("mandolin", "standard")).toEqual([55, 62, 69, 76]);
+    const openG = notes("banjo", "openG"); // g4 D3 G3 B3 D4
+    expect(openG).toEqual([67, 50, 55, 59, 62]);
+    expect(openG[0]).toBeGreaterThan(openG[1]); // the drone sits above the 4th
+    expect(notes("banjo", "doubleC")).toEqual([67, 48, 55, 60, 64]);
+    expect(notes("banjo", "openD")).toEqual([69, 50, 57, 62, 66]);
+  });
+
+  it("Chinese plucked strings", () => {
+    expect(notes("pipa", "standard")).toEqual([45, 50, 52, 57]); // A2 D3 E3 A3
+    expect(notes("ruan", "zhong")).toEqual([43, 50, 55, 62]); //    G2 D3 G3 D4
+    expect(notes("ruan", "da")).toEqual([36, 43, 48, 55]); //       C2 G2 C3 G3
+    expect(notes("ruan", "xiao")).toEqual([55, 62, 67, 74]); //     G3 D4 G4 D5
+    expect(notes("liuqin", "standard")).toEqual([55, 62, 67, 74]);
+  });
+
+  it("guitar 7-string adds a low B, the baritone ukulele is DGBE", () => {
+    expect(notes("guitar", "sevenString")).toEqual([35, 40, 45, 50, 55, 59, 64]);
+    expect(notes("ukulele", "baritone")).toEqual([50, 55, 59, 64]);
+  });
+
+  it("the 17-key kalimba alternates outward from the centre C4 tine", () => {
+    const tines = notes("kalimba", "c17");
+    expect(tines).toHaveLength(17);
+    expect(tines[8]).toBe(60); // centre tine C4
+    // Sorted by pitch it is a plain C major scale from C4 up to E6.
+    expect([...tines].sort((a, b) => a - b)).toEqual([
+      60, 62, 64, 65, 67, 69, 71, 72, 74, 76, 77, 79, 81, 83, 84, 86, 88
+    ]);
+    // The scale alternates outward from the centre: pitch falls to the
+    // centre tine from the left and rises from it to the right.
+    for (let i = 1; i <= 8; i += 1) expect(tines[i]).toBeLessThan(tines[i - 1]);
+    for (let i = 9; i < tines.length; i += 1) expect(tines[i]).toBeGreaterThan(tines[i - 1]);
   });
 });
 

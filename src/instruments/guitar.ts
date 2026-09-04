@@ -4,11 +4,11 @@ import type { InstrumentDefinition } from "./types.js";
 export const guitar: InstrumentDefinition = {
   id: "guitar",
   name: { zh: "吉他", en: "Guitar" },
-  category: "strings",
+  category: "plucked",
   layout: "strings",
   defaultPresetId: "standard",
-  // Extremes across all presets: Drop C low C2 (65.4 Hz) … Open G high G4 (392 Hz).
-  range: { minHz: 60, maxHz: 420, minMidi: 36, maxMidi: 68 },
+  // Extremes across all presets: 7-string low B1 (61.7 Hz) … Open G high G4 (392 Hz).
+  range: { minHz: 55, maxHz: 420, minMidi: 33, maxMidi: 68 },
   presets: [
     {
       id: "standard",
@@ -45,6 +45,12 @@ export const guitar: InstrumentDefinition = {
       name: { zh: "开放 D", en: "Open D" },
       notes: [38, 45, 50, 54, 57, 62], // D2 A2 D3 F♯3 A3 D4
       noteLabels: ["6", "5", "4", "3", "2", "1"].map((label) => ({ zh: label, en: label }))
+    },
+    {
+      id: "sevenString",
+      name: { zh: "七弦标准", en: "7-string standard" },
+      notes: [35, 40, 45, 50, 55, 59, 64], // B1 E2 A2 D3 G3 B3 E4
+      noteLabels: ["7", "6", "5", "4", "3", "2", "1"].map((label) => ({ zh: label, en: label }))
     },
     {
       id: "halfDown",

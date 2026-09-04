@@ -8,10 +8,10 @@ import type { InstrumentDefinition } from "./types.js";
 export const ukulele: InstrumentDefinition = {
   id: "ukulele",
   name: { zh: "尤克里里", en: "Ukulele" },
-  category: "strings",
+  category: "plucked",
   layout: "strings",
   defaultPresetId: "standard",
-  range: { minHz: 190, maxHz: 470, minMidi: 53, maxMidi: 70 },
+  range: { minHz: 130, maxHz: 470, minMidi: 48, maxMidi: 70 },
   presets: [
     {
       id: "standard",
@@ -23,6 +23,12 @@ export const ukulele: InstrumentDefinition = {
       id: "lowG",
       name: { zh: "Low G", en: "Low G" },
       notes: [55, 60, 64, 69], // G3 C4 E4 A4
+      noteLabels: ["4", "3", "2", "1"].map((label) => ({ zh: label, en: label }))
+    },
+    {
+      id: "baritone",
+      name: { zh: "上低音 (DGBE)", en: "Baritone (DGBE)" },
+      notes: [50, 55, 59, 64], // D3 G3 B3 E4
       noteLabels: ["4", "3", "2", "1"].map((label) => ({ zh: label, en: label }))
     }
   ]

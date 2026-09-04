@@ -23,7 +23,7 @@ function makeGuzhengPreset(id: string, topMidi: number, name: { zh: string; en: 
 export const guzheng: InstrumentDefinition = {
   id: "guzheng",
   name: { zh: "古筝", en: "Guzheng" },
-  category: "strings",
+  category: "plucked",
   layout: "strings",
   defaultPresetId: "dTune",
   // C 调 low string is C2 (65.4 Hz); D 调 high string is D6 (1174.7 Hz).

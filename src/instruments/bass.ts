@@ -4,7 +4,7 @@ import type { InstrumentDefinition } from "./types.js";
 export const bass: InstrumentDefinition = {
   id: "bass",
   name: { zh: "贝斯", en: "Bass Guitar" },
-  category: "strings",
+  category: "plucked",
   layout: "strings",
   defaultPresetId: "standard4",
   range: { minHz: 26, maxHz: 110, minMidi: 21, maxMidi: 46 },
