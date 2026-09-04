@@ -4,20 +4,35 @@
 - Write code and file contents in English; conversations may be in Chinese.
 - UI copy lives in the i18n dictionary. Chinese UI text uses 调音 (tuning) consistently — never 校音.
 
+## What this app is
+- Three primitives, and every tool is a combination of them: **sound flowing in** (source -> frames -> features), **sound flowing out** (a schedule -> voices), and **musical meaning** (pure maths, no audio). Tuning and the scope are in + meaning; the metronome and ear training are out + meaning; sight-singing is all three.
+- A tool needing both directions is normal, not exceptional. So both directions live in `audio/`, never inside a feature. If two features need the same thing, the thing is in the wrong layer — do not relax the boundary rules, move the layer.
+
 ## Architecture
-- One AudioContext for the whole app: features take a lease from `src/audio/audio-engine.ts` and never construct or close a context themselves.
-- One tool per route under `src/features/*`; the shell owns navigation only. Tool-specific chrome (the audio source bar) lives in the tool, not the shell.
-- Layout follows the tool's use: the tuning workbench shows many readouts at once (collapsible cards), the metronome has one focus (a single stage that never scrolls). Metronome settings are reached by tapping the value they change (`ControlSheet`) — never by adding another panel.
+- Layers, strictly one-way `features -> audio -> lib`:
+  - `lib/` is pure: DSP, music theory, plot scales, spectrogram data, colour ramps, i18n, persist. It must keep running in Node, so it may not import `audio/` and may not name a DOM or Web Audio global.
+  - `audio/` is the only layer that touches Web Audio: the context lease, the input session, capture taps, the analysis stream, the transport, the voices.
+  - `features/*` compose and present. They never import each other; only the router names a feature view.
+- One AudioContext for the whole app: everything takes a lease from `src/audio/context.ts` and never constructs or closes a context. `new AudioContext` appears exactly once in the repo, and a test enforces it.
+- **One time base: `AudioContext.currentTime`.** Spectrogram columns, sung notes, metronome clicks and answer timestamps are all stamped from it. This is what lets a written line and a sung line be drawn together with no alignment code — never reintroduce `performance.now()` for anything that will be compared with sound. Units are named where they differ (`nowMs` in the analysis pipeline, `time` in seconds everywhere else).
+- Input is an application-level session (`audio/source.ts`): the player picks a microphone once and the whole app is listening. Views attach *taps* (`audio/capture.ts`), which survive a source change. A tap is an instance, not a singleton, because the resolution trade-off is per-view: pitch detection wants a long window, a time axis wants a short one with smoothing off.
+- Chrome belongs to whoever uses it, not to the shell: `SourceBar` is a shared component placed by each tool that needs an input (tuning, scope, sight-singing) — it never moves into the shell, and it never appears in a tool that has no use for a microphone.
+- One tool per route, named for what the player is doing: `/tune`, `/scope`, `/rhythm`, `/ear`. Renamed routes keep redirects; the shell owns navigation only.
+- Layout follows the tool's use: the tuning workbench shows many readouts at once (collapsible cards); the metronome, the scope and ear training each have one focus (a single stage that never scrolls). Settings are reached by tapping the value they change (`ControlSheet`) — never by adding another panel.
+- Feature layering is strict everywhere: `domain/` pure functions -> `engine/` scheduling and sound -> `stores/` -> UI. Audio is the master clock; Vue never triggers a sound, and the UI follows the audio clock through rAF.
+- Features depend on the `Transport` interface, never on the native implementation. The scheduler is generic over its event — it reads only `delta` and `silent` — so a metronome bar and any other stream are scheduled by the same code. A phrase that is short and fully known (an ear-training question) is placed on the clock in one go instead; the look-ahead scheduler is for streams that never end.
 - Metronome edits land on the next event, never the next bar: the cursor re-reads the live pattern and tempo per event, and the scheduler commits nothing beyond its horizon. Only bar length (meter) is snapshotted at the bar line, because changing it mid-bar destroys the count.
-- Metronome layering is strict: `domain/` pure functions -> `engine/` scheduling and sound -> `stores/` -> UI. Audio is the master clock; Vue never triggers a sound, and the UI follows the audio clock through rAF.
-- The metronome depends on the `Transport` interface, never on the native implementation, so a Tone.js transport can replace it without touching a feature.
-- Tuning is layered the same way: `AnalysisPipeline` owns every analysis decision (cadence, YIN/spectral arbitration, smoothing, silence) and takes frames plus a clock; `analysis-loop.ts` is only the rAF + AnalyserNode adapter. Analysis behaviour is tested without a browser.
-- Keep pure logic (DSP / instrument data / chords) as framework-agnostic pure functions directly testable in Node.
-- One tuning model: a preset is a list of `TuningTarget`s (label, positions, optional grid slot, optional fingering). Strings, tines, harmonica holes and wind fingerings differ only in data, so matching, selection and the needle exist once — never add a parallel path for an instrument. A new instrument family adds a renderer (`list` / `grid` / `fingering`), never a second model.
-- Adding an instrument ≈ adding one data file and registering it — never touch the UI or the analysis loop. The detector band is derived from the pitches the instrument can produce (`deriveRange`); only override `range` with a reason.
-- Real-time analysis: the spectrum is drawn imperatively and never enters Vue reactivity; display results update via shallowRef at analysis cadence; large subtrees sync change-only.
+- `AnalysisPipeline` owns every analysis decision (cadence, YIN/spectral arbitration, smoothing, silence) and takes frames plus a clock; `audio/analysis.ts` is only the rAF + AnalyserNode adapter. Analysis behaviour is tested without a browser.
+- A view is one stream projected through one set of scales. `lib/plot/scale.ts` is the single source of "where does this value sit" — a scale maps a domain value to 0..1 and knows nothing about axes. Canvas colours come from the `--plot-*` tokens through `lib/plot/palette.ts`, never from a second hard-coded palette.
+- History is a ring of columns stamped with audio time, and a view is a *query* over it — never a canvas scrolled one pixel per frame, which would tie the time axis to the frame rate and make freezing, zooming and replay impossible.
+- Drawing pitch as a line has rules a heat map does not: break the line where the signal is unvoiced (joining across a breath draws a glissando nobody sang), and fold one-off octave errors back onto it (a real leap is held; an artefact lasts a frame).
+- Everything enumerable is data, not code. Instruments, click banks, voices, exercise types, colour ramps: adding one must be a new row, not a new code path. If it is not, the abstraction is wrong.
+- One tuning model: a preset is a list of `TuningTarget`s (label, positions, optional grid slot, optional fingering). Strings, tines, harmonica holes and wind fingerings differ only in data, so matching, selection and the needle exist once. A new instrument family adds a renderer (`list` / `grid` / `fingering`), never a second model.
+- Adding an instrument ≈ adding one data file and registering it — never touch the UI or the analysis stream. The detector band is derived from the pitches the instrument can produce (`deriveRange`); only override `range` with a reason.
+- Real-time analysis: canvases draw imperatively through `onFrame` and never enter Vue reactivity; display results update via shallowRef at analysis cadence; large subtrees sync change-only.
 - Feature state lives in `features/*/stores/`, and importing a store must have no side effect: read persisted state in an explicit `hydrate*()` the view calls.
 - Anything persisted goes through `lib/persist.ts` (`ml.` prefix, one declaration per value, legacy key migration) — never touch `localStorage` directly.
+- Compatibility code carries an expiry. The `tcl-` key migration and the legacy hash-route mapping retire in v3.0; without a date, compatibility only accumulates.
 - Single source for styles: the `.card` base rule owns the shell and padding; panel differences are variant classes (`card--wide` / `card--tall` / `card--stack` / `card--glow*`). Never duplicate definitions or leave dead overrides.
 
 ## Workflow
@@ -25,11 +40,13 @@
 - Commit only when `npm test` is green and `vue-tsc --noEmit` is clean; use conventional prefixes (`feat:` / `fix:` / `refactor:` / `chore:`) with double-quoted `-m`.
 - Three test layers, each with its own job: unit tests for logic (Node), `tests/components/` for component behaviour (happy-dom, mounts the real components), and `npm run smoke` for what only a browser answers — layout geometry, overflow, routing, i18n. Smoke starts its own dev server.
 - UI changes must run `npm run smoke` (desktop + mobile viewports).
-- Boundaries are enforced by the import graph, not by convention: features never import each other, shared layers never import a feature, and only the router names a feature view.
+- Boundaries are enforced by the import graph and by grep over the source, not by convention: features never import each other, shared layers never import a feature, `lib/` never imports `audio/`, only `audio/` names Web Audio, and only the router names a feature view.
+- Anything with randomness in it takes an injected random source, so a question, a practice pattern or a generated melody is reproducible in a test.
 - `package.json` is the single source of the version: the header renders it and the tracked `pre-push` hook tags `v<version>`. Bump it when releasing work.
 
 ## Data & i18n Correctness
 - Instrument data (note tables / bend depths / ranges) is locked by per-note / per-hole tests; change the data, change the tests.
 - Rhythm behaviour is locked the same way: meters, accents, subdivision/swing offsets, tempo maths and the scheduler have unit tests with an injected clock — no real AudioContext needed.
-- The dictionary is split by owner (`lib/i18n/dictionaries/{shell,tuning,metronome}.ts`); each file keeps zh/en parity and no key is defined twice (enforced by tests).
-- `t()` takes a typed `MessageKey`. A key built from a union (`tuner.kind.${kind}`) type-checks only if every member exists, so keep such sets closed (`SoundBankId`, `ChordTypeKey`, `Breath`) rather than widening them to `string`.
+- Analysis and plotting are locked as pure functions: band reduction, ring-buffer windows, colour-ramp monotonicity, pitch-track segmentation, interval tables, exercise generation and sung-note verdicts all run in Node.
+- The dictionary is split by owner (`lib/i18n/dictionaries/{shell,tuning,metronome,scope,ear}.ts`); each file keeps zh/en parity and no key is defined twice (enforced by tests).
+- `t()` takes a typed `MessageKey`. A key built from a union (`tuner.kind.${kind}`) type-checks only if every member exists, so keep such sets closed (`SoundBankId`, `ChordTypeKey`, `ColormapId`, `IntervalKey`, `ExerciseKind`) rather than widening them to `string`.

@@ -1,7 +1,7 @@
 {
   "name": "music-lab",
   "version": "2.5.0",
-  "description": "Music Lab — browser-based tuning, pitch and chord analysis, and a professional metronome. Vue 3 + Vuetify, fully client-side.",
+  "description": "Music Lab — browser-based tuning, a time-frequency scope, a professional metronome, and ear training with sight-singing. Vue 3 + Vuetify, fully client-side.",
   "type": "module",
   "private": false,
   "license": "MIT",
@@ -14,7 +14,11 @@
     "guzheng",
     "guqin",
     "yin",
-    "web-audio"
+    "web-audio",
+    "spectrogram",
+    "ear-training",
+    "sight-singing",
+    "solfege"
   ],
   "scripts": {
     "dev": "vite",
