@@ -2416,3 +2416,123 @@
     height: clamp(260px, 46vh, 420px);
   }
 }
+
+/* ---- Ear training: one loop — hear, answer, go again ---- */
+.ear-kinds,
+.ear-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.ear-stats {
+  gap: 14px;
+  color: var(--muted);
+  font-size: 0.82rem;
+  margin: 0;
+}
+
+.ear-stage {
+  grid-column: 1 / -1;
+  display: grid;
+  justify-items: center;
+  gap: 22px;
+  padding: 30px 20px 24px;
+}
+
+.ear-play {
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+  width: 130px;
+  padding: 18px 0;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-lg);
+  background: var(--glass);
+  color: var(--text);
+  font-size: 1.6rem;
+  cursor: pointer;
+  transition: transform 0.12s ease, background 0.2s ease;
+}
+
+.ear-play:hover {
+  background: var(--glass-hover);
+}
+
+.ear-play.is-playing {
+  background: var(--glass-strong);
+  transform: scale(1.02);
+}
+
+.ear-play-label {
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+
+.ear-pad {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+  max-width: 620px;
+}
+
+.ear-choice {
+  min-width: 104px;
+  padding: 11px 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--glass);
+  color: var(--text);
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.ear-choice:hover:not(:disabled) {
+  background: var(--glass-hover);
+}
+
+.ear-choice:disabled {
+  cursor: default;
+  opacity: 0.75;
+}
+
+.ear-choice.is-right {
+  border-color: var(--good);
+  color: var(--good);
+  opacity: 1;
+}
+
+.ear-choice.is-wrong {
+  border-color: var(--danger);
+  color: var(--danger);
+  opacity: 1;
+}
+
+.ear-verdict {
+  min-height: 1.4em;
+  margin: 0;
+  font-size: 0.92rem;
+  color: var(--muted);
+}
+
+.ear-verdict.is-right {
+  color: var(--good);
+}
+
+.ear-verdict.is-wrong {
+  color: var(--danger);
+}
+
+@media (max-width: 720px) {
+  .ear-stage {
+    gap: 16px;
+    padding: 20px 12px 18px;
+  }
+
+  .ear-choice {
+    min-width: 92px;
+  }
+}

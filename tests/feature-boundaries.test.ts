@@ -82,6 +82,7 @@ describe("feature boundaries", () => {
     const router = files.find((file) => file.path === "router/index.ts")!;
     const featureImports = router.imports.filter((target) => featureOf(target));
     expect(featureImports.sort()).toEqual([
+      "features/ear/EarView",
       "features/metronome/MetronomeView",
       "features/scope/ScopeView",
       "features/tuning/TuningView"

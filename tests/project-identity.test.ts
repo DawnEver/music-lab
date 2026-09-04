@@ -40,7 +40,7 @@ describe("project identity and public routes", () => {
 
   it("publishes clean tool routes with SPA fallback", () => {
     const router = read("src/router/index.ts");
-    for (const path of ["/tune", "/scope", "/rhythm"]) {
+    for (const path of ["/tune", "/scope", "/rhythm", "/ear"]) {
       expect(router).toContain(`path: "${path}"`);
     }
     // Old links must not 404: the routes were renamed, not removed.

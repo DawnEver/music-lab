@@ -257,6 +257,45 @@ async function walkScope(page, label) {
   await gotoTool(page, "tune");
 }
 
+/** Ear training: the whole loop is hear -> answer -> verdict -> next. */
+async function walkEar(page, label) {
+  await gotoTool(page, "ear");
+  await page.waitForSelector("[data-ear-pad] .ear-choice", { timeout: 8000 });
+
+  // No microphone here: ear training only needs the output side.
+  if ((await page.locator(".source-actions").count()) !== 0) {
+    throw new Error(`${label}: ear training should not ask for a microphone`);
+  }
+
+  const choices = await page.locator("[data-ear-pad] .ear-choice").count();
+  if (choices < 3) throw new Error(`${label}: expected an answer pad, got ${choices} choices`);
+
+  // Answering marks the right choice and unlocks the next question.
+  await page.locator("[data-ear-pad] .ear-choice").first().click();
+  await page.waitForSelector("[data-ear-pad] .ear-choice.is-right", { timeout: 4000 });
+  const verdict = (await page.locator("[data-ear-verdict]").innerText()).trim();
+  if (!verdict) throw new Error(`${label}: answering should show a verdict`);
+  if (await page.locator("[data-ear-next]").isDisabled()) {
+    throw new Error(`${label}: next should be enabled once answered`);
+  }
+  await page.locator("[data-ear-next]").click();
+  await page.waitForTimeout(150);
+  if ((await page.locator("[data-ear-pad] .ear-choice.is-right").count()) !== 0) {
+    throw new Error(`${label}: the next question should clear the previous verdict`);
+  }
+  console.log(`✓ ${label}: ear training answers, grades and moves on`);
+
+  // Switching kind swaps the pad.
+  await page.locator('[data-ear-kind="chord"]').click();
+  await page.waitForTimeout(150);
+  const chordChoices = await page.locator("[data-ear-pad] .ear-choice").count();
+  if (chordChoices < 2) throw new Error(`${label}: chord pad should render choices`);
+  console.log(`✓ ${label}: switching question kind swaps the answer pad`);
+
+  await assertNoHOverflow(page, `${label} ear`);
+  await gotoTool(page, "tune");
+}
+
 async function walkWorkbench(page, label) {
   // All five panels render.
   await page.waitForSelector(".strings-panel", { timeout: 8000 });
@@ -399,10 +438,10 @@ try {
   console.log("✓ desktop: tuner stretches horizontally (needle | panel side by side)");
 
   // Tool-level navigation: one shell, several music tools.
-  if ((await desktop.locator(".tool-nav-link").count()) !== 3) {
-    throw new Error("desktop: expected tune + scope + rhythm nav links");
+  if ((await desktop.locator(".tool-nav-link").count()) !== 4) {
+    throw new Error("desktop: expected tune + scope + rhythm + ear nav links");
   }
-  console.log("✓ desktop: shell exposes all three tools");
+  console.log("✓ desktop: shell exposes all four tools");
 
   // The header carries the build version next to the title.
   const versionText = await desktop.locator(".brand-version").innerText();
@@ -436,6 +475,7 @@ try {
   console.log("✓ desktop: theme toggle switches dark/light without overflow");
 
   await walkScope(desktop, "desktop");
+  await walkEar(desktop, "desktop");
   await walkMetronome(desktop, "desktop", { expectSingleScreen: true });
 
   // ---- Mobile ----
@@ -454,6 +494,7 @@ try {
   console.log("✓ mobile: tuner falls back to a single column");
 
   await walkScope(mobile, "mobile");
+  await walkEar(mobile, "mobile");
   await walkMetronome(mobile, "mobile");
 
   await mobile.close();

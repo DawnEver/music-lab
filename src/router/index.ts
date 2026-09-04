@@ -42,7 +42,8 @@ export interface ToolRoute {
 export const TOOLS: ToolRoute[] = [
   { name: "tune", path: "/tune", labelKey: "navTuning", icon: "♪" },
   { name: "scope", path: "/scope", labelKey: "navScope", icon: "▚" },
-  { name: "rhythm", path: "/rhythm", labelKey: "navMetronome", icon: "▮▯" }
+  { name: "rhythm", path: "/rhythm", labelKey: "navMetronome", icon: "▮▯" },
+  { name: "ear", path: "/ear", labelKey: "navEar", icon: "◉" }
 ];
 
 const routes: RouteRecordRaw[] = [
@@ -60,6 +61,11 @@ const routes: RouteRecordRaw[] = [
     path: "/rhythm",
     name: "rhythm",
     component: () => import("../features/metronome/MetronomeView.vue")
+  },
+  {
+    path: "/ear",
+    name: "ear",
+    component: () => import("../features/ear/EarView.vue")
   },
   { path: "/", redirect: "/tune" },
   { path: "/tuning", redirect: "/tune" },

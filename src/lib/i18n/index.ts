@@ -16,11 +16,12 @@ import { shell } from "./dictionaries/shell.js";
 import { tuning } from "./dictionaries/tuning.js";
 import { metronome } from "./dictionaries/metronome.js";
 import { scope } from "./dictionaries/scope.js";
+import { ear } from "./dictionaries/ear.js";
 
 export type Lang = "zh" | "en";
 
-const zh = { ...shell.zh, ...tuning.zh, ...metronome.zh, ...scope.zh };
-const en = { ...shell.en, ...tuning.en, ...metronome.en, ...scope.en };
+const zh = { ...shell.zh, ...tuning.zh, ...metronome.zh, ...scope.zh, ...ear.zh };
+const en = { ...shell.en, ...tuning.en, ...metronome.en, ...scope.en, ...ear.en };
 
 export type MessageKey = keyof typeof zh;
 
