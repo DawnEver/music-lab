@@ -28,6 +28,16 @@ describe("project identity and public routes", () => {
     expect(pkg.scripts.prepare).toContain("core.hooksPath .githooks");
   });
 
+  it("is installable and works offline", () => {
+    const config = read("vite.config.ts");
+    expect(config).toContain("VitePWA");
+    // A practice-room tool must precache its own shell, not just cache
+    // what happens to be fetched.
+    expect(config).toContain("globPatterns");
+    expect(config).toContain('registerType: "autoUpdate"');
+    expect(config).toContain('start_url: "/tuning"');
+  });
+
   it("publishes clean tool routes with SPA fallback", () => {
     const router = read("src/router/index.ts");
     expect(router).toContain('path: "/tuning"');
