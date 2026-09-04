@@ -1,9 +1,10 @@
 <script setup lang="ts">
+import { analysisSettings } from "../../../audio/analysis.js";
 import { computed } from "vue";
 import { useAnalysis } from "../../../composables/useAnalysis.js";
 import { useI18n } from "../../../composables/useI18n.js";
 import type { MessageKey } from "../../../lib/i18n/index.js";
-import { audioStore } from "../stores/audio.js";
+import { sourceStore } from "../../../audio/source.js";
 import { frequencyToNote } from "../../../lib/music-theory.js";
 import { clamp } from "../../../lib/dsp.js";
 import CollapsibleCard from "../../../shared/components/CollapsibleCard.vue";
@@ -13,7 +14,7 @@ const { pitch } = useAnalysis();
 const { t } = useI18n();
 
 const note = computed(() =>
-  pitch.value ? frequencyToNote(pitch.value.frequency, audioStore.tuning) : null
+  pitch.value ? frequencyToNote(pitch.value.frequency, analysisSettings.tuning) : null
 );
 
 const confidencePercent = computed(() =>
@@ -23,7 +24,7 @@ const confidencePercent = computed(() =>
 const cents = computed(() => (note.value ? note.value.cents : 0));
 
 const hintKey = computed(() => {
-  if (!note.value) return audioStore.mode === "idle" ? "pitchHintIdle" : "pitchHintAwait";
+  if (!note.value) return sourceStore.mode === "idle" ? "pitchHintIdle" : "pitchHintAwait";
   return Math.abs(note.value.cents) <= 5
     ? "pitchHintStable"
     : note.value.cents < 0

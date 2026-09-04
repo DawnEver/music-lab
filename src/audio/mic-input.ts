@@ -3,11 +3,18 @@
  * message a player can act on.
  */
 
-import { t } from "../../../composables/useI18n.js";
-import { showToast } from "../../../shared/stores/toast.js";
-import { audioStore, setSourceInfo, setSourceInfoRaw, setStatus } from "./audio-state.js";
-import { beginAnalysis, buildGraph, connectSource } from "./audio-graph.js";
-import { populateDevices } from "./device-discovery.js";
+import { t } from "../composables/useI18n.js";
+import { showToast } from "../shared/stores/toast.js";
+import {
+  connectSource,
+  openSession,
+  setSourceInfo,
+  setSourceInfoRaw,
+  setStatus,
+  sourceStore
+} from "./source.js";
+import { startAnalysis } from "./analysis.js";
+import { populateDevices } from "./devices.js";
 
 let stream: MediaStream | null = null;
 
@@ -37,7 +44,7 @@ function failureMessage(error: unknown): string {
 }
 
 export async function startMicrophone(stopCurrent: () => Promise<void>): Promise<void> {
-  if (audioStore.isStarting) return;
+  if (sourceStore.isStarting) return;
 
   if (!navigator.mediaDevices?.getUserMedia) {
     showToast(t("toastMicSecure"));
@@ -45,36 +52,36 @@ export async function startMicrophone(stopCurrent: () => Promise<void>): Promise
     return;
   }
 
-  audioStore.isStarting = true;
+  sourceStore.isStarting = true;
   setStatus("statusRequesting", "idle");
 
   try {
     await stopCurrent();
-    audioStore.isStarting = true;
+    sourceStore.isStarting = true;
 
     const audio: MediaTrackConstraints = { ...CONSTRAINTS };
-    if (audioStore.deviceId) audio.deviceId = { exact: audioStore.deviceId };
+    if (sourceStore.deviceId) audio.deviceId = { exact: sourceStore.deviceId };
     stream = await navigator.mediaDevices.getUserMedia({ audio, video: false });
 
-    const context = await buildGraph("mic");
+    const context = await openSession("mic");
     connectSource(context.createMediaStreamSource(stream));
-    audioStore.mode = "mic";
+    sourceStore.mode = "mic";
 
     const track = stream.getAudioTracks()[0];
     setSourceInfo("analyzing", { label: track?.label || t("defaultMic") });
     setStatus("statusMicLive", "live");
-    beginAnalysis();
+    startAnalysis();
     await populateDevices();
   } catch (error) {
     console.error(error);
     await stopCurrent();
-    audioStore.mode = "idle";
+    sourceStore.mode = "idle";
     setStatus("statusStartFailed", "error");
 
     const message = failureMessage(error);
     showToast(message);
     setSourceInfoRaw(message);
   } finally {
-    audioStore.isStarting = false;
+    sourceStore.isStarting = false;
   }
 }

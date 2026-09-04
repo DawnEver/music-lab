@@ -3,10 +3,18 @@
  * the same analyser as the microphone.
  */
 
-import { t } from "../../../composables/useI18n.js";
-import { showToast } from "../../../shared/stores/toast.js";
-import { audioStore, setSourceInfo, setSourceInfoRaw, setStatus } from "./audio-state.js";
-import { audioContext, beginAnalysis, buildGraph, connectSource } from "./audio-graph.js";
+import { t } from "../composables/useI18n.js";
+import { showToast } from "../shared/stores/toast.js";
+import {
+  audioContext,
+  connectSource,
+  openSession,
+  setSourceInfo,
+  setSourceInfoRaw,
+  setStatus,
+  sourceStore
+} from "./source.js";
+import { startAnalysis } from "./analysis.js";
 
 let element: HTMLAudioElement | null = null;
 let objectUrl: string | null = null;
@@ -42,10 +50,10 @@ function trackPlaybackStatus(audio: HTMLAudioElement): void {
     setStatus("statusFilePlaying", "live");
   });
   audio.addEventListener("pause", () => {
-    if (audioStore.mode === "file") setStatus("statusFilePaused", "idle");
+    if (sourceStore.mode === "file") setStatus("statusFilePaused", "idle");
   });
   audio.addEventListener("ended", () => {
-    if (audioStore.mode === "file") setStatus("statusFileEnded", "idle");
+    if (sourceStore.mode === "file") setStatus("statusFileEnded", "idle");
   });
   audio.addEventListener("error", () => showToast(t("toastDecodeFailed")));
 }
@@ -54,16 +62,16 @@ export async function startAudioFile(
   file: File | undefined,
   stopCurrent: () => Promise<void>
 ): Promise<void> {
-  if (!file || audioStore.isStarting) return;
+  if (!file || sourceStore.isStarting) return;
 
-  audioStore.isStarting = true;
+  sourceStore.isStarting = true;
   setStatus("statusLoadingFile", "idle");
 
   try {
     await stopCurrent();
-    audioStore.isStarting = true;
+    sourceStore.isStarting = true;
 
-    const context = await buildGraph("file");
+    const context = await openSession("file");
     objectUrl = URL.createObjectURL(file);
     element = document.createElement("audio");
     element.controls = true;
@@ -73,11 +81,11 @@ export async function startAudioFile(
     hostContainer?.replaceChildren(element);
 
     connectSource(context.createMediaElementSource(element));
-    audioStore.mode = "file";
+    sourceStore.mode = "file";
     trackPlaybackStatus(element);
 
     setSourceInfo("localFile", { name: file.name });
-    beginAnalysis();
+    startAnalysis();
 
     try {
       await element.play();
@@ -89,7 +97,7 @@ export async function startAudioFile(
   } catch (error) {
     console.error(error);
     await stopCurrent();
-    audioStore.mode = "idle";
+    sourceStore.mode = "idle";
     setStatus("statusLoadFailed", "error");
     const message = t("toastFileFailed", {
       message: error instanceof Error && error.message ? error.message : t("unknownError")
@@ -97,6 +105,6 @@ export async function startAudioFile(
     setSourceInfoRaw(message);
     showToast(message);
   } finally {
-    audioStore.isStarting = false;
+    sourceStore.isStarting = false;
   }
 }

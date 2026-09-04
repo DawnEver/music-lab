@@ -26,7 +26,8 @@ const SILENT_CHROMA_DECAY = 0.78;
 const SPECTRAL_PITCH_TTL_MS = 280;
 
 export interface AnalysisFrame {
-  now: number;
+  /** Milliseconds on the audio clock (context.currentTime * 1000). */
+  nowMs: number;
   /** Spectrum in dB (analyser.getFloatFrequencyData output). */
   frequencyData: Float32Array;
   /** Read lazily — only the pitch cadence needs the time-domain buffer. */
@@ -120,7 +121,7 @@ export class AnalysisPipeline {
 
   /** Advance one frame and return what the display should show. */
   push(frame: AnalysisFrame): AnalysisSnapshot {
-    const { now } = frame;
+    const now = frame.nowMs;
     if (!this.started) {
       this.started = true;
       this.lastSignalAt = now;
@@ -152,8 +153,8 @@ export class AnalysisPipeline {
   }
 
   private runPitchPass(frame: AnalysisFrame): ReturnType<typeof detectPitchYin> | null {
-    if (frame.now - this.lastPitchAt < PITCH_INTERVAL_MS) return null;
-    this.lastPitchAt = frame.now;
+    if (frame.nowMs - this.lastPitchAt < PITCH_INTERVAL_MS) return null;
+    this.lastPitchAt = frame.nowMs;
 
     const result = detectPitchYin(
       frame.readTimeData(),
@@ -162,13 +163,13 @@ export class AnalysisPipeline {
       this.range ?? undefined
     );
     this.level = { rmsDb: result.rmsDb };
-    if (result.rmsDb >= frame.gateDb) this.lastSignalAt = frame.now;
+    if (result.rmsDb >= frame.gateDb) this.lastSignalAt = frame.nowMs;
     return result;
   }
 
   private runSpectralPass(frame: AnalysisFrame): ReturnType<typeof analyzeSpectrum> | null {
-    if (frame.now - this.lastSpectrumAt < SPECTRUM_INTERVAL_MS) return null;
-    this.lastSpectrumAt = frame.now;
+    if (frame.nowMs - this.lastSpectrumAt < SPECTRUM_INTERVAL_MS) return null;
+    this.lastSpectrumAt = frame.nowMs;
 
     const result = analyzeSpectrum(frame.frequencyData, this.sampleRate, this.fftSize, {
       tuning: frame.tuning,
@@ -176,7 +177,7 @@ export class AnalysisPipeline {
       range: this.range ?? undefined
     });
     this.latestSpectralPitch = result.dominantPitch;
-    this.latestSpectralPitchAt = frame.now;
+    this.latestSpectralPitchAt = frame.nowMs;
 
     const alpha = clamp(frame.stability, 0.2, 0.92);
     for (let i = 0; i < 12; i += 1) {
@@ -185,7 +186,7 @@ export class AnalysisPipeline {
     }
     this.chromaOut = this.latestChroma.slice();
 
-    this.keyTracker.push(this.latestChroma, frame.now);
+    this.keyTracker.push(this.latestChroma, frame.nowMs);
     this.keyEstimate = this.keyTracker.estimate();
     this.displayedChord = this.chordStabilizer.stabilize(detectChord(this.latestChroma));
     return result;

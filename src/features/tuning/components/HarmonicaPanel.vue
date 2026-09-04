@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { analysisSettings } from "../../../audio/analysis.js";
 import { computed, reactive, ref, watch } from "vue";
 import { midiToFrequency, NOTE_NAMES } from "../../../lib/music-theory.js";
 import { formatCents } from "../../../lib/format.js";
@@ -12,7 +13,7 @@ import {
   type StringStatus,
   type TuningTarget
 } from "../../../instruments/index.js";
-import { audioStore } from "../stores/audio.js";
+import { sourceStore } from "../../../audio/source.js";
 
 const { t } = useI18n();
 const tuner = useTuner();
@@ -71,7 +72,7 @@ function syncDisplays(): void {
       cents = auto!.cents;
     } else if (isManual && p) {
       const midi = target.positions[manual!.positionIndex]?.midi ?? target.positions[0].midi;
-      cents = 1200 * Math.log2(p.frequency / midiToFrequency(midi, audioStore.tuning));
+      cents = 1200 * Math.log2(p.frequency / midiToFrequency(midi, analysisSettings.tuning));
     }
     const status = activeIndex == null ? "idle" : stringStatus(cents, hasSignal, confidence);
     const text = status === "idle" ? "" : formatCents(cents);
@@ -97,7 +98,7 @@ function syncDisplays(): void {
       positionDisplays.push({ status: "idle", centsText: "" });
     }
     target.positions.forEach((position, index) => {
-      const frequency = midiToFrequency(position.midi, audioStore.tuning);
+      const frequency = midiToFrequency(position.midi, analysisSettings.tuning);
       const cents = p ? 1200 * Math.log2(p.frequency / frequency) : 0;
       const status = stringStatus(cents, hasSignal, confidence);
       const text = status === "idle" ? "" : formatCents(cents);

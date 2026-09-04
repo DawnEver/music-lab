@@ -3,12 +3,12 @@ import { mount } from "@vue/test-utils";
 import { nextTick } from "vue";
 import StringsPanel from "../../src/features/tuning/components/StringsPanel.vue";
 import HarmonicaPanel from "../../src/features/tuning/components/HarmonicaPanel.vue";
-import SourceBar from "../../src/features/tuning/components/SourceBar.vue";
+import SourceBar from "../../src/shared/components/SourceBar.vue";
 import FingeringPanel from "../../src/features/tuning/components/FingeringPanel.vue";
-import { audioStore } from "../../src/features/tuning/stores/audio.js";
+import { sourceStore } from "../../src/audio/source.js";
 import { setLang } from "../../src/lib/i18n/index.js";
 import { useTuner } from "../../src/features/tuning/stores/tuner.js";
-import { pitchRef, tickRef } from "../../src/lib/analysis-loop.js";
+import { pitchRef, tickRef } from "../../src/audio/analysis.js";
 import { midiToFrequency } from "../../src/lib/music-theory.js";
 
 const tuner = useTuner();
@@ -169,8 +169,8 @@ describe("FingeringPanel", () => {
 
 describe("SourceBar", () => {
   beforeEach(() => {
-    audioStore.mode = "idle";
-    audioStore.isStarting = false;
+    sourceStore.mode = "idle";
+    sourceStore.isStarting = false;
   });
 
   it("uses one button for start and stop, stating what it will do next", async () => {
@@ -181,7 +181,7 @@ describe("SourceBar", () => {
     expect(button().text()).toContain("Start microphone");
     expect(button().attributes("aria-pressed")).toBe("false");
 
-    audioStore.mode = "mic";
+    sourceStore.mode = "mic";
     await nextTick();
     expect(button().text()).toContain("Stop");
     expect(button().attributes("aria-pressed")).toBe("true");
@@ -189,21 +189,21 @@ describe("SourceBar", () => {
   });
 
   it("stops a playing file with the same button", async () => {
-    audioStore.mode = "file";
+    sourceStore.mode = "file";
     const wrapper = mount(SourceBar);
     await nextTick();
     expect(wrapper.findAll("button")[0].text()).toContain("Stop");
 
     await wrapper.findAll("button")[0].trigger("click");
     await nextTick();
-    expect(audioStore.mode).toBe("idle");
+    expect(sourceStore.mode).toBe("idle");
   });
 
   it("is disabled only while a source is starting", async () => {
     const wrapper = mount(SourceBar);
     expect(wrapper.findAll("button")[0].attributes("disabled")).toBeUndefined();
 
-    audioStore.isStarting = true;
+    sourceStore.isStarting = true;
     await nextTick();
     expect(wrapper.findAll("button")[0].attributes("disabled")).toBeDefined();
   });

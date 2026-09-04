@@ -18,9 +18,9 @@ import {
   type TargetMatch
 } from "../../../instruments/index.js";
 import { midiToFrequency } from "../../../lib/music-theory.js";
-import { pitchRef, setDetectorRange } from "../../../lib/analysis-loop.js";
+import { pitchRef, setDetectorRange } from "../../../audio/analysis.js";
 import { storedJson, storedString } from "../../../lib/persist.js";
-import { audioStore } from "./audio-state.js";
+import { analysisSettings } from "../../../audio/analysis.js";
 
 /** Below this confidence the display reads as idle. */
 const CONFIDENCE_FLOOR = 0.35;
@@ -165,7 +165,7 @@ watch(pitchRef, (pitch) => {
     autoMatch.value = null;
     return;
   }
-  autoMatch.value = nearestTarget(pitch.frequency, targets.value, audioStore.tuning);
+  autoMatch.value = nearestTarget(pitch.frequency, targets.value, analysisSettings.tuning);
 });
 
 /** The target the big needle shows: the pinned one, else the detected one. */
@@ -189,7 +189,7 @@ export const needleTarget = computed(() => {
     label: target.label,
     frequency: pitch.frequency,
     confidence: pitch.confidence,
-    cents: 1200 * Math.log2(pitch.frequency / midiToFrequency(position.midi, audioStore.tuning))
+    cents: 1200 * Math.log2(pitch.frequency / midiToFrequency(position.midi, analysisSettings.tuning))
   };
 });
 

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { analysisSettings } from "../../../audio/analysis.js";
 /**
  * Wind instruments: a chart of notes, each drawn with the fingering that
  * produces it. The note is what the tuner measures; the diagram is what
@@ -11,7 +12,7 @@ import { useAnalysis } from "../../../composables/useAnalysis.js";
 import { useI18n } from "../../../composables/useI18n.js";
 import { useTuner } from "../stores/tuner.js";
 import { stringStatus, type StringStatus } from "../../../instruments/index.js";
-import { audioStore } from "../stores/audio.js";
+import { sourceStore } from "../../../audio/source.js";
 
 const { t, lang } = useI18n();
 const tuner = useTuner();
@@ -38,7 +39,7 @@ function syncCards(): void {
   const confidence = p?.confidence ?? 0;
 
   targets.value.forEach((target, index) => {
-    const frequency = midiToFrequency(target.positions[0].midi, audioStore.tuning);
+    const frequency = midiToFrequency(target.positions[0].midi, analysisSettings.tuning);
     const cents = p ? 1200 * Math.log2(p.frequency / frequency) : 0;
     const status = stringStatus(cents, hasSignal, confidence);
     const text = status === "idle" ? "" : formatCents(cents);

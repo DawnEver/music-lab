@@ -35,13 +35,13 @@ const settings = { tuning: 440, gateDb: -52, stability: 0.72 };
 /** Push one frame; the time-domain buffer is only read on demand. */
 function push(
   pipeline: AnalysisPipeline,
-  now: number,
+  nowMs: number,
   time: Float32Array,
   freq: Float32Array,
   counter?: { reads: number }
 ) {
   return pipeline.push({
-    now,
+    nowMs,
     frequencyData: freq,
     readTimeData: () => {
       if (counter) counter.reads += 1;

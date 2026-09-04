@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from "vue";
-import { audioStore } from "../stores/audio.js";
+import { sourceStore } from "../../../audio/source.js";
 import { useI18n } from "../../../composables/useI18n.js";
 import CollapsibleCard from "../../../shared/components/CollapsibleCard.vue";
 import SpectrumCanvas from "./SpectrumCanvas.vue";
@@ -9,7 +9,7 @@ import LevelMeter from "./LevelMeter.vue";
 const { t } = useI18n();
 
 const sampleRateText = computed(() =>
-  audioStore.sampleRate ? `${(audioStore.sampleRate / 1000).toFixed(1)} kHz` : "— kHz"
+  sourceStore.sampleRate ? `${(sourceStore.sampleRate / 1000).toFixed(1)} kHz` : "— kHz"
 );
 </script>
 
@@ -29,7 +29,7 @@ const sampleRateText = computed(() =>
 
     <SpectrumCanvas />
 
-    <div v-if="audioStore.mode === 'idle'" class="spectrum-empty" data-spectrum-empty>
+    <div v-if="sourceStore.mode === 'idle'" class="spectrum-empty" data-spectrum-empty>
       {{ t("spectrumEmpty") }}
     </div>
 

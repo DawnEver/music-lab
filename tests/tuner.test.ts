@@ -1,7 +1,7 @@
 import { describe, expect, it, beforeEach } from "vitest";
 import { nextTick } from "vue";
 import { useTuner } from "../src/features/tuning/stores/tuner.js";
-import { pitchRef } from "../src/lib/analysis-loop.js";
+import { pitchRef } from "../src/audio/analysis.js";
 import { midiToFrequency } from "../src/lib/music-theory.js";
 
 const tuner = useTuner();

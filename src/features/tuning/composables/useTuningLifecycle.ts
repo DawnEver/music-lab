@@ -1,5 +1,5 @@
 import { onBeforeUnmount, onMounted } from "vue";
-import { cleanup, populateDevices, stop } from "../stores/audio.js";
+import { cleanup, populateDevices, stop } from "../../../audio/session.js";
 
 /** Own browser lifecycle wiring that only the tuning tool needs. */
 export function useTuningLifecycle(): void {

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { analysisSettings } from "../../../audio/analysis.js";
 import { computed, reactive, watch } from "vue";
 import { midiToFrequency, NOTE_NAMES } from "../../../lib/music-theory.js";
 import { formatCents } from "../../../lib/format.js";
@@ -7,7 +8,7 @@ import { useI18n } from "../../../composables/useI18n.js";
 import type { MessageKey } from "../../../lib/i18n/index.js";
 import { useTuner } from "../stores/tuner.js";
 import { stringStatus, type StringStatus } from "../../../instruments/index.js";
-import { audioStore } from "../stores/audio.js";
+import { sourceStore } from "../../../audio/source.js";
 
 const { t, lang } = useI18n();
 const tuner = useTuner();
@@ -40,7 +41,7 @@ function syncRows(): void {
   const confidence = p?.confidence ?? 0;
 
   targets.value.forEach((target, index) => {
-    const frequency = midiToFrequency(target.positions[0].midi, audioStore.tuning);
+    const frequency = midiToFrequency(target.positions[0].midi, analysisSettings.tuning);
     const cents = p ? 1200 * Math.log2(p.frequency / frequency) : 0;
     const status = stringStatus(cents, hasSignal, confidence);
     const text = status === "idle" ? "" : formatCents(cents);

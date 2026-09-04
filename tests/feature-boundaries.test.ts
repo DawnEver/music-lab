@@ -116,4 +116,14 @@ describe("feature boundaries", () => {
     expect(leaks).toEqual([]);
   });
 
+  it("only audio/ touches Web Audio", () => {
+    // One AudioContext for the whole app is only enforceable if one layer
+    // is allowed to name it.
+    const offenders = sourceFiles()
+      .map((file) => ({ path: relative(ROOT, file).replaceAll("\\", "/"), text: readFileSync(file, "utf8") }))
+      .filter((file) => !file.path.startsWith("audio/"))
+      .filter((file) => /new\s+(webkit)?AudioContext|createAnalyser\(|createOscillator\(|createGain\(/.test(file.text))
+      .map((file) => file.path);
+    expect(offenders).toEqual([]);
+  });
 });

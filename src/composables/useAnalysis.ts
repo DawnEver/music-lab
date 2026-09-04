@@ -1,9 +1,16 @@
 /**
  * Live analysis results, exposed as shallow refs replaced at analysis
- * cadence (~88/105 ms) — see lib/analysis-loop.ts for the bridge design.
+ * cadence (~88/105 ms) — see audio/analysis.ts for the stream design.
  */
 
-import { pitchRef, chordRef, chromaRef, levelRef, tickRef, keyEstimateRef, spectrumTargets } from "../lib/analysis-loop.js";
+import {
+  pitchRef,
+  chordRef,
+  chromaRef,
+  levelRef,
+  tickRef,
+  keyEstimateRef
+} from "../audio/analysis.js";
 
 export function useAnalysis() {
   return {
@@ -12,7 +19,6 @@ export function useAnalysis() {
     chroma: chromaRef,
     level: levelRef,
     tick: tickRef,
-    keyEstimate: keyEstimateRef,
-    spectrumTargets
+    keyEstimate: keyEstimateRef
   };
 }

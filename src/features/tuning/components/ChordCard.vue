@@ -1,7 +1,8 @@
 <script setup lang="ts">
+import { keyView } from "../stores/key-view.js";
 import { computed } from "vue";
 import { useAnalysis } from "../../../composables/useAnalysis.js";
-import { audioStore } from "../stores/audio.js";
+import { sourceStore } from "../../../audio/source.js";
 import { useI18n } from "../../../composables/useI18n.js";
 import { NOTE_NAMES } from "../../../lib/music-theory.js";
 import { degreeOf, type Key, type ModeKey } from "../../../lib/key.js";
@@ -26,30 +27,30 @@ const chordConfidence = computed(() =>
 );
 
 const tonicSelection = computed({
-  get: () => (audioStore.keyMode === "manual" ? String(audioStore.keyTonic) : "auto"),
+  get: () => (keyView.mode === "manual" ? String(keyView.tonic) : "auto"),
   set: (value: string) => {
     if (value === "auto") {
-      audioStore.keyMode = "auto";
+      keyView.mode = "auto";
       return;
     }
-    audioStore.keyMode = "manual";
-    audioStore.keyTonic = Number(value);
+    keyView.mode = "manual";
+    keyView.tonic = Number(value);
   }
 });
 
 const scaleSelection = computed({
-  get: () => audioStore.keyScale,
+  get: () => keyView.scale,
   set: (value: ModeKey) => {
-    audioStore.keyScale = value;
-    audioStore.keyMode = "manual";
+    keyView.scale = value;
+    keyView.mode = "manual";
   }
 });
 
 const tonicOptions = NOTE_NAMES.map((name, tonic) => ({ value: String(tonic), label: name }));
 
 const resolvedKey = computed<Key | null>(() =>
-  audioStore.keyMode === "manual"
-    ? { tonic: audioStore.keyTonic, mode: audioStore.keyScale }
+  keyView.mode === "manual"
+    ? { tonic: keyView.tonic, mode: keyView.scale }
     : (keyEstimate.value?.key ?? null)
 );
 
@@ -97,7 +98,7 @@ const degree = computed(() =>
           <select
             v-model="scaleSelection"
             class="key-select key-select--scale"
-            :disabled="audioStore.keyMode !== 'manual'"
+            :disabled="keyView.mode !== 'manual'"
             :aria-label="t('keyScaleLabel')"
           >
             <option value="major">{{ t("keyMode.major") }}</option>

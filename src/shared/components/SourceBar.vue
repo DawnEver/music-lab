@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from "vue";
-import { useAudio } from "../composables/useAudio.js";
-import { useI18n } from "../../../composables/useI18n.js";
-import { setAudioHostContainer } from "../stores/audio.js";
+import { useAudioSource } from "../../composables/useAudioSource.js";
+import { useI18n } from "../../composables/useI18n.js";
+import { setAudioHostContainer } from "../../audio/session.js";
 
-const { audioStore: store, startMic, startFile, stop, populateDevices } = useAudio();
+const { sourceStore: store, startMic, startFile, stop, populateDevices } = useAudioSource();
 const { t } = useI18n();
 
 const fileInput = ref<HTMLInputElement | null>(null);
