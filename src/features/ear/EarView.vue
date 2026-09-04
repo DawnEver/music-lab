@@ -6,9 +6,13 @@
  *
  * It needs no microphone, only the output side of the audio layer.
  */
-import { computed, onBeforeUnmount, onMounted } from "vue";
+import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 import { useI18n } from "../../composables/useI18n.js";
 import AnswerPad from "./components/AnswerPad.vue";
+import SingStage from "./components/SingStage.vue";
+import SourceBar from "../../shared/components/SourceBar.vue";
+import StatusPill from "../../shared/components/StatusPill.vue";
+import { releaseSing } from "./stores/sing.js";
 import { EXERCISE_KINDS, type ExerciseKind } from "./domain/exercise.js";
 import { accuracy } from "./domain/grade.js";
 import type { IntervalKey } from "../../lib/interval.js";
@@ -25,6 +29,23 @@ import {
 } from "./stores/ear.js";
 
 const { t } = useI18n();
+
+/**
+ * Sight-singing is a mode of the same tool rather than a route of its own:
+ * naming an interval and singing one are the same skill from two sides,
+ * and the level you are at should carry across. It is the only mode that
+ * needs the microphone, so the source bar appears only for it.
+ */
+const MODES = [...EXERCISE_KINDS, "sing"] as const;
+type Mode = (typeof MODES)[number];
+
+const mode = ref<Mode>("interval");
+const singing = computed(() => mode.value === "sing");
+
+function selectMode(next: Mode): void {
+  mode.value = next;
+  if (next !== "sing") setKind(next);
+}
 
 const stats = computed(() => progress[session.kind]);
 
@@ -51,6 +72,7 @@ const answerText = computed(() => {
 function onKeydown(event: KeyboardEvent): void {
   const target = event.target as HTMLElement | null;
   if (target && /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName)) return;
+  if (singing.value) return;
   if (event.code === "Space") {
     event.preventDefault();
     // Space is the whole loop: hear it again, or move on once answered.
@@ -67,6 +89,7 @@ onMounted(() => {
 onBeforeUnmount(() => {
   window.removeEventListener("keydown", onKeydown);
   releaseEar();
+  releaseSing();
 });
 </script>
 
@@ -74,25 +97,34 @@ onBeforeUnmount(() => {
   <div class="tool-bar" data-tool="ear">
     <div class="ear-kinds">
       <button
-        v-for="kind in EXERCISE_KINDS"
-        :key="kind"
+        v-for="entry in MODES"
+        :key="entry"
         type="button"
         class="metro-chip"
-        :class="{ 'is-active': session.kind === kind }"
-        :data-ear-kind="kind"
-        @click="setKind(kind as ExerciseKind)"
+        :class="{ 'is-active': mode === entry }"
+        :data-ear-kind="entry"
+        @click="selectMode(entry)"
       >
-        {{ t(`ear.kind.${kind}`) }}
+        {{ t(`ear.kind.${entry}`) }}
       </button>
     </div>
-    <p class="ear-stats" data-ear-stats>
+    <p v-if="!singing" class="ear-stats" data-ear-stats>
       <span>{{ t("earLevel", { level: session.level }) }}</span>
       <span>{{ accuracyText }}</span>
       <span v-if="session.streak > 1">{{ t("earStreak", { count: session.streak }) }}</span>
     </p>
   </div>
 
-  <section class="card ear-stage">
+  <div v-if="singing" class="tool-bar" data-tool="ear-source">
+    <SourceBar />
+    <StatusPill />
+  </div>
+
+  <section v-if="singing" class="card ear-stage">
+    <SingStage />
+  </section>
+
+  <section v-else class="card ear-stage">
     <button type="button" class="ear-play" :class="{ 'is-playing': session.playing }" @click="replay">
       <span aria-hidden="true">♪</span>
       <span class="ear-play-label">{{ session.playing ? t("earPlaying") : t("earReplay") }}</span>

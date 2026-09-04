@@ -34,7 +34,18 @@ export const ear = {
     "scaleName.dorian": "多利亚",
     "scaleName.mixolydian": "混合利底亚",
     "scaleName.pentatonic": "五声音阶",
-    "scaleName.harmonicMinor": "和声小调"
+    "scaleName.harmonicMinor": "和声小调",
+    "ear.kind.sing": "视唱",
+    singTonic: "给主音",
+    singHear: "听旋律",
+    singStart: "开始唱",
+    singNew: "换一条",
+    singScore: "得分 {percent}",
+    singNeedsMic: "先在上方选择麦克风",
+    "sing.phase.idle": "准备好就开始",
+    "sing.phase.countIn": "预备拍…",
+    "sing.phase.recording": "正在唱",
+    "sing.phase.judged": "这一遍的结果"
   },
   en: {
     earTitle: "Ear training",
@@ -70,6 +81,17 @@ export const ear = {
     "scaleName.dorian": "Dorian",
     "scaleName.mixolydian": "Mixolydian",
     "scaleName.pentatonic": "Pentatonic",
-    "scaleName.harmonicMinor": "Harmonic minor"
+    "scaleName.harmonicMinor": "Harmonic minor",
+    "ear.kind.sing": "Sight-singing",
+    singTonic: "Give me the tonic",
+    singHear: "Hear the line",
+    singStart: "Sing it",
+    singNew: "New line",
+    singScore: "Score {percent}",
+    singNeedsMic: "Choose a microphone above first",
+    "sing.phase.idle": "Ready when you are",
+    "sing.phase.countIn": "Counting in…",
+    "sing.phase.recording": "Singing",
+    "sing.phase.judged": "How that went"
   }
 } as const;

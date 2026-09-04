@@ -1,6 +1,6 @@
 {
   "name": "music-lab",
-  "version": "2.4.0",
+  "version": "2.5.0",
   "description": "Music Lab — browser-based tuning, pitch and chord analysis, and a professional metronome. Vue 3 + Vuetify, fully client-side.",
   "type": "module",
   "private": false,

@@ -2536,3 +2536,15 @@
     min-width: 92px;
   }
 }
+
+/* Sight-singing shares the scope's canvas shell; the line is the content. */
+.sing-stage {
+  display: grid;
+  gap: 14px;
+  width: 100%;
+  justify-items: center;
+}
+
+.sing-stage .scope-wrap {
+  height: clamp(240px, 42vh, 420px);
+}

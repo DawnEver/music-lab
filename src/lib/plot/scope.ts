@@ -26,6 +26,15 @@ export interface ReferenceLine {
   kind: "reference" | "harmonic";
 }
 
+/** A written note drawn behind the track, optionally already graded. */
+export interface TargetSegment {
+  hz: number;
+  /** Audio-clock seconds. */
+  start: number;
+  end: number;
+  grade?: "good" | "close" | "out" | "missed";
+}
+
 export interface ScopeDrawOptions {
   canvas: HTMLCanvasElement;
   wrap: HTMLElement;
@@ -42,6 +51,8 @@ export interface ScopeDrawOptions {
   showSpectrogram: boolean;
   showPitch: boolean;
   references: ReferenceLine[];
+  /** Notes the singer is asked for, drawn behind the track. */
+  targets?: readonly TargetSegment[];
   /** Playhead time when frozen; null follows the live edge. */
   playheadTime: number | null;
   tuning: number;
@@ -61,6 +72,7 @@ export function drawScope(options: ScopeDrawOptions): void {
     drawHeatmap(ctx, area, options);
   }
   drawGrid(ctx, area, options, palette);
+  if (options.targets?.length) drawTargets(ctx, area, options, palette);
   drawReferences(ctx, area, options, palette);
   if (options.showPitch) drawPitchLine(ctx, area, options, palette);
   drawPlayhead(ctx, area, options, palette);
@@ -139,6 +151,43 @@ function drawGrid(
 
 function trim(value: number): string {
   return Number.isInteger(value) ? `${value}` : value.toFixed(1);
+}
+
+/**
+ * The written line, as segments on the same axes as the sung one. Sharing
+ * the time base and the scale is what makes "did I hit it" visible without
+ * any comparison code.
+ */
+function drawTargets(
+  ctx: CanvasRenderingContext2D,
+  area: PlotBox,
+  options: ScopeDrawOptions,
+  palette: PlotPalette
+): void {
+  const span = Math.max(options.endTime - options.startTime, 1e-6);
+  const colours: Record<string, string> = {
+    good: palette.track,
+    close: palette.reference,
+    out: palette.harmonic,
+    missed: palette.grid
+  };
+  ctx.save();
+  ctx.lineCap = "butt";
+  for (const target of options.targets ?? []) {
+    const y = unitToY(area, options.frequency.position(target.hz));
+    const from = unitToX(area, (target.start - options.startTime) / span);
+    const to = unitToX(area, (target.end - options.startTime) / span);
+    if (to < area.left || from > area.left + area.width) continue;
+    ctx.strokeStyle = target.grade ? colours[target.grade] : palette.chipBorder;
+    ctx.lineWidth = 8 * area.dpr;
+    ctx.globalAlpha = target.grade ? 0.5 : 0.32;
+    ctx.beginPath();
+    ctx.moveTo(from, y);
+    ctx.lineTo(to, y);
+    ctx.stroke();
+  }
+  ctx.globalAlpha = 1;
+  ctx.restore();
 }
 
 function drawReferences(

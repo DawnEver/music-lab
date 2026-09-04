@@ -292,6 +292,20 @@ async function walkEar(page, label) {
   if (chordChoices < 2) throw new Error(`${label}: chord pad should render choices`);
   console.log(`✓ ${label}: switching question kind swaps the answer pad`);
 
+  // Sight-singing is a mode of the same tool, and the only one that asks
+  // for a microphone.
+  await page.locator('[data-ear-kind="sing"]').click();
+  await page.waitForSelector("[data-sing-canvas] canvas", { timeout: 8000 });
+  if ((await page.locator(".source-actions").count()) === 0) {
+    throw new Error(`${label}: sight-singing needs the source bar`);
+  }
+  if (await page.locator("[data-sing-start]").isEnabled()) {
+    throw new Error(`${label}: singing should be blocked until an input is chosen`);
+  }
+  await page.locator("[data-sing-new]").click();
+  await page.waitForTimeout(120);
+  console.log(`✓ ${label}: sight-singing draws the written line and waits for a mic`);
+
   await assertNoHOverflow(page, `${label} ear`);
   await gotoTool(page, "tune");
 }
