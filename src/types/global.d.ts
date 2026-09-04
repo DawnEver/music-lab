@@ -10,6 +10,9 @@ declare global {
     frequencyToNote: typeof frequencyToNote;
   };
 
+  /** Injected by vite from package.json (see vite.config.ts). */
+  const __APP_VERSION__: string;
+
   interface Window {
     MusicLab?: MusicLabApi;
     /** @deprecated Use MusicLab. */

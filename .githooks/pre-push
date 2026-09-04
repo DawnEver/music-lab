@@ -1,0 +1,27 @@
+#!/bin/sh
+# Tag every push with the version in package.json.
+#
+# The version is the release name, so a push that changes it should also
+# publish that name. The hook creates the annotated tag when it is missing
+# and pushes it alongside the commits; if the tag already exists (a second
+# push at the same version) it stays quiet. MUSIC_LAB_SKIP_TAG=1 opts out,
+# and the inner tag push sets it so the hook cannot recurse.
+set -e
+
+[ "$MUSIC_LAB_SKIP_TAG" = "1" ] && exit 0
+
+remote="$1"
+version=$(node -p "require('./package.json').version" 2>/dev/null) || exit 0
+tag="v$version"
+
+if git rev-parse -q --verify "refs/tags/$tag" >/dev/null; then
+  if git ls-remote --exit-code --tags "$remote" "refs/tags/$tag" >/dev/null 2>&1; then
+    exit 0
+  fi
+  echo "pre-push: publishing existing tag $tag"
+else
+  echo "pre-push: tagging $tag"
+  git tag -a "$tag" -m "$tag"
+fi
+
+MUSIC_LAB_SKIP_TAG=1 git push "$remote" "refs/tags/$tag"

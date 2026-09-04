@@ -8,6 +8,9 @@ import Toaster from "./Toaster.vue";
 
 const { t } = useI18n();
 
+/** Build version, injected from package.json. */
+const version = __APP_VERSION__;
+
 const showSecureNotice = computed(
   () =>
     typeof window === "undefined" ||
@@ -24,7 +27,16 @@ const showSecureNotice = computed(
         <div class="brand-mark" aria-hidden="true">♫</div>
         <div>
           <p class="eyebrow">{{ t("eyebrow") }}</p>
-          <h1>{{ t("appTitle") }}</h1>
+          <h1>
+            {{ t("appTitle") }}
+            <a
+              class="brand-version"
+              :href="`https://github.com/DawnEver/music-lab/releases/tag/v${version}`"
+              rel="noreferrer"
+              target="_blank"
+              >v{{ version }}</a
+            >
+          </h1>
         </div>
       </div>
 
