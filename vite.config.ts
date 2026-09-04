@@ -26,7 +26,27 @@ export default defineConfig({
     }
   },
   test: {
-    environment: "node",
-    include: ["tests/**/*.test.ts"]
+    // Two suites: pure logic in Node, component behaviour in a DOM. Both
+    // are unit-level — the Playwright smoke test stays for the things only
+    // a real browser can answer.
+    projects: [
+      {
+        extends: true,
+        test: {
+          name: "unit",
+          environment: "node",
+          include: ["tests/**/*.test.ts"],
+          exclude: ["tests/components/**"]
+        }
+      },
+      {
+        extends: true,
+        test: {
+          name: "components",
+          environment: "happy-dom",
+          include: ["tests/components/**/*.test.ts"]
+        }
+      }
+    ]
   }
 });
