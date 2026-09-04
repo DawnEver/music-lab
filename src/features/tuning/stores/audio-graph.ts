@@ -7,7 +7,7 @@
  * MediaStream, an <audio> element) belongs to the source modules.
  */
 
-import { acquireAudio } from "../../../audio/audio-engine.js";
+import { acquireAudio } from "../../../audio/context.js";
 import type { AudioEngineHandle } from "../../../audio/types.js";
 import { clamp } from "../../../lib/dsp.js";
 import { FFT_SIZE, startAnalysisLoop, stopAnalysisLoop } from "../../../lib/analysis-loop.js";

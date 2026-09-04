@@ -1,14 +1,15 @@
 /**
- * Turns a click voice into sound at an exact audio-clock time.
+ * Clicks: the metronome's mapping from an accent to a voice.
  *
- * Synth voices are an oscillator plus a short exponential envelope — no
- * assets, no decode, no latency. The noise voice (hi-hat) uses one small
- * pre-rendered buffer, which is what MDN recommends for short samples.
+ * Synthesis lives in `audio/voice.ts`; a bank is data. All this file does
+ * is choose the spec — including the fifth-below detune that keeps the two
+ * layers of a polyrhythm separable by ear.
  */
 
+import { createVoicePlayer, type VoicePlayer, type VoiceSpec } from "../../../audio/voice.js";
 import type { Accent } from "../domain/accent.js";
-import { clickVoice, soundBank, type SoundBank } from "./sound-bank.js";
 import type { Voice } from "../domain/rhythm.js";
+import { clickVoice, soundBank, type SoundBank } from "./sound-bank.js";
 
 export interface ClickEngine {
   setBank(id: string): void;
@@ -18,14 +19,18 @@ export interface ClickEngine {
   dispose(): void;
 }
 
-function createNoiseBuffer(context: BaseAudioContext): AudioBuffer {
-  const length = Math.floor(context.sampleRate * 0.2);
-  const buffer = context.createBuffer(1, length, context.sampleRate);
-  const data = buffer.getChannelData(0);
-  for (let index = 0; index < length; index += 1) {
-    data[index] = Math.random() * 2 - 1;
-  }
-  return buffer;
+/** A click is a short note with a slight downward glide. */
+export function clickSpec(bank: SoundBank, accent: Accent, voice: Voice = "main"): VoiceSpec | null {
+  if (accent === "mute") return null;
+  const spec = clickVoice(bank, accent);
+  const detune = voice === "poly" ? 0.66 : 1;
+  return {
+    waveform: spec.wave,
+    frequency: spec.frequency * detune,
+    gain: spec.gain,
+    duration: spec.duration,
+    glide: spec.wave === "noise" ? 1 : 0.82
+  };
 }
 
 export function createClickEngine(
@@ -34,74 +39,21 @@ export function createClickEngine(
   bankId = "synth"
 ): ClickEngine {
   let bank: SoundBank = soundBank(bankId);
-  let noise: AudioBuffer | null = null;
-
-  const out = context.createGain();
-  out.gain.value = 0.8;
-  out.connect(destination);
+  const player: VoicePlayer = createVoicePlayer(context, destination);
 
   return {
     setBank(id: string) {
       bank = soundBank(id);
     },
     setVolume(value: number) {
-      out.gain.setTargetAtTime(Math.min(1, Math.max(0, value)), context.currentTime, 0.01);
+      player.setVolume(value);
     },
     play(accent: Accent, time: number, voice: Voice = "main") {
-      if (accent === "mute") return;
-
-      const spec = clickVoice(bank, accent);
-      // The second voice of a polyrhythm sits a fifth below so the two
-      // layers stay separable by ear.
-      const detune = voice === "poly" ? 0.66 : 1;
-      const at = Math.max(time, context.currentTime);
-      const envelope = context.createGain();
-      envelope.gain.setValueAtTime(0.0001, at);
-      envelope.gain.exponentialRampToValueAtTime(Math.max(spec.gain, 0.001), at + 0.001);
-      envelope.gain.exponentialRampToValueAtTime(0.0001, at + spec.duration);
-      envelope.connect(out);
-
-      if (spec.wave === "noise") {
-        if (!noise) noise = createNoiseBuffer(context);
-        const source = context.createBufferSource();
-        source.buffer = noise;
-        const filter = context.createBiquadFilter();
-        filter.type = "highpass";
-        filter.frequency.value = spec.frequency * detune;
-        source.connect(filter);
-        filter.connect(envelope);
-        source.start(at);
-        source.stop(at + spec.duration + 0.02);
-        source.onended = () => {
-          source.disconnect();
-          filter.disconnect();
-          envelope.disconnect();
-        };
-        return;
-      }
-
-      const oscillator = context.createOscillator();
-      oscillator.type = spec.wave;
-      oscillator.frequency.setValueAtTime(spec.frequency * detune, at);
-      // A tiny downward glide is what makes a beep read as a "click".
-      oscillator.frequency.exponentialRampToValueAtTime(
-        spec.frequency * detune * 0.82,
-        at + spec.duration
-      );
-      oscillator.connect(envelope);
-      oscillator.start(at);
-      oscillator.stop(at + spec.duration + 0.02);
-      oscillator.onended = () => {
-        oscillator.disconnect();
-        envelope.disconnect();
-      };
+      const spec = clickSpec(bank, accent, voice);
+      if (spec) player.play(spec, time);
     },
     dispose() {
-      try {
-        out.disconnect();
-      } catch (_) {
-        // Already detached.
-      }
+      player.dispose();
     }
   };
 }

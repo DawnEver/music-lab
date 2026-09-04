@@ -104,4 +104,16 @@ describe("feature boundaries", () => {
     );
     expect(missing).toEqual([]);
   });
+
+  it("the pure layer stays pure: lib never reaches into audio", () => {
+    // lib/ is the part that must run in Node. The moment it imports audio/
+    // its logic stops being testable without a browser.
+    const leaks = files
+      .filter((file) => file.path.startsWith("lib/"))
+      .flatMap((file) =>
+        file.imports.filter((target) => target.startsWith("audio/")).map((target) => `${file.path} -> ${target}`)
+      );
+    expect(leaks).toEqual([]);
+  });
+
 });

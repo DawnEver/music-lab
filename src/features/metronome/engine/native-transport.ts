@@ -1,19 +1,26 @@
 /**
- * Native Web Audio implementation of `Transport`: the shared AudioContext
- * as the clock, a look-ahead scheduler feeding the click engine.
+ * The metronome's transport: the shared native transport, with a click
+ * engine as its output and the bar cursor as its event source.
  *
  * Audio is the master clock. Nothing here reads Vue state at beat time —
- * the pattern is pulled through `getPattern()` once per bar.
+ * the pattern is pulled through `pattern()` once per event.
  */
 
-import { acquireAudio } from "../../../audio/audio-engine.js";
-import type { AudioEngineHandle } from "../../../audio/types.js";
+import { createNativeTransport, type Transport } from "../../../audio/transport.js";
+import type { Scheduled } from "../../../audio/scheduler.js";
 import type { RhythmPattern } from "../domain/rhythm.js";
 import type { Meter } from "../domain/meter.js";
-import { createBarCursor, type BarPlan } from "./bar-cursor.js";
+import { createBarCursor, type BarPlan, type CursorEvent } from "./bar-cursor.js";
 import { createClickEngine, type ClickEngine } from "./click-engine.js";
-import { createScheduler, type Scheduler } from "./scheduler.js";
-import type { ClickTransport, ScheduledBeat } from "./transport.js";
+
+/** A beat placed on the audio clock. */
+export type ScheduledBeat = Scheduled<CursorEvent>;
+
+/** The transport plus the click-specific knobs. */
+export interface ClickTransport extends Transport<CursorEvent> {
+  setBank(id: string): void;
+  setVolume(value: number): void;
+}
 
 export interface NativeTransportOptions {
   /** Once per bar: locks the bar's meter and applies practice mode. */
@@ -28,63 +35,36 @@ export interface NativeTransportOptions {
   volume?: number;
 }
 
-export function createNativeTransport(options: NativeTransportOptions): ClickTransport {
-  let lease: AudioEngineHandle | null = null;
+export function createMetronomeTransport(options: NativeTransportOptions): ClickTransport {
   let clicks: ClickEngine | null = null;
-  let scheduler: Scheduler | null = null;
-  let running = false;
   let bankId = options.bankId ?? "synth";
   let volume = options.volume ?? 0.8;
 
-  function buildScheduler(context: AudioContext): Scheduler {
-    const cursor = createBarCursor({
-      startBar: options.startBar,
-      pattern: options.pattern,
-      pulseSeconds: options.pulseSeconds
-    });
-
-    return createScheduler({
-      clock: {
-        now: () => context.currentTime,
-        setTimer: (callback, ms) => window.setTimeout(callback, ms),
-        clearTimer: (id) => window.clearTimeout(id)
-      },
-      source: cursor,
-      onEvent(beat, silent) {
-        if (!silent) clicks?.play(beat.event.accent, beat.time, beat.event.voice);
-        options.onSchedule?.(beat, silent);
-      }
-    });
-  }
-
-  return {
-    get running() {
-      return running;
-    },
-    async start() {
-      if (running) return;
-      lease = await acquireAudio();
-      clicks = createClickEngine(lease.context, lease.master, bankId);
+  const transport = createNativeTransport<CursorEvent>({
+    createSource: () =>
+      createBarCursor({
+        startBar: options.startBar,
+        pattern: options.pattern,
+        pulseSeconds: options.pulseSeconds
+      }),
+    onStart(handle) {
+      clicks = createClickEngine(handle.context, handle.master, bankId);
       clicks.setVolume(volume);
-      scheduler = buildScheduler(lease.context);
-      running = true;
-      // Start a hair in the future so the first beat is never late.
-      scheduler.start(lease.context.currentTime + 0.06);
     },
-    stop() {
-      running = false;
-      scheduler?.stop();
-      scheduler = null;
+    onStop() {
       clicks?.dispose();
       clicks = null;
-      lease?.release();
-      lease = null;
     },
-    now() {
-      return lease ? lease.context.currentTime : 0;
+    play(beat) {
+      clicks?.play(beat.event.accent, beat.time, beat.event.voice);
     },
-    currentAt(time: number) {
-      return scheduler ? scheduler.currentAt(time) : null;
+    onSchedule: options.onSchedule
+  });
+
+  return {
+    ...transport,
+    get running() {
+      return transport.running;
     },
     setBank(id: string) {
       bankId = id;
@@ -93,9 +73,6 @@ export function createNativeTransport(options: NativeTransportOptions): ClickTra
     setVolume(value: number) {
       volume = value;
       clicks?.setVolume(value);
-    },
-    dispose() {
-      this.stop();
     }
   };
 }

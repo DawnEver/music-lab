@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { createScheduler, type ScheduleSource } from "../src/features/metronome/engine/scheduler.js";
+import { createScheduler, type ScheduleSource } from "../src/audio/scheduler.js";
+import type { CursorEvent } from "../src/features/metronome/engine/bar-cursor.js";
 import { makeMeter } from "../src/features/metronome/domain/meter.js";
 import { defaultAccents } from "../src/features/metronome/domain/accent.js";
 import { compileBar } from "../src/features/metronome/domain/rhythm.js";
@@ -31,7 +32,7 @@ function fakeClock() {
 }
 
 /** A steady stream of pulses, `pulse` seconds apart, in bars of `pulses`. */
-function barSource(pulse: number, pulses = 4): ScheduleSource {
+function barSource(pulse: number, pulses = 4): ScheduleSource<CursorEvent> {
   const meter = makeMeter(4, Array.from({ length: pulses }, () => 1));
   const events = compileBar(
     { meter, accents: defaultAccents(meter), subdivision: { divisions: 1 } },
@@ -97,7 +98,7 @@ describe("look-ahead scheduler", () => {
     const { clock, advance } = fakeClock();
     const bars: number[] = [];
     let index = 0;
-    const source: ScheduleSource = {
+    const source: ScheduleSource<CursorEvent> = {
       peek: () => ({
         event: { time: 0, pulse: 0, tick: 0, accent: "strong", voice: "main" },
         delta: index === 0 ? 0 : 1,

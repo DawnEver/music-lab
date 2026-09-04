@@ -21,8 +21,8 @@ import { clampBpm, pulseSeconds, tapTempo, type Tempo } from "../domain/tempo.js
 import type { RhythmPattern } from "../domain/rhythm.js";
 import { defaultPractice, practiceForBar, type PracticeConfig } from "../domain/practice.js";
 import { DEFAULT_BANK_ID, SOUND_BANKS, type SoundBankId } from "../engine/sound-bank.js";
-import { createNativeTransport } from "../engine/native-transport.js";
-import type { ClickTransport } from "../engine/transport.js";
+import { createMetronomeTransport } from "../engine/native-transport.js";
+import type { ClickTransport } from "../engine/native-transport.js";
 import { storedJson } from "../../../lib/persist.js";
 
 export interface MetronomeState {
@@ -157,7 +157,7 @@ function followAudioClock(): void {
 
 export async function start(): Promise<void> {
   if (metronome.running) return;
-  transport = createNativeTransport({
+  transport = createMetronomeTransport({
     startBar,
     pattern: currentPattern,
     pulseSeconds: livePulseSeconds,
