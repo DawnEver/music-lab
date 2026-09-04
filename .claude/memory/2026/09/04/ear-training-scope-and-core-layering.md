@@ -3,10 +3,18 @@ name: ear-training-scope-and-core-layering
 description: 规划 —— 从第一性原理把"流入/流出/乐理"三原语抽为共享层,统一音频时基,再据此实现时频图(/scope)与视唱练耳(/ear);含分六步的迁移顺序与 AGENTS.md 待修订条款
 metadata:
   type: project
-  status: plan
+  status: done
 ---
 
-## 2026-09-04 — 练耳 / 时频图 / 核心分层（计划,未实施）
+## 2026-09-04 — 练耳 / 时频图 / 核心分层（计划 → 2026-09-05 全部实施完毕）
+
+> **实施结果**：六步全部落地,共 8 个提交(657fd63 → cc6b7e9),版本 2.2.0 → 2.5.0。
+> 测试从 215 增至 **314**(unit + components),smoke 从 25 增至 **44** 项(桌面+移动),`vue-tsc` 干净,构建通过。
+> 验收标准逐条成立：`new AudioContext` 全仓库仅 1 处(有测试强制)、`lib/` 零 Web Audio、
+> 视唱无任何对齐代码、加乐器/音色/题型/配色皆为数据、输入源全程只选一次。
+> **计划外发现并修复的一处真问题**：输入会话上提后,`useTuningLifecycle` 仍在离开 `/tune` 时 `stop()`,
+> 与"只选一次"矛盾;但常驻麦克风又是此前锐评抓到的隐私 bug。解法是**引用计数 + 微任务延迟检查**
+> (`audio/retention.ts`)——路由切换会先卸载旧视图再挂载新视图,不延迟就会把每次导航都看成"最后一个持有者离开"。
 
 ### 起点:两项核心能力被囚禁在 feature 里
 `features/tuning/stores/audio-graph.ts` 持有 AnalyserNode（"听进来"归调音）,

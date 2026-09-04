@@ -18,7 +18,10 @@ const LEGACY_HASH_ROUTES: Record<string, string> = {
   "/analyzer": "/tune"
 };
 
-/** Convert bookmarks created by the former hash router before Vue reads the URL. */
+/**
+ * Convert bookmarks created by the former hash router before Vue reads the
+ * URL. Retires in v3.0: compatibility code without an expiry only grows.
+ */
 export function migrateLegacyHashRoute(location: Location, history: History): void {
   const legacyPath = location.hash.slice(1).split(/[?#]/, 1)[0];
   const cleanPath = LEGACY_HASH_ROUTES[legacyPath];

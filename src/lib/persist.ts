@@ -21,7 +21,8 @@ function rawRead(key: string, legacyKey?: string): string | null {
     const current = window.localStorage.getItem(PREFIX + key);
     if (current !== null) return current;
     if (!legacyKey) return null;
-    // Adopt the value written by an earlier version, then forget the old key.
+    // Adopt the value written by an earlier version, then forget the old
+    // key. Legacy adoption retires in v3.0 — compatibility needs a date.
     const legacy = window.localStorage.getItem(legacyKey);
     if (legacy === null) return null;
     window.localStorage.setItem(PREFIX + key, legacy);
