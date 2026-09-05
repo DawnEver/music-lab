@@ -80,14 +80,18 @@ const SYNTHETIC_MIC = () => {
   const ctx = new AudioContext();
   const osc = ctx.createOscillator();
   const gain = ctx.createGain();
-  const dest = ctx.createMediaStreamDestination();
   osc.type = "sawtooth";
   osc.frequency.value = 220;
   gain.gain.value = 0.0001;
   osc.connect(gain);
-  gain.connect(dest);
   osc.start();
-  navigator.mediaDevices.getUserMedia = async () => dest.stream;
+  // A fresh destination per request: stopping a source stops its tracks,
+  // and a stopped track never carries audio again.
+  navigator.mediaDevices.getUserMedia = async () => {
+    const dest = ctx.createMediaStreamDestination();
+    gain.connect(dest);
+    return dest.stream;
+  };
   window.__sing = (midi) => {
     if (midi === null) {
       gain.gain.setTargetAtTime(0.0001, ctx.currentTime, 0.01);
@@ -261,7 +265,7 @@ async function walkMetronome(page, label, { expectSingleScreen = false } = {}) {
 }
 
 /** The trace: one canvas, its knobs, and the freeze toggle. */
-async function walkTrace(page, label) {
+async function walkTrace(page, label, { live = false } = {}) {
   await gotoTool(page, "trace");
   await page.waitForSelector("[data-trace-canvas] canvas", { timeout: 8000 });
 
@@ -327,6 +331,28 @@ async function walkTrace(page, label) {
     console.log(`✓ ${label}: controls collapse into a sheet on a phone`);
   }
 
+  if (live) {
+    // The window follows the audio clock, which is not reactive: computing
+    // it once left the view drawing a long-gone ten seconds forever, and
+    // only pixels can see that.
+    await page.evaluate(() => window.__sing(60));
+    await page.locator("[data-source-toggle]").click();
+    await page.waitForTimeout(2500);
+    const lit = await page.evaluate(() => {
+      const canvas = document.querySelector("[data-trace-canvas] canvas");
+      const data = canvas.getContext("2d").getImageData(0, 0, canvas.width, canvas.height).data;
+      let bright = 0;
+      for (let i = 0; i < data.length; i += 4 * 97) {
+        if (data[i] + data[i + 1] + data[i + 2] > 150) bright += 1;
+      }
+      return bright;
+    });
+    if (lit < 20) throw new Error(`${label}: the trace drew nothing from a live input (${lit})`);
+    await page.evaluate(() => window.__sing(null));
+    await page.locator("[data-source-toggle]").click();
+    console.log(`✓ ${label}: a live input actually reaches the picture (${lit} lit samples)`);
+  }
+
   await assertNoHOverflow(page, `${label} scope`);
   await gotoTool(page, "tune");
 }
@@ -357,6 +383,15 @@ async function walkEar(page, label, { fullRep = false } = {}) {
   if ((await page.locator("[data-ear-pad] .ear-choice.is-right").count()) !== 0) {
     throw new Error(`${label}: the next question should clear the previous verdict`);
   }
+  // Progress you cannot clear is progress you stop trusting.
+  await page.waitForSelector("[data-ear-reset]", { timeout: 4000 });
+  await page.locator("[data-ear-reset]").click();
+  await page.waitForTimeout(150);
+  if (!(await page.locator("[data-ear-stats]").innerText()).match(/No attempts|还没有记录/)) {
+    throw new Error(`${label}: resetting should clear the record`);
+  }
+  console.log(`✓ ${label}: progress can be reset`);
+
   console.log(`✓ ${label}: ear training answers, grades and moves on`);
 
   // Switching kind swaps the pad.
@@ -373,6 +408,20 @@ async function walkEar(page, label, { fullRep = false } = {}) {
   if (!(await page.locator("[data-sing-start]").isEnabled())) {
     throw new Error(`${label}: start must never be disabled — it acquires the mic itself`);
   }
+  // Sight-singing means reading: the line has to be written down.
+  await page.waitForSelector("[data-score] svg", { timeout: 8000 });
+  if ((await page.locator(".score-head").count()) < 4) {
+    throw new Error(`${label}: the staff should carry the written line`);
+  }
+  await page.locator("[data-sing-notation]").click();
+  await page.waitForSelector(".score-degree", { timeout: 4000 });
+  if ((await page.locator(".score-line").count()) !== 0) {
+    throw new Error(`${label}: numbered notation should replace the staff`);
+  }
+  await page.locator("[data-sing-notation]").click();
+  await page.waitForSelector(".score-head", { timeout: 4000 });
+  console.log(`✓ ${label}: the line is written, on a staff or in numbers`);
+
   console.log(`✓ ${label}: sight-singing offers one transport control`);
 
   if (fullRep) {
@@ -614,7 +663,7 @@ try {
   await desktop.waitForTimeout(200);
   console.log("✓ desktop: theme toggle switches dark/light without overflow");
 
-  await walkTrace(desktop, "desktop");
+  await walkTrace(desktop, "desktop", { live: true });
   await walkEar(desktop, "desktop", { fullRep: true });
   await walkMetronome(desktop, "desktop", { expectSingleScreen: true });
 

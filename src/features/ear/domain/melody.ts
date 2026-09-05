@@ -7,18 +7,11 @@
  * you are scored on".
  */
 
-export interface MelodyNote {
-  midi: number;
-  /** Seconds from the start of the melody. */
-  start: number;
-  duration: number;
-}
+import type { NotatedLine, NotatedNote } from "../../../lib/notation.js";
 
-export interface Melody {
-  tonicMidi: number;
-  bpm: number;
-  notes: MelodyNote[];
-}
+/** A melody is a line that can be written down; notation owns that shape. */
+export type MelodyNote = NotatedNote;
+export type Melody = NotatedLine;
 
 export interface MelodyOptions {
   bars: number;

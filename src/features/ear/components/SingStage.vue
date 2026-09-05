@@ -9,13 +9,22 @@
  * either a setting (key, tempo, length) or something you only want while
  * stopped (preview the line, skip to another one).
  */
-import { computed, onBeforeUnmount, onMounted } from "vue";
+import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 import { useI18n } from "../../../composables/useI18n.js";
 import { useAudioInput } from "../../../composables/useAudioInput.js";
 import { audioContext, sourceStore } from "../../../audio/source.js";
 import { analysisSettings } from "../../../audio/analysis.js";
 import TracePlot from "../../../shared/components/TracePlot.vue";
+import Score from "./Score.vue";
 import { NOTE_NAMES } from "../../../lib/music-theory.js";
+import { storedJson } from "../../../lib/persist.js";
+
+/** Which notation the singer reads; remembered between sessions. */
+const storedNotation = storedJson<"staff" | "jianpu">(
+  "ear.notation",
+  () => "staff",
+  (raw, base) => (raw === "jianpu" || raw === "staff" ? raw : base)
+);
 import {
   beatSeconds,
   COUNT_IN_BEATS,
@@ -37,11 +46,34 @@ import {
 
 const { t } = useI18n();
 
+const notation = ref<"staff" | "jianpu">(readNotation());
+
+function readNotation(): "staff" | "jianpu" {
+  return storedNotation.read();
+}
+
+function toggleNotation(): void {
+  notation.value = notation.value === "staff" ? "jianpu" : "staff";
+  storedNotation.write(notation.value);
+}
+
 // Sight-singing is the one ear-training mode that listens.
 useAudioInput();
 
 
 const countInBeats = COUNT_IN_BEATS;
+
+/** Which note is under the cursor right now, so the score can follow. */
+const activeIndex = computed(() => {
+  if (sing.phase !== "recording" || !melody.value || !sing.startedAt) return null;
+  const elapsed = (audioContext()?.currentTime ?? 0) - sing.startedAt;
+  const index = melody.value.notes.findIndex(
+    (note) => elapsed >= note.start && elapsed < note.start + note.duration
+  );
+  return index >= 0 ? index : null;
+});
+
+const noteGrades = computed(() => verdict.value?.notes.map((note) => note.grade) ?? []);
 const TONICS = [55, 57, 59, 60, 62, 64, 65, 67];
 const TEMPOS = [56, 72, 88, 104];
 const BAR_CHOICES = [1, 2, 4];
@@ -90,7 +122,7 @@ function toggle(): void {
 }
 
 /** The window is the take: the written line decides what is on screen. */
-const range = computed(() => takeWindow(audioContext()?.currentTime ?? 0));
+const range = (now: number) => takeWindow(now);
 
 /** Read the line before you sing it: drawn in place even while stopped. */
 function plannedTargets() {
@@ -112,6 +144,14 @@ onBeforeUnmount(() => {
 
 <template>
   <div class="sing-stage">
+    <!-- What to sing comes first; what came out is underneath it. -->
+    <Score
+      :melody="melody"
+      :notation="notation"
+      :grades="noteGrades"
+      :active-index="activeIndex"
+    />
+
     <div
       class="sing-wrap"
       data-sing-canvas
@@ -159,6 +199,14 @@ onBeforeUnmount(() => {
     </div>
 
     <div class="trace-toggles sing-setup">
+      <button
+        type="button"
+        class="metro-chip"
+        data-sing-notation
+        @click="toggleNotation"
+      >
+        {{ t(`singNotation.${notation}`) }}
+      </button>
       <button
         type="button"
         class="metro-chip"

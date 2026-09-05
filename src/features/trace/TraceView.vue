@@ -83,9 +83,10 @@ onBeforeUnmount(() => {
   <section class="card trace-stage">
     <TraceCanvas />
     <SpectrumStrip v-if="traceView.showSpectrum" />
-    <p v-if="sourceStore.mode === 'idle'" class="trace-empty" data-trace-empty>
-      {{ t("traceEmpty") }} · {{ t("traceIntro") }}
-    </p>
+    <div v-if="sourceStore.mode === 'idle'" class="trace-empty" data-trace-empty>
+      <strong>{{ t("traceEmpty") }}</strong>
+      <span>{{ t("traceIntro") }}</span>
+    </div>
   </section>
 
   <!-- Actions stay on the stage at every size: freeze and clear are

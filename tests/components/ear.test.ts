@@ -99,3 +99,22 @@ describe("EarView modes", () => {
     expect(wrapper.find("[data-ear-pad]").text()).toMatch(/Major|minor/);
   });
 });
+
+describe("resetting progress", () => {
+  it("clears the record, the level and the streak", async () => {
+    const { resetProgress } = await import("../../src/features/ear/stores/ear.js");
+    resetProgress();
+    session.kind = "interval";
+    nextQuestion();
+    answer(exercise.value!.answer);
+    expect(progress.interval.attempts).toBe(1);
+
+    resetProgress();
+    expect(progress.interval.attempts).toBe(0);
+    expect(progress.interval.recent).toEqual([]);
+    expect(session.level).toBe(1);
+    expect(session.streak).toBe(0);
+    // And a fresh question is waiting, not the answered one.
+    expect(session.answered).toBeNull();
+  });
+});

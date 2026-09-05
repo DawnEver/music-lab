@@ -2389,13 +2389,31 @@
   height: 100%;
 }
 
+/* An empty state belongs inside the empty area, not across the picture:
+   text laid over the axis is unreadable and reads as a rendering fault. */
 .trace-empty {
   position: absolute;
-  inset: auto 0 26px;
+  top: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+  max-width: min(560px, 86%);
+  padding: 12px 18px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--panel-strong);
+  box-shadow: var(--shadow-sm);
   text-align: center;
   color: var(--muted);
-  font-size: 0.86rem;
+  font-size: 0.82rem;
   pointer-events: none;
+}
+
+.trace-empty strong {
+  color: var(--text);
+  font-size: 0.9rem;
 }
 
 .trace-toggles {
@@ -2876,4 +2894,121 @@
 
 .audio-source .audio-host:not(:empty) {
   flex: 1 1 100%;
+}
+
+/* ---- Score: the line, written down ---- */
+.score {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  padding: 4px 0;
+  overflow-x: auto;
+}
+
+.score svg {
+  width: 100%;
+  height: auto;
+}
+
+.score-line,
+.score-ledger,
+.score-bar {
+  stroke: var(--text);
+  stroke-width: 1;
+  opacity: 0.55;
+}
+
+.score-bar {
+  opacity: 0.35;
+}
+
+.score-clef {
+  font-size: 56px;
+  fill: var(--text);
+}
+
+.score-accidental,
+.score-meter,
+.score-key {
+  fill: var(--text);
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.score-key {
+  font-size: 13px;
+  opacity: 0.7;
+}
+
+.score-meter {
+  font-size: 17px;
+  font-weight: 700;
+}
+
+.score-head {
+  fill: var(--text);
+}
+
+.score-stem {
+  stroke: var(--text);
+  stroke-width: 1.4;
+}
+
+.score-degree {
+  fill: var(--text);
+  font-family: var(--font-mono);
+  font-size: 19px;
+}
+
+.score-dot {
+  fill: var(--text);
+}
+
+/* The cursor and the verdict ride on the notes themselves. */
+.score-note.is-active .score-head,
+.score-note.is-active .score-degree,
+.score-note.is-active .score-dot {
+  fill: var(--accent-2);
+}
+
+.score-note.is-active .score-stem {
+  stroke: var(--accent-2);
+}
+
+.score-note.is-good .score-head,
+.score-note.is-good .score-degree,
+.score-note.is-good .score-dot {
+  fill: var(--good);
+}
+
+.score-note.is-good .score-stem {
+  stroke: var(--good);
+}
+
+.score-note.is-close .score-head,
+.score-note.is-close .score-degree,
+.score-note.is-close .score-dot {
+  fill: var(--warn);
+}
+
+.score-note.is-close .score-stem {
+  stroke: var(--warn);
+}
+
+.score-note.is-out .score-head,
+.score-note.is-out .score-degree,
+.score-note.is-out .score-dot,
+.score-note.is-missed .score-head,
+.score-note.is-missed .score-degree,
+.score-note.is-missed .score-dot {
+  fill: var(--danger);
+}
+
+.score-note.is-out .score-stem,
+.score-note.is-missed .score-stem {
+  stroke: var(--danger);
+}
+
+.score-note.is-missed {
+  opacity: 0.45;
 }

@@ -30,8 +30,14 @@ const props = withDefaults(
   defineProps<{
     /** Seconds of history to show, when no explicit window is given. */
     window?: number;
-    /** Explicit window, for replaying a fixed take. */
-    range?: { start: number; end: number } | null;
+    /**
+     * Explicit window, as a function of the audio clock.
+     *
+     * A function, not a value: the clock is not reactive, so a computed
+     * window is evaluated once — before the context even exists — and the
+     * view then draws the same long-gone ten seconds forever.
+     */
+    range?: ((now: number) => { start: number; end: number }) | null;
     showSpectrogram?: boolean;
     showPitch?: boolean;
     semitoneAxis?: boolean;
@@ -96,9 +102,9 @@ function refreshColormap(): void {
 watch(() => props.colormap, refreshColormap);
 
 function currentWindow(): { start: number; end: number } {
-  if (props.range) return props.range;
   const span = historyBuffer.span();
   const now = audioContext()?.currentTime ?? span?.end ?? 0;
+  if (props.range) return props.range(now);
   return { start: now - props.window, end: now };
 }
 

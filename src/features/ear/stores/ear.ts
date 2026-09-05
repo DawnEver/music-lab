@@ -89,7 +89,9 @@ export function hydrateEar(): void {
   session.kind = storedKind.read();
   session.auto = storedAuto.read();
   session.level = levelFor(progress, session.kind, session.level);
-  if (!exercise.value) nextQuestion();
+  // The question has to belong to the restored kind: a stale one from
+  // another kind leaves the chips and the answer pad disagreeing.
+  if (!exercise.value || exercise.value.kind !== session.kind) nextQuestion();
 }
 
 /** Ask a new question at the level the recent results earned. */
@@ -171,6 +173,19 @@ export function answer(choice: string): void {
   Object.assign(progress, grade(progress, current.kind, right));
   stored.write({ ...progress });
   if (session.auto) scheduleAdvance(right);
+}
+
+/**
+ * Start over. Progress that cannot be cleared is progress you stop
+ * trusting — a level earned on a bad microphone follows you forever.
+ */
+export function resetProgress(): void {
+  Object.assign(progress, emptyProgress());
+  for (const key of Object.keys(missed)) delete missed[key];
+  session.level = 1;
+  session.streak = 0;
+  stored.write({ ...progress });
+  nextQuestion();
 }
 
 /** Leaving the tool: stop holding the audio lease. */

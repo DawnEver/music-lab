@@ -6,7 +6,6 @@
  */
 import { computed, ref } from "vue";
 import TracePlot from "../../../shared/components/TracePlot.vue";
-import { audioContext } from "../../../audio/source.js";
 import { analysisSettings } from "../../../audio/analysis.js";
 import { historyBuffer, historyRunning } from "../../../audio/history.js";
 import { midiToFrequency } from "../../../lib/music-theory.js";
@@ -36,13 +35,16 @@ const references = computed<ReferenceLine[]>(() => {
   return lines;
 });
 
-/** Live follows the right edge; a frozen view holds still and can scrub. */
-const range = computed(() => {
+/**
+ * Live follows the right edge; a frozen view holds still and can scrub.
+ * Evaluated per frame, because the audio clock is not reactive.
+ */
+function range(now: number): { start: number; end: number } {
   const span = historyBuffer.span();
-  const live = audioContext()?.currentTime ?? span?.end ?? 0;
-  const end = playback.frozenAt ?? (historyRunning() ? live : span?.end ?? 0);
+  const live = historyRunning() ? now : span?.end ?? now;
+  const end = playback.frozenAt ?? live;
   return { start: end - traceView.window, end };
-});
+}
 
 function onReadout(value: TraceReadout | null): void {
   playback.hover = value

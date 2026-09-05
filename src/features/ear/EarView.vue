@@ -23,6 +23,7 @@ import {
   progress,
   releaseEar,
   replay,
+  resetProgress,
   session,
   setAuto,
   setKind
@@ -135,6 +136,15 @@ onBeforeUnmount(() => {
         @click="setAuto(!session.auto)"
       >
         {{ t("earAuto") }}
+      </button>
+      <button
+        v-if="stats.attempts > 0"
+        type="button"
+        class="metro-chip"
+        data-ear-reset
+        @click="resetProgress"
+      >
+        {{ t("earReset") }}
       </button>
     </p>
   </div>

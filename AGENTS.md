@@ -49,6 +49,9 @@
 - UI changes must run `npm run smoke` (desktop + mobile viewports).
 - Boundaries are enforced by the import graph and by grep over the source, not by convention: features never import each other, shared layers never import a feature, `lib/` never imports `audio/`, only `audio/` names Web Audio, and only the router names a feature view.
 - Anything with randomness in it takes an injected random source, so a question, a practice pattern or a generated melody is reproducible in a test.
+- Sight-singing means reading: the line is written down as a staff or as numbered notation, laid out by pure functions in `lib/notation.ts`. A pitch plot shows what came out; it is not a score.
+- Anything an rAF loop reads from the audio clock must be read *in the loop*. `AudioContext.currentTime` is not reactive, so a `computed` window is evaluated once — before the context exists — and the view then draws the same long-gone seconds forever. Pass a function, not a value.
+- Progress can always be reset. A level earned on a bad microphone otherwise follows the learner forever.
 - Features whose point is the round trip are tested through it. Sight-singing's smoke test installs an oscillator as the microphone, reads the written line off the page and performs it at tempo; the assertion is that an in-tune take scores. A browser's fake capture device cannot sing what is on the screen, and three real bugs lived exactly where nothing else could look.
 - `package.json` is the single source of the version: the header renders it and the tracked `pre-push` hook tags `v<version>`. Bump it when releasing work.
 
