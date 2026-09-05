@@ -44,8 +44,11 @@
   - 音程 / 和弦性质 / 音阶听辨:出题、发声、作答、判分、记录一条闭环;**答完自动进下一题**(数字键作答,可关自动)
   - **出题不重样**:拒绝连续重复,并让最近做错的题更早回来
   - **难度自适应**:按最近 20 次正确率升降级(>85% 升,<60% 降),答案键盘顺序固定
-  - **视唱**:给主音 → 预备拍 → 唱 → 逐音判分(音准容差 ±25/±50 音分)→ **自动换下一条**,写的旋律与唱的曲线画在同一对坐标轴上;调 / 速度 / 小节可选
-  - 起音滑音被排除在判分之外;整八度移调算"音域问题",不算唱错
+  - **视唱**:**看谱唱** —— 自绘**五线谱**(谱号 / 调号 / 拍号 / 加线 / 符干)或**简谱**(`1 = C` + 级数 + 八度点),不引音乐字体
+  - 一个按钮跑完整个循环:给主音 → 预备拍 → 唱 → 逐音判分 → 自动换下一条;唱时光标沿谱移动,判分后每个音染上自己的颜色
+  - **音域可选**(`原调 / 低八度`):男声低八度唱是对的 —— 发声、画线、判分都跟着音域走,谱面不动只标 `8vb`
+  - 起音滑音与"晚起一点"被排除在判分之外;调 / 速度 / 小节可选;进度可重置
+  - app 自己发声时(参考音 / 预备拍 / 试听)暂停采集,不会把自己的声音录进你的 take
 - 🌗 深色 / 浅色双主题,一键切换并记住选择
 - 🌐 中英双语界面,一键切换并记住选择;📱 响应式
 
@@ -112,13 +115,13 @@ music-lab/
 │   │   └── voice.ts        # 全应用唯一的合成器(音色即数据)
 │   ├── lib/                # 框架无关纯模块
 │   │   ├── music-theory.ts dsp.ts chord.ts key.ts interval.ts i18n/
-│   │   ├── spectrogram.ts pitch-track.ts colormap.ts
+│   │   ├── spectrogram.ts pitch-track.ts colormap.ts notation.ts(五线谱/简谱布局)
 │   │   ├── plot/           # scale / palette / canvas / spectrum / trace(唯一的刻度真相)
 │   │   └── format.ts
 │   ├── instruments/        # 乐器数据层(types / 注册表 / 8 个数据文件)
 │   ├── features/
 │   │   ├── tuning/         # 调音与分析工具
-│   │   │   ├── components/ # SourceBar / StatusPill / 各分析卡片 / tuner 面板
+│   │   │   ├── components/ # 各分析卡片 / tuner 面板
 │   │   │   ├── stores/      # 输入会话 / 状态 / 设备发现
 │   │   │   ├── composables/ # 调音专用状态与生命周期
 │   │   │   └── TuningView.vue
@@ -130,7 +133,7 @@ music-lab/
 │   │       ├── stores/     # metronome.ts(响应式状态 ↔ transport 接线)
 │   │       ├── components/ # Transport / Tempo / Meter / BeatGrid / Subdivision / Practice / Sound
 │   │       └── MetronomeView.vue
-│   ├── shared/             # 跨工具复用:AppShell / ToolNav / 主题语言开关 / CollapsibleCard / panels store
+│   ├── shared/             # 跨工具复用:AppShell / ToolNav / AudioSource(输入控件) / TracePlot(时间视图) / CollapsibleCard
 │   ├── composables/        # 跨工具的 useAnalysis / useI18n / useTheme / useToast
 │   ├── styles/             # tokens.css(深/浅双主题变量)+ style.css
 │   └── router/             # /tune、/trace、/rhythm、/ear(懒加载;旧路径全部重定向)
