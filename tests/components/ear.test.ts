@@ -80,3 +80,22 @@ describe("AnswerPad", () => {
     expect(progress.interval.attempts).toBe(2);
   });
 });
+
+describe("EarView modes", () => {
+  it("shows the pad for the kind it restored, not for a default", async () => {
+    // Two copies of "which kind of question" — a local ref and the session
+    // — drifted apart on reload: the chips said intervals, the pad offered
+    // scales.
+    window.localStorage.setItem("ml.ear.kind", JSON.stringify("scale"));
+    const { default: EarView } = await import("../../src/features/ear/EarView.vue");
+    const wrapper = mount(EarView, { global: { stubs: { SingStage: true } } });
+    await nextTick();
+
+    const active = wrapper.findAll(".ear-kinds .metro-chip").filter((chip) =>
+      chip.classes().includes("is-active")
+    );
+    expect(active).toHaveLength(1);
+    expect(active[0].attributes("data-ear-kind")).toBe("scale");
+    expect(wrapper.find("[data-ear-pad]").text()).toMatch(/Major|minor/);
+  });
+});

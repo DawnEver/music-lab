@@ -9,17 +9,13 @@
  * either a setting (key, tempo, length) or something you only want while
  * stopped (preview the line, skip to another one).
  */
-import { computed, onBeforeUnmount, onMounted, ref } from "vue";
+import { computed, onBeforeUnmount, onMounted } from "vue";
 import { useI18n } from "../../../composables/useI18n.js";
 import { useAudioInput } from "../../../composables/useAudioInput.js";
 import { audioContext, sourceStore } from "../../../audio/source.js";
 import { analysisSettings } from "../../../audio/analysis.js";
-import { historyBuffer } from "../../../audio/history.js";
-import { NOTE_NAMES, frequencyToMidi, midiToFrequency } from "../../../lib/music-theory.js";
-import { bandFrequencies, SPECTROGRAM_BANDS } from "../../../lib/spectrogram.js";
-import { colormapLut } from "../../../lib/colormap.js";
-import { semitoneScale } from "../../../lib/plot/scale.js";
-import { drawTrace } from "../../../lib/plot/trace.js";
+import TracePlot from "../../../shared/components/TracePlot.vue";
+import { NOTE_NAMES } from "../../../lib/music-theory.js";
 import {
   beatSeconds,
   COUNT_IN_BEATS,
@@ -33,6 +29,7 @@ import {
   sing,
   start,
   stop,
+  previewAnchor,
   takeWindow,
   targetSegments,
   verdict
@@ -43,17 +40,6 @@ const { t } = useI18n();
 // Sight-singing is the one ear-training mode that listens.
 useAudioInput();
 
-const wrap = ref<HTMLElement | null>(null);
-const canvas = ref<HTMLCanvasElement | null>(null);
-let animationId = 0;
-const lut = colormapLut("magma", 64);
-const centres = bandFrequencies({
-  sampleRate: 48000,
-  fftSize: 2048,
-  minHz: 40,
-  maxHz: 12000,
-  bands: SPECTROGRAM_BANDS
-});
 
 const countInBeats = COUNT_IN_BEATS;
 const TONICS = [55, 57, 59, 60, 62, 64, 65, 67];
@@ -89,50 +75,6 @@ function tonicLabel(midi: number): string {
   return `${NOTE_NAMES[((midi % 12) + 12) % 12]}${Math.floor(midi / 12) - 1}`;
 }
 
-function verticalScale() {
-  const current = melody.value;
-  const tuning = analysisSettings.tuning;
-  if (!current) return semitoneScale(52, 76, tuning);
-  const written = current.notes.map((note) => note.midi);
-  const sung = historyBuffer
-    .columns()
-    .map((column) => column.pitchHz)
-    .filter((hz): hz is number => hz !== null)
-    .map((hz) => frequencyToMidi(hz, tuning));
-  const all = sung.length ? [...written, ...sung] : written;
-  const low = Math.floor(Math.min(...all)) - 3;
-  const high = Math.ceil(Math.max(...all)) + 3;
-  return semitoneScale(Math.max(24, low), Math.min(96, Math.max(high, low + 12)), tuning);
-}
-
-function frame(): void {
-  if (canvas.value && wrap.value) {
-    const now = audioContext()?.currentTime ?? 0;
-    const { start: from, end: to } = takeWindow(now);
-    drawTrace({
-      canvas: canvas.value,
-      wrap: wrap.value,
-      columns: historyBuffer.window(to, to - from),
-      startTime: from,
-      endTime: to,
-      frequency: verticalScale(),
-      semitoneAxis: true,
-      bandCentres: centres,
-      floorDb: -90,
-      ceilingDb: -20,
-      lut,
-      // The written line is the point here; energy would only crowd it.
-      showSpectrogram: false,
-      showPitch: true,
-      references: [],
-      targets: targetSegments(),
-      playheadTime: sing.phase === "recording" ? now : null,
-      tuning: analysisSettings.tuning
-    });
-  }
-  animationId = requestAnimationFrame(frame);
-}
-
 function onKeydown(event: KeyboardEvent): void {
   const target = event.target as HTMLElement | null;
   if (target && /^(INPUT|TEXTAREA|SELECT|BUTTON)$/.test(target.tagName)) return;
@@ -147,15 +89,22 @@ function toggle(): void {
   else void start();
 }
 
+/** The window is the take: the written line decides what is on screen. */
+const range = computed(() => takeWindow(audioContext()?.currentTime ?? 0));
+
+/** Read the line before you sing it: drawn in place even while stopped. */
+function plannedTargets() {
+  const now = audioContext()?.currentTime ?? 0;
+  return targetSegments(sing.startedAt || previewAnchor(now));
+}
+const writtenNotes = computed(() => melody.value?.notes.map((note) => note.midi) ?? []);
+
 onMounted(() => {
   if (!melody.value) newMelody();
   window.addEventListener("keydown", onKeydown);
-  animationId = requestAnimationFrame(frame);
 });
 
 onBeforeUnmount(() => {
-  cancelAnimationFrame(animationId);
-  animationId = 0;
   window.removeEventListener("keydown", onKeydown);
   releaseSing();
 });
@@ -164,15 +113,21 @@ onBeforeUnmount(() => {
 <template>
   <div class="sing-stage">
     <div
-      ref="wrap"
-      class="trace-wrap sing-wrap"
+      class="sing-wrap"
       data-sing-canvas
       :data-sing-phase="sing.phase"
       :data-sing-plan="melody ? JSON.stringify(melody.notes) : null"
       :data-sing-beat="beatSeconds()"
       :data-sing-countin="countInBeats"
     >
-      <canvas ref="canvas"></canvas>
+      <TracePlot
+        :range="range"
+        semitone-axis
+        :show-spectrogram="false"
+        :must-contain="writtenNotes"
+        :targets="plannedTargets()"
+        :playhead-time="sing.phase === 'recording' ? audioContext()?.currentTime ?? null : null"
+      />
     </div>
 
     <!-- One transport, one line of state. Everything inside a rep runs

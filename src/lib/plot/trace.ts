@@ -197,9 +197,11 @@ function drawTargets(
     const from = unitToX(area, (target.start - options.startTime) / span);
     const to = unitToX(area, (target.end - options.startTime) / span);
     if (to < area.left || from > area.left + area.width) continue;
-    ctx.strokeStyle = target.grade ? colours[target.grade] : palette.chipBorder;
-    ctx.lineWidth = 8 * area.dpr;
-    ctx.globalAlpha = target.grade ? 0.5 : 0.32;
+    // Before it is sung the line is the score to read, so it has to be
+    // legible on its own; after it is sung the colour carries the verdict.
+    ctx.strokeStyle = target.grade ? colours[target.grade] : palette.target;
+    ctx.lineWidth = (target.grade ? 8 : 6) * area.dpr;
+    ctx.globalAlpha = target.grade ? 0.55 : 1;
     ctx.beginPath();
     ctx.moveTo(from, y);
     ctx.lineTo(to, y);

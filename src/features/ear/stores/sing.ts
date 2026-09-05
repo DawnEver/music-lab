@@ -223,16 +223,22 @@ export function setBars(bars: number): void {
   if (!sing.running) newMelody();
 }
 
-/** The written line as segments on the audio clock, for the plot. */
-export function targetSegments() {
+/**
+ * The written line as segments on the audio clock.
+ *
+ * Before a rep starts there is no clock position for it, but the whole
+ * point of sight-singing is seeing the line first — so an anchor can be
+ * supplied to lay it out in whatever window is on screen.
+ */
+export function targetSegments(anchor = sing.startedAt) {
   const current = melody.value;
   if (!current) return [];
   const grades = verdict.value?.notes ?? [];
   return current.notes.map((note, index) => ({
     hz: midiToFrequency(note.midi, analysisSettings.tuning),
-    start: sing.startedAt + note.start,
-    end: sing.startedAt + note.start + note.duration,
-    grade: grades[index]?.grade
+    start: anchor + note.start,
+    end: anchor + note.start + note.duration,
+    grade: sing.startedAt ? grades[index]?.grade : undefined
   }));
 }
 
@@ -240,5 +246,11 @@ export function targetSegments() {
 export function takeWindow(nowSeconds: number): { start: number; end: number } {
   const length = melody.value ? melodySeconds(melody.value) : 8;
   if (sing.startedAt) return { start: sing.startedAt - 1, end: sing.startedAt + length + 0.5 };
-  return { start: nowSeconds - length, end: nowSeconds + 0.5 };
+  // Idle: a window long enough to hold the line, ending now.
+  return { start: nowSeconds - length - 1, end: nowSeconds + 0.5 };
+}
+
+/** Where to draw the line while nothing is running. */
+export function previewAnchor(nowSeconds: number): number {
+  return takeWindow(nowSeconds).start + 0.8;
 }

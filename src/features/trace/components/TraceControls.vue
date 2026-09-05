@@ -15,6 +15,7 @@ import { NOTE_NAMES } from "../../../lib/music-theory.js";
 import { reference } from "../../../shared/stores/reference.js";
 import {
   persistTrace,
+  RANGE_PRESETS,
   traceView,
   WINDOW_CHOICES,
   type TraceScale
@@ -38,6 +39,19 @@ function toggleLayer(layer: "showSpectrogram" | "showPitch"): void {
     traceView[layer === "showSpectrogram" ? "showPitch" : "showSpectrogram"] = true;
   }
   commit();
+}
+
+/** Vertical limits: "auto" fits what is on screen, the rest pin the axis. */
+function setRange(preset: (typeof RANGE_PRESETS)[number]): void {
+  traceView.lowMidi = preset.low;
+  traceView.highMidi = preset.high;
+  // Pinning a range only means something on a note axis.
+  if (preset.key !== "auto") traceView.scale = "semitone";
+  commit();
+}
+
+function isRange(preset: (typeof RANGE_PRESETS)[number]): boolean {
+  return traceView.lowMidi === preset.low && traceView.highMidi === preset.high;
 }
 
 function setResolution(id: ResolutionId): void {
@@ -113,6 +127,19 @@ function clearReference(): void {
         @click="traceView.showSpectrum = !traceView.showSpectrum; commit()"
       >
         {{ t("traceLayerSpectrum") }}
+      </button>
+
+      <span class="trace-group-label">{{ t("traceRange") }}</span>
+      <button
+        v-for="preset in RANGE_PRESETS"
+        :key="preset.key"
+        type="button"
+        class="metro-chip"
+        :class="{ 'is-active': isRange(preset) }"
+        :data-trace-range="preset.key"
+        @click="setRange(preset)"
+      >
+        {{ t(`traceRange.${preset.key}`) }}
       </button>
 
       <span class="trace-group-label">{{ t("traceScale") }}</span>

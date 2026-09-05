@@ -12,11 +12,9 @@ import { computed, onBeforeUnmount, onMounted } from "vue";
 import { useI18n } from "../../composables/useI18n.js";
 import { useAudioInput } from "../../composables/useAudioInput.js";
 import ControlSheet, { closeAllSheets } from "../../shared/components/ControlSheet.vue";
-import SourceBar from "../../shared/components/SourceBar.vue";
-import StatusPill from "../../shared/components/StatusPill.vue";
+import AudioSource from "../../shared/components/AudioSource.vue";
 import TraceCanvas from "./components/TraceCanvas.vue";
 import SpectrumStrip from "./components/SpectrumStrip.vue";
-import LevelMeter from "../../shared/components/LevelMeter.vue";
 import TraceControls from "./components/TraceControls.vue";
 import { sourceStore } from "../../audio/source.js";
 import { analysisSettings } from "../../audio/analysis.js";
@@ -80,15 +78,11 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div class="tool-bar" data-tool="trace">
-    <SourceBar />
-    <StatusPill />
-  </div>
+  <AudioSource data-tool="trace" />
 
   <section class="card trace-stage">
     <TraceCanvas />
     <SpectrumStrip v-if="traceView.showSpectrum" />
-    <LevelMeter />
     <p v-if="sourceStore.mode === 'idle'" class="trace-empty" data-trace-empty>
       {{ t("traceEmpty") }} · {{ t("traceIntro") }}
     </p>

@@ -39,7 +39,10 @@ const { t } = useI18n();
 const MODES = [...EXERCISE_KINDS, "sing"] as const;
 type Mode = (typeof MODES)[number];
 
-const mode = ref<Mode>("interval");
+// Hydrate first, then take the mode from the restored session: two copies
+// of "which kind of question" is one too many, and they drifted apart.
+hydrateEar();
+const mode = ref<Mode>(session.kind);
 const singing = computed(() => mode.value === "sing");
 
 function selectMode(next: Mode): void {
@@ -94,7 +97,6 @@ function onKeydown(event: KeyboardEvent): void {
 }
 
 onMounted(() => {
-  hydrateEar();
   window.addEventListener("keydown", onKeydown);
 });
 

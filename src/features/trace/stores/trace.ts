@@ -25,6 +25,13 @@ export interface TraceState {
   window: number;
   floorDb: number;
   ceilingDb: number;
+  /**
+   * Vertical limits as MIDI notes. "auto" follows what is on screen, which
+   * is right for a first look and wrong the moment you want to compare two
+   * takes — so the limits are a control, not a heuristic.
+   */
+  lowMidi: number | "auto";
+  highMidi: number | "auto";
   resolution: ResolutionId;
   /** Reference pitch as a MIDI note, or null for none. */
   referenceMidi: number | null;
@@ -45,6 +52,8 @@ function defaults(): TraceState {
     window: 10,
     floorDb: -90,
     ceilingDb: -20,
+    lowMidi: "auto",
+    highMidi: "auto",
     resolution: "balanced",
     referenceMidi: null,
     followTuner: true,
@@ -80,6 +89,8 @@ const stored = storedJson<TraceState>("trace", defaults, (raw, base) => {
     window: WINDOWS.includes(Number(value.window)) ? Number(value.window) : base.window,
     floorDb: inRange(value.floorDb, -120, -40) ?? base.floorDb,
     ceilingDb: inRange(value.ceilingDb, -60, 0) ?? base.ceilingDb,
+    lowMidi: value.lowMidi === "auto" ? "auto" : inRange(value.lowMidi, 12, 120) ?? base.lowMidi,
+    highMidi: value.highMidi === "auto" ? "auto" : inRange(value.highMidi, 12, 127) ?? base.highMidi,
     resolution:
       value.resolution === "time" || value.resolution === "frequency"
         ? value.resolution
@@ -107,6 +118,14 @@ export function hydrateTrace(): void {
 export function persistTrace(): void {
   stored.write({ ...traceView });
 }
+
+/** Named vertical spans, in MIDI. */
+export const RANGE_PRESETS: Array<{ key: "auto" | "voice" | "bass" | "full"; low: number | "auto"; high: number | "auto" }> = [
+  { key: "auto", low: "auto", high: "auto" },
+  { key: "voice", low: 45, high: 84 },
+  { key: "bass", low: 28, high: 64 },
+  { key: "full", low: 24, high: 108 }
+];
 
 export const WINDOW_CHOICES = WINDOWS;
 /** Retention bounds how far a frozen view can scrub back. */

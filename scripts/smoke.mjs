@@ -252,7 +252,7 @@ async function walkMetronome(page, label, { expectSingleScreen = false } = {}) {
 
   // The mic picker must not follow the user into the metronome, and the
   // metronome must not hold the input session open.
-  if ((await page.locator(".source-actions").count()) !== 0) {
+  if ((await page.locator("[data-source-toggle]").count()) !== 0) {
     throw new Error(`${label}: the audio source bar should stay in the tuning tool`);
   }
 
@@ -265,9 +265,14 @@ async function walkTrace(page, label) {
   await gotoTool(page, "trace");
   await page.waitForSelector("[data-trace-canvas] canvas", { timeout: 8000 });
 
+  // The input control carries its own level meter, so there is no second
+  // widget saying the same thing.
+  if ((await page.locator("[data-source-toggle] .audio-level").count()) !== 1) {
+    throw new Error(`${label}: the input control should show the level itself`);
+  }
+
   // Both readings of the same instant: across time, and across frequency now.
   await page.waitForSelector(".trace-stage .spectrum-wrap canvas", { timeout: 8000 });
-  await page.waitForSelector(".trace-stage .level-row", { timeout: 8000 });
 
   const size = await page.locator("[data-trace-canvas] canvas").boundingBox();
   if (!size || size.height < 200) {
@@ -332,7 +337,7 @@ async function walkEar(page, label, { fullRep = false } = {}) {
   await page.waitForSelector("[data-ear-pad] .ear-choice", { timeout: 8000 });
 
   // No microphone here: ear training only needs the output side.
-  if ((await page.locator(".source-actions").count()) !== 0) {
+  if ((await page.locator("[data-source-toggle]").count()) !== 0) {
     throw new Error(`${label}: ear training should not ask for a microphone`);
   }
 

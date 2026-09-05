@@ -2377,7 +2377,7 @@
   width: 100%;
   /* The canvas shares the screen with its controls: a picture you cannot
      adjust without scrolling is worse than a slightly smaller picture. */
-  height: clamp(190px, 28vh, 380px);
+  height: clamp(180px, 25vh, 360px);
   border-radius: var(--radius-md);
   background: var(--screen);
   overflow: hidden;
@@ -2540,9 +2540,6 @@
 }
 
 
-.sing-stage .trace-wrap {
-  height: clamp(240px, 42vh, 420px);
-}
 
 .trace-readout,
 .trace-group-label {
@@ -2580,7 +2577,7 @@
 /* The instant spectrum sits under the time view, sharing its width. */
 .trace-stage .spectrum-wrap {
   width: 100%;
-  height: clamp(72px, 10vh, 130px);
+  height: clamp(64px, 8vh, 120px);
   margin-top: 10px;
   border-radius: var(--radius-md);
   background: var(--screen);
@@ -2700,8 +2697,14 @@
   justify-items: center;
 }
 
-.sing-wrap {
-  height: clamp(220px, 34vh, 420px);
+/* Both plots are the shared component; the host sets the height. */
+.sing-wrap,
+.trace-plot-host {
+  width: 100%;
+}
+
+.sing-wrap .trace-wrap {
+  height: clamp(210px, 30vh, 400px);
 }
 
 .sing-transport {
@@ -2766,7 +2769,111 @@
 }
 
 @media (max-width: 720px) {
-  .sing-wrap {
-    height: clamp(190px, 28vh, 320px);
+  .sing-wrap .trace-wrap {
+    height: clamp(180px, 26vh, 300px);
   }
+}
+
+/* ---- One input control: state, level and choice in a single row ---- */
+.audio-source {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  min-width: 0;
+}
+
+.audio-toggle {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  padding: 9px 18px;
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  background: var(--glass);
+  color: var(--text);
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  overflow: hidden;
+  transition: border-color 0.2s ease, background 0.2s ease;
+}
+
+.audio-toggle:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+/* The level fills the button itself: one object, not a meter beside it. */
+.audio-level {
+  position: absolute;
+  inset: 0 auto 0 0;
+  background: linear-gradient(90deg, rgba(52, 211, 153, 0.28), rgba(52, 211, 153, 0.1));
+  transition: width 0.08s linear;
+  pointer-events: none;
+}
+
+.audio-dot,
+.audio-label {
+  position: relative;
+}
+
+.audio-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--muted-2);
+}
+
+.audio-toggle.is-live {
+  border-color: rgba(52, 211, 153, 0.45);
+}
+
+.audio-toggle.is-live .audio-dot {
+  background: var(--good);
+  box-shadow: 0 0 0 4px rgba(52, 211, 153, 0.14);
+  animation: pulse 1.6s ease-in-out infinite;
+}
+
+.audio-file {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 16px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 0.86rem;
+  cursor: pointer;
+}
+
+.audio-file:hover {
+  color: var(--text);
+  background: var(--glass);
+}
+
+.audio-device {
+  /* The global select rule stretches to 100%; here it is one item in a row. */
+  width: auto;
+  max-width: 220px;
+  height: 36px;
+  min-width: 150px;
+  padding-left: 10px;
+}
+
+.audio-detail {
+  flex: 1 1 160px;
+  min-width: 0;
+  color: var(--muted);
+  font-size: 0.82rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.audio-source .audio-host:not(:empty) {
+  flex: 1 1 100%;
 }

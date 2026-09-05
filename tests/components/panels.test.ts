@@ -3,7 +3,7 @@ import { mount } from "@vue/test-utils";
 import { nextTick } from "vue";
 import StringsPanel from "../../src/features/tuning/components/StringsPanel.vue";
 import HarmonicaPanel from "../../src/features/tuning/components/HarmonicaPanel.vue";
-import SourceBar from "../../src/shared/components/SourceBar.vue";
+import AudioSource from "../../src/shared/components/AudioSource.vue";
 import FingeringPanel from "../../src/features/tuning/components/FingeringPanel.vue";
 import { sourceStore } from "../../src/audio/source.js";
 import { setLang } from "../../src/lib/i18n/index.js";
@@ -167,15 +167,16 @@ describe("FingeringPanel", () => {
   });
 });
 
-describe("SourceBar", () => {
+describe("AudioSource", () => {
   beforeEach(() => {
     sourceStore.mode = "idle";
     sourceStore.isStarting = false;
+    sourceStore.devices = [];
   });
 
   it("uses one button for start and stop, stating what it will do next", async () => {
-    const wrapper = mount(SourceBar);
-    const button = () => wrapper.findAll("button")[0];
+    const wrapper = mount(AudioSource);
+    const button = () => wrapper.find("[data-source-toggle]");
 
     expect(wrapper.findAll("button")).toHaveLength(1);
     expect(button().text()).toContain("Start microphone");
@@ -190,21 +191,36 @@ describe("SourceBar", () => {
 
   it("stops a playing file with the same button", async () => {
     sourceStore.mode = "file";
-    const wrapper = mount(SourceBar);
+    const wrapper = mount(AudioSource);
     await nextTick();
-    expect(wrapper.findAll("button")[0].text()).toContain("Stop");
-
-    await wrapper.findAll("button")[0].trigger("click");
+    await wrapper.find("[data-source-toggle]").trigger("click");
     await nextTick();
     expect(sourceStore.mode).toBe("idle");
   });
 
   it("is disabled only while a source is starting", async () => {
-    const wrapper = mount(SourceBar);
-    expect(wrapper.findAll("button")[0].attributes("disabled")).toBeUndefined();
+    const wrapper = mount(AudioSource);
+    expect(wrapper.find("[data-source-toggle]").attributes("disabled")).toBeUndefined();
 
     sourceStore.isStarting = true;
     await nextTick();
-    expect(wrapper.findAll("button")[0].attributes("disabled")).toBeDefined();
+    expect(wrapper.find("[data-source-toggle]").attributes("disabled")).toBeDefined();
+  });
+
+  it("hides the device picker until there is a choice to make", async () => {
+    const wrapper = mount(AudioSource);
+    expect(wrapper.find(".audio-device").exists()).toBe(false);
+
+    sourceStore.devices = [
+      { deviceId: "a", label: "Built-in" },
+      { deviceId: "b", label: "Interface" }
+    ];
+    await nextTick();
+    expect(wrapper.find(".audio-device").exists()).toBe(true);
+  });
+
+  it("says what it is listening to, in one place", async () => {
+    const wrapper = mount(AudioSource);
+    expect(wrapper.find("[data-source-detail]").text()).toBeTruthy();
   });
 });

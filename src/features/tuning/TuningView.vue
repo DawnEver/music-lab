@@ -5,8 +5,7 @@
  * in the shell — the metronome has no use for a microphone picker.
  */
 import { useI18n } from "../../composables/useI18n.js";
-import SourceBar from "../../shared/components/SourceBar.vue";
-import StatusPill from "../../shared/components/StatusPill.vue";
+import AudioSource from "../../shared/components/AudioSource.vue";
 import TunerPanel from "./components/TunerPanel.vue";
 import PitchCard from "./components/PitchCard.vue";
 import ChordCard from "./components/ChordCard.vue";
@@ -24,10 +23,7 @@ useTuningLifecycle();
 </script>
 
 <template>
-  <div class="tool-bar" data-tool="tune">
-    <SourceBar />
-    <StatusPill />
-  </div>
+  <AudioSource data-tool="tune" />
 
   <TunerPanel />
   <PitchCard />
