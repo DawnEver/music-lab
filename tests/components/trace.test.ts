@@ -24,13 +24,17 @@ describe("TraceControls", () => {
     expect(wrapper.findAll('input[type="range"]').length).toBe(2);
   });
 
-  it("offers every colour ramp, translated, and persists a pick", async () => {
+  it("offers every colour ramp plus follow-the-theme, and persists a pick", async () => {
     const wrapper = mount(TraceControls);
     const swatches = wrapper.findAll("[data-trace-colormap]");
-    expect(swatches.length).toBe(COLORMAP_IDS.length);
+    // Auto is the default: a dark-floor ramp on a light page reads as a
+    // hole in the layout, so the ramp follows the theme unless asked.
+    expect(swatches.length).toBe(COLORMAP_IDS.length + 1);
+    expect(traceView.colormap).toBe("auto");
     expect(wrapper.text()).toContain("Magma");
+    expect(wrapper.text()).toContain("Paper");
 
-    await swatches[1].trigger("click");
+    await swatches[2].trigger("click");
     expect(traceView.colormap).toBe(COLORMAP_IDS[1]);
     expect(window.localStorage.getItem("ml.trace")).toContain(COLORMAP_IDS[1]);
   });

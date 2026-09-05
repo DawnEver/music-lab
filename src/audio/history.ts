@@ -12,7 +12,7 @@
 import { reduceToLogBands, SpectrogramBuffer, SPECTROGRAM_BANDS } from "../lib/spectrogram.js";
 import { createCapture, type Capture } from "./capture.js";
 import { audioContext } from "./source.js";
-import { pitchRef } from "./analysis.js";
+import { rawPitchRef } from "./analysis.js";
 
 /** Retention. The window control zooms inside this. */
 export const HISTORY_SECONDS = 60;
@@ -106,7 +106,8 @@ function tick(): void {
         bandOptions(context.sampleRate, analyser.fftSize),
         new Float32Array(SPECTROGRAM_BANDS)
       ),
-      pitchHz: pitchRef.value?.frequency ?? null
+      // Unsmoothed: a time axis must show when the note actually changed.
+      pitchHz: rawPitchRef.value?.frequency ?? null
     });
     // Absolute pacing, so a slow frame does not shift the whole axis.
     nextCaptureAt = Math.max(now, nextCaptureAt + 1 / CAPTURE_HZ);

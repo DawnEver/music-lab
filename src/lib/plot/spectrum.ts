@@ -7,7 +7,7 @@
  */
 
 import { frequencyToNote } from "../music-theory.js";
-import { dbScale, frequencyTicks, logFrequencyScale, type Scale } from "./scale.js";
+import { dbScale, frequencyTicks, logFrequencyScale, tickBudget, type Scale } from "./scale.js";
 import { plotFont, plotPalette, type PlotPalette } from "./palette.js";
 import {
   plotBox,
@@ -65,13 +65,16 @@ export function drawSpectrumGrid(
 ): void {
   const level = dbScale(SPECTRUM_FLOOR_DB, SPECTRUM_CEILING_DB);
   ctx.save();
+  ctx.fillStyle = palette.surface;
+  ctx.fillRect(area.left, area.top, area.width, area.height);
+
   ctx.lineWidth = area.dpr;
   ctx.font = plotFont(9 * area.dpr);
   ctx.textBaseline = "middle";
   ctx.fillStyle = palette.axis;
   ctx.strokeStyle = palette.grid;
 
-  for (const tick of frequencyTicks(frequency)) {
+  for (const tick of frequencyTicks(frequency, { maxTicks: tickBudget(area.width, 46 * area.dpr) })) {
     const x = unitToX(area, tick.position);
     ctx.beginPath();
     ctx.moveTo(x, area.top);

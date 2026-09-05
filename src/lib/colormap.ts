@@ -8,10 +8,44 @@
 
 import { clamp } from "./dsp-core.js";
 
-export type ColormapId = "magma" | "viridis" | "inferno" | "ice" | "gray";
+export type ColormapId = "magma" | "viridis" | "inferno" | "ice" | "gray" | "paper" | "ink";
 
 /** Closed set: the dictionary carries a `colormap.<id>` for each. */
-export const COLORMAP_IDS: ColormapId[] = ["magma", "viridis", "inferno", "ice", "gray"];
+export const COLORMAP_IDS: ColormapId[] = [
+  "magma",
+  "viridis",
+  "inferno",
+  "ice",
+  "gray",
+  "paper",
+  "ink"
+];
+
+/**
+ * Which background a ramp is built for.
+ *
+ * A heat map needs its quiet end to disappear into the page. On a dark
+ * page that means starting near black; on a light one it means starting
+ * near white and getting darker — ink on paper. Using a dark-floor ramp on
+ * a light page puts a black rectangle in the middle of the layout, which
+ * is what makes it look broken rather than merely unusual.
+ */
+export type Polarity = "onDark" | "onLight";
+
+export const COLORMAP_POLARITY: Record<ColormapId, Polarity> = {
+  magma: "onDark",
+  viridis: "onDark",
+  inferno: "onDark",
+  ice: "onDark",
+  gray: "onDark",
+  paper: "onLight",
+  ink: "onLight"
+};
+
+/** The ramp to use when the player has not picked one. */
+export function defaultColormap(polarity: Polarity): ColormapId {
+  return polarity === "onLight" ? "paper" : "magma";
+}
 
 export type Rgb = [number, number, number];
 
@@ -59,6 +93,19 @@ const RAMPS: Record<ColormapId, Rgb[]> = {
   gray: [
     [0, 0, 0],
     [255, 255, 255]
+  ],
+  // Light-page ramps: quiet is paper, loud is ink.
+  paper: [
+    [250, 250, 252],
+    [176, 214, 226],
+    [92, 160, 196],
+    [52, 96, 168],
+    [46, 44, 120],
+    [24, 16, 48]
+  ],
+  ink: [
+    [255, 255, 255],
+    [0, 0, 0]
   ]
 };
 

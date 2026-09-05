@@ -12,7 +12,7 @@ import { frequencyToNote, midiToFrequency } from "../music-theory.js";
 import { trackSegments } from "../pitch-track.js";
 import type { SpectrogramColumn } from "../spectrogram.js";
 import { spectrogramImage } from "./spectrogram-image.js";
-import { frequencyTicks, semitoneTicks, type Scale, type Tick } from "./scale.js";
+import { frequencyTicks, semitoneTicks, tickBudget, type Scale, type Tick } from "./scale.js";
 import { plotFont, plotPalette, type PlotPalette } from "./palette.js";
 import {
   plotBox,
@@ -79,6 +79,11 @@ export function drawTrace(options: TraceDrawOptions): void {
   const palette = plotPalette();
   ctx.clearRect(0, 0, area.canvasWidth, area.canvasHeight);
 
+  // The plot has its own surface, from the same tokens as the page. Before
+  // this the canvas was simply black, which is a hole in a light page.
+  ctx.fillStyle = palette.surface;
+  ctx.fillRect(area.left, area.top, area.width, area.height);
+
   if (options.showSpectrogram) {
     drawHeatmap(ctx, area, options);
   }
@@ -111,10 +116,12 @@ function drawHeatmap(
   ctx.putImageData(new ImageData(image.data, width, height), area.left, area.top);
 }
 
-function axisTicks(options: TraceDrawOptions): Tick[] {
+/** Labels are budgeted by the pixels available, never by the range alone. */
+function axisTicks(options: TraceDrawOptions, area: PlotBox): Tick[] {
+  const maxTicks = tickBudget(area.height, 20 * area.dpr);
   return options.semitoneAxis
-    ? semitoneTicks(options.frequency, options.tuning)
-    : frequencyTicks(options.frequency);
+    ? semitoneTicks(options.frequency, { tuning: options.tuning, maxTicks })
+    : frequencyTicks(options.frequency, { maxTicks });
 }
 
 function drawGrid(
@@ -131,7 +138,7 @@ function drawGrid(
   ctx.strokeStyle = palette.grid;
   ctx.fillStyle = palette.axis;
 
-  for (const tick of axisTicks(options)) {
+  for (const tick of axisTicks(options, area)) {
     const y = unitToY(area, tick.position);
     ctx.globalAlpha = tick.accidental ? 0.4 : 1;
     ctx.beginPath();
@@ -143,9 +150,10 @@ function drawGrid(
   }
   ctx.globalAlpha = 1;
 
-  // Time axis: one label per second-ish, counting back from the right edge.
+  // Time axis: counting back from the right edge, at a spacing that fits.
   const span = options.endTime - options.startTime;
-  const step = span <= 3 ? 0.5 : span <= 12 ? 2 : 5;
+  const slots = tickBudget(area.width, 64 * dpr);
+  const step = [0.5, 1, 2, 5, 10, 15, 30].find((candidate) => span / candidate <= slots) ?? 30;
   ctx.textAlign = "center";
   for (let back = 0; back <= span + 1e-6; back += step) {
     const unit = 1 - back / span;

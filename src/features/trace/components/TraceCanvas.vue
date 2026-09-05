@@ -14,7 +14,8 @@ import {
 } from "../../../audio/history.js";
 import { analysisSettings } from "../../../audio/analysis.js";
 import { bandFrequencies, SPECTROGRAM_BANDS } from "../../../lib/spectrogram.js";
-import { colormapLut } from "../../../lib/colormap.js";
+import { colormapLut, defaultColormap, type ColormapId } from "../../../lib/colormap.js";
+import { plotPolarity } from "../../../lib/plot/palette.js";
 import { logFrequencyScale, semitoneScale } from "../../../lib/plot/scale.js";
 import {
   drawTrace,
@@ -31,7 +32,12 @@ import { reference } from "../../../shared/stores/reference.js";
 const wrap = ref<HTMLElement | null>(null);
 const canvas = ref<HTMLCanvasElement | null>(null);
 let animationId = 0;
-let lut = colormapLut(traceView.colormap);
+function resolvedColormap(): ColormapId {
+  return traceView.colormap === "auto" ? defaultColormap(plotPolarity()) : traceView.colormap;
+}
+
+let lut = colormapLut(resolvedColormap());
+let lutFor = resolvedColormap();
 
 // Band centres never change while the app runs; the LUT only on request.
 const centres = bandFrequencies({
@@ -42,12 +48,15 @@ const centres = bandFrequencies({
   bands: SPECTROGRAM_BANDS
 });
 
-watch(
-  () => traceView.colormap,
-  (id) => {
-    lut = colormapLut(id);
-  }
-);
+/** Re-resolve every frame is wasteful; re-resolve when the answer changes. */
+function refreshColormap(): void {
+  const id = resolvedColormap();
+  if (id === lutFor) return;
+  lutFor = id;
+  lut = colormapLut(id);
+}
+
+watch(() => traceView.colormap, refreshColormap);
 
 /** Semitone axis spans the retained pitch material, padded a little. */
 function verticalScale() {
@@ -155,6 +164,8 @@ let scrubFrom = { x: 0, at: 0 };
 
 function frame(): void {
   if (canvas.value && wrap.value) {
+    // "auto" tracks the theme, so a theme switch changes the ramp too.
+    refreshColormap();
     const { startTime, endTime } = currentWindow();
     drawTrace({
       canvas: canvas.value,

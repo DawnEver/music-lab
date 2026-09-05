@@ -76,6 +76,11 @@ export function persistAnalysisSettings(): void {
 
 // Display results, replaced at analysis cadence (never mutated in place).
 export const pitchRef = shallowRef<PitchResult | null>(null);
+/**
+ * The pitch as detected, unsmoothed. The needle reads `pitchRef`; anything
+ * plotting or judging a moment in time reads this one.
+ */
+export const rawPitchRef = shallowRef<PitchResult | null>(null);
 export const chordRef = shallowRef<ChordResult | null>(null);
 export const keyEstimateRef = shallowRef<KeyEstimate | null>(null);
 export const chromaRef = shallowRef<Float32Array | null>(null);
@@ -124,6 +129,7 @@ export function applyStability(value: number): void {
 
 function publish(snapshot: AnalysisSnapshot): void {
   pitchRef.value = snapshot.pitch;
+  rawPitchRef.value = snapshot.rawPitch ?? null;
   chordRef.value = snapshot.chord;
   keyEstimateRef.value = snapshot.keyEstimate;
   chromaRef.value = snapshot.chroma;

@@ -38,6 +38,15 @@ export interface AnalysisFrame {
 }
 
 export interface AnalysisSnapshot {
+  /**
+   * The pitch as detected, with no display smoothing.
+   *
+   * The needle wants a steady number, so `pitch` is averaged over ~360ms.
+   * A time series and a sung-note judge want what was actually there: on a
+   * fast line that average still carries the previous note for a third of
+   * this one, which reads as singing flat when nobody sang flat.
+   */
+  rawPitch?: PitchResult | null;
   pitch: PitchResult | null;
   chord: ChordResult | null;
   keyEstimate: KeyEstimate | null;
@@ -67,6 +76,7 @@ export class AnalysisPipeline {
   private chromaSmooth = new Float32Array(12);
   private latestChroma = new Float32Array(12);
   private latestPitch: PitchResult | null = null;
+  private latestRawPitch: PitchResult | null = null;
   private latestSpectralPitch: PitchResult | null = null;
   private latestSpectralPitchAt = 0;
   private displayedChord: ChordResult | null = null;
@@ -96,6 +106,7 @@ export class AnalysisPipeline {
     this.chromaSmooth.fill(0);
     this.latestChroma.fill(0);
     this.latestPitch = null;
+    this.latestRawPitch = null;
     this.latestSpectralPitch = null;
     this.latestSpectralPitchAt = 0;
     this.displayedChord = null;
@@ -111,6 +122,7 @@ export class AnalysisPipeline {
   snapshot(spectralRan = false): AnalysisSnapshot {
     return {
       pitch: this.latestPitch,
+      rawPitch: this.latestRawPitch,
       chord: this.displayedChord,
       keyEstimate: this.keyEstimate,
       chroma: this.chromaOut,
@@ -141,6 +153,7 @@ export class AnalysisPipeline {
 
       if (selected) {
         this.lastSignalAt = now;
+        this.latestRawPitch = selected;
         this.latestPitch = this.pitchSmoother.smooth(selected, now);
       } else {
         this.clearAfterSilence(now);
@@ -196,6 +209,7 @@ export class AnalysisPipeline {
     if (now - this.lastSignalAt < SILENCE_MS) return;
 
     this.latestPitch = null;
+    this.latestRawPitch = null;
     this.latestSpectralPitch = null;
     this.latestSpectralPitchAt = 0;
     this.displayedChord = null;

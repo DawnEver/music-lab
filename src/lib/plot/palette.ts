@@ -8,6 +8,7 @@
  */
 
 const KEYS = [
+  "surface",
   "axis",
   "grid",
   "fill1",
@@ -30,6 +31,7 @@ const KEYS = [
 export type PlotPalette = Record<(typeof KEYS)[number], string>;
 
 const CSS_NAMES: Record<(typeof KEYS)[number], string> = {
+  surface: "--plot-surface",
   axis: "--plot-axis",
   grid: "--plot-grid",
   fill1: "--plot-fill-1",
@@ -79,6 +81,11 @@ export function plotFont(sizePx: number): string {
       ? "monospace"
       : getComputedStyle(document.documentElement).getPropertyValue("--font-mono") || "monospace";
   return `${sizePx}px ${family}`;
+}
+
+/** Which background the plots are drawn on, for choosing a colour ramp. */
+export function plotPolarity(): "onDark" | "onLight" {
+  return currentTheme() === "light" ? "onLight" : "onDark";
 }
 
 /** Drop the cache — the theme toggle calls this so the next frame re-reads. */

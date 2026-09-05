@@ -2539,13 +2539,6 @@
   }
 }
 
-/* Sight-singing shares the trace's canvas shell; the line is the content. */
-.sing-stage {
-  display: grid;
-  gap: 14px;
-  width: 100%;
-  justify-items: center;
-}
 
 .sing-stage .trace-wrap {
   height: clamp(240px, 42vh, 420px);
@@ -2696,5 +2689,84 @@
 
   .trace-chip-row {
     display: flex;
+  }
+}
+
+/* ---- Sight-singing: one transport, one line of state ---- */
+.sing-stage {
+  display: grid;
+  gap: 14px;
+  width: 100%;
+  justify-items: center;
+}
+
+.sing-wrap {
+  height: clamp(220px, 34vh, 420px);
+}
+
+.sing-transport {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.sing-go {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 26px;
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  background: var(--accent);
+  color: #0b1020;
+  font-size: 1rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 0.12s ease, filter 0.2s ease;
+}
+
+.sing-go:hover {
+  filter: brightness(1.06);
+}
+
+.sing-go.is-running {
+  background: var(--glass-strong);
+  color: var(--text);
+}
+
+.sing-phase {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin: 0;
+  min-width: 190px;
+}
+
+.sing-phase-main {
+  font-size: 1.15rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.sing-phase-main.is-count {
+  font-family: var(--font-mono);
+  font-size: 1.8rem;
+  color: var(--accent-2);
+}
+
+.sing-phase-hint {
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.sing-setup {
+  gap: 6px;
+}
+
+@media (max-width: 720px) {
+  .sing-wrap {
+    height: clamp(190px, 28vh, 320px);
   }
 }

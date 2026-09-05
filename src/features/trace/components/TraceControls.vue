@@ -46,7 +46,7 @@ function setResolution(id: ResolutionId): void {
   commit();
 }
 
-function setColormap(id: ColormapId): void {
+function setColormap(id: ColormapId | "auto"): void {
   traceView.colormap = id;
   commit();
 }
@@ -157,6 +157,15 @@ function clearReference(): void {
 
     <div class="trace-row">
       <span class="trace-group-label">{{ t("traceColormap") }}</span>
+      <button
+        type="button"
+        class="metro-chip"
+        :class="{ 'is-active': traceView.colormap === 'auto' }"
+        data-trace-colormap="auto"
+        @click="setColormap('auto')"
+      >
+        {{ t("colormap.auto") }}
+      </button>
       <button
         v-for="id in COLORMAP_IDS"
         :key="id"

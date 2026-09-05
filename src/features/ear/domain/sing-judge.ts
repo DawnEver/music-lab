@@ -17,10 +17,17 @@ import type { Melody, MelodyNote } from "./melody.js";
 /** Cents tolerated before a note stops reading as in tune. */
 export const GOOD_CENTS = 25;
 export const CLOSE_CENTS = 50;
-/** Fraction of a note skipped at the start, where the scoop lives. */
-const ONSET_SKIP = 0.25;
+/**
+ * Fraction of a note skipped at the start.
+ *
+ * Two things live there: the scoop into the note, and plain lateness —
+ * nobody's attack lands on the millisecond, and a window that begins at
+ * the written time is still hearing the previous note. A third of the note
+ * is enough to clear both while leaving over half of it to judge.
+ */
+const ONSET_SKIP = 0.34;
 /** Fraction skipped at the end, where the singer is already moving on. */
-const RELEASE_SKIP = 0.1;
+const RELEASE_SKIP = 0.14;
 
 export type NoteGrade = "good" | "close" | "out" | "missed";
 

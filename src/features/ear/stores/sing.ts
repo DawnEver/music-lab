@@ -1,10 +1,12 @@
 /**
- * A sight-singing take: give the key, count in, record, judge.
+ * A sight-singing session.
  *
- * The take rides the same clock as everything else, which is the whole
- * reason this is short: the melody's note times and the columns the
- * microphone produced are already on one timeline, so judging is a
- * comparison rather than an alignment.
+ * One loop, one button. A rep is: hear where "do" is, count in, sing,
+ * see how it went — then the next line, automatically. Everything else is
+ * a setting, not a step, so nothing in the loop needs a click.
+ *
+ * The take rides the same clock as everything else, which is why judging
+ * is a comparison rather than an alignment.
  */
 
 import { reactive, shallowRef } from "vue";
@@ -12,14 +14,24 @@ import { acquireAudio } from "../../../audio/context.js";
 import type { AudioEngineHandle } from "../../../audio/types.js";
 import { createVoicePlayer, type VoicePlayer } from "../../../audio/voice.js";
 import { historyBuffer, startHistory, stopHistory } from "../../../audio/history.js";
-import { analysisSettings } from "../../../audio/analysis.js";
+import { analysisSettings, setDetectorRange } from "../../../audio/analysis.js";
 import { sourceStore } from "../../../audio/source.js";
+import { startMicrophone } from "../../../audio/session.js";
 import { midiToFrequency } from "../../../lib/music-theory.js";
 import { generateMelody, melodySeconds, type Melody } from "../domain/melody.js";
 import { judgeSinging, type TakeVerdict } from "../domain/sing-judge.js";
 import { noteSpec } from "../engine/player.js";
 
+/** What the loop is doing right now. */
 export type SingPhase = "idle" | "tonic" | "countIn" | "recording" | "judged";
+
+/** A voice can go lower and higher than any one instrument. */
+const VOICE_RANGE = { minHz: 60, maxHz: 1400 };
+export const COUNT_IN_BEATS = 4;
+/** How long the tonic sounds before the count-in. */
+const TONIC_SECONDS = 1.2;
+/** How long the verdict stays up before the next line. */
+const REVIEW_SECONDS = 2.6;
 
 export const sing = reactive({
   phase: "idle" as SingPhase,
@@ -28,25 +40,33 @@ export const sing = reactive({
   tonicMidi: 60,
   /** Audio-clock time the melody starts at; 0 when not running. */
   startedAt: 0,
-  /**
-   * Keep going: tonic, count-in, sing, verdict, next line. A singer with
-   * a phone on a music stand cannot press a button between every attempt.
-   */
-  loop: true,
-  /** True while a loop is running, so the button reads "stop". */
-  running: false
+  /** True from pressing start until pressing stop, across many reps. */
+  running: false,
+  /** Count-in beats left to play, for the display. */
+  countIn: 0,
+  /** Reps completed this session. */
+  reps: 0
 });
-
-/** How long the verdict stays up before the next line. */
-const REVIEW_MS = 2600;
 
 export const melody = shallowRef<Melody | null>(null);
 export const verdict = shallowRef<TakeVerdict | null>(null);
 
 let lease: AudioEngineHandle | null = null;
 let voices: VoicePlayer | null = null;
-let timer = 0;
-let loopTimer = 0;
+const timers = new Set<number>();
+
+function later(callback: () => void, seconds: number): void {
+  const id = window.setTimeout(() => {
+    timers.delete(id);
+    callback();
+  }, Math.max(0, seconds * 1000));
+  timers.add(id);
+}
+
+function clearTimers(): void {
+  for (const id of timers) window.clearTimeout(id);
+  timers.clear();
+}
 
 async function ensureOutput(): Promise<AudioEngineHandle> {
   if (!lease) {
@@ -56,138 +76,151 @@ async function ensureOutput(): Promise<AudioEngineHandle> {
   return lease;
 }
 
+export function beatSeconds(): number {
+  return 60 / sing.bpm;
+}
+
 export function newMelody(): void {
   melody.value = generateMelody(
     { bars: sing.bars, tonicMidi: sing.tonicMidi, bpm: sing.bpm },
     Math.random
   );
   verdict.value = null;
-  sing.phase = "idle";
   sing.startedAt = 0;
 }
 
-/** Sound the tonic, so the singer has a pitch to start from. */
-export async function playTonic(): Promise<void> {
-  const handle = await ensureOutput();
-  voices?.play(noteSpec(sing.tonicMidi, 1.1, analysisSettings.tuning), handle.context.currentTime + 0.05);
-}
-
-/** Play the written line, at tempo. */
-export async function playMelody(): Promise<void> {
+/** Play the written line, at tempo — a preview, never part of a rep. */
+export async function previewMelody(): Promise<void> {
   const current = melody.value;
-  if (!current) return;
+  if (!current || sing.running) return;
   const handle = await ensureOutput();
   const start = handle.context.currentTime + 0.1;
+  voices?.play(noteSpec(sing.tonicMidi, TONIC_SECONDS, analysisSettings.tuning), start);
   for (const note of current.notes) {
     voices?.play(
       noteSpec(note.midi, note.duration * 0.9, analysisSettings.tuning),
-      start + note.start
+      start + TONIC_SECONDS + 0.2 + note.start
     );
   }
 }
 
 /**
- * Sound the tonic, count in, then record. Recording is not a separate
- * capture: it is a window of the history the trace view already keeps, so
- * the take can be judged the instant it ends.
+ * Start practising. This is the only thing a singer has to press: it
+ * acquires the microphone if it is not already listening, then runs reps
+ * until stopped.
  */
-export async function startTake(): Promise<void> {
+export async function start(): Promise<void> {
+  if (sing.running) return;
+  sing.running = true;
+  sing.reps = 0;
+  // A primary action that is disabled until you find some other control is
+  // not a primary action. If nothing is listening, start listening.
+  if (sourceStore.mode === "idle") await startMicrophone();
+  if (sourceStore.mode === "idle") {
+    sing.running = false;
+    return;
+  }
+  // A voice is not an instrument: whatever band the tuner last asked for
+  // would silently swallow half the line.
+  setDetectorRange(VOICE_RANGE);
+  startHistory();
+  await runRep();
+}
+
+/** Stop where we are; whatever is on screen stays on screen. */
+export function stop(): void {
+  clearTimers();
+  sing.running = false;
+  sing.countIn = 0;
+  if (sing.phase !== "judged") sing.phase = "idle";
+}
+
+async function runRep(): Promise<void> {
   const current = melody.value;
-  if (!current || sing.phase === "countIn" || sing.phase === "recording") return;
-  if (sourceStore.mode === "idle") return;
+  if (!current || !sing.running) return;
 
   const handle = await ensureOutput();
-  startHistory();
   verdict.value = null;
-  sing.running = true;
+  const beat = beatSeconds();
+  const now = handle.context.currentTime;
+  const tonicAt = now + 0.15;
 
-  const beat = 60 / sing.bpm;
-  const countIn = 4;
-  // The tonic first, always: nobody can start a line without a pitch to
-  // start from, and asking for it by hand every time is friction.
-  const tonicSeconds = 1.1;
-  voices?.play(
-    noteSpec(sing.tonicMidi, tonicSeconds, analysisSettings.tuning),
-    handle.context.currentTime + 0.05
-  );
+  // Tonic, so there is somewhere to start from.
+  voices?.play(noteSpec(sing.tonicMidi, TONIC_SECONDS, analysisSettings.tuning), tonicAt);
   sing.phase = "tonic";
-  const begin = handle.context.currentTime + 0.15 + tonicSeconds;
-  for (let index = 0; index < countIn; index += 1) {
+
+  const countInAt = tonicAt + TONIC_SECONDS + 0.25;
+  for (let index = 0; index < COUNT_IN_BEATS; index += 1) {
     voices?.play(
       {
         waveform: "triangle",
         frequency: index === 0 ? 1320 : 880,
-        gain: index === 0 ? 0.5 : 0.32,
+        gain: index === 0 ? 0.5 : 0.3,
         duration: 0.05,
         glide: 0.82
       },
-      begin + index * beat
+      countInAt + index * beat
     );
   }
 
-  sing.phase = "countIn";
-  sing.startedAt = begin + countIn * beat;
+  sing.startedAt = countInAt + COUNT_IN_BEATS * beat;
+  later(() => {
+    sing.phase = "countIn";
+    sing.countIn = COUNT_IN_BEATS;
+    for (let index = 1; index < COUNT_IN_BEATS; index += 1) {
+      later(() => {
+        sing.countIn = COUNT_IN_BEATS - index;
+      }, index * beat);
+    }
+  }, countInAt - now);
 
-  window.clearTimeout(timer);
-  timer = window.setTimeout(
-    () => {
-      sing.phase = "recording";
-      timer = window.setTimeout(finishTake, melodySeconds(current) * 1000 + 300);
-    },
-    (sing.startedAt - handle.context.currentTime) * 1000
-  );
+  later(() => {
+    sing.phase = "recording";
+    sing.countIn = 0;
+  }, sing.startedAt - now);
+
+  later(() => finishRep(), sing.startedAt - now + melodySeconds(current) + 0.35);
 }
 
-function finishTake(): void {
+function finishRep(): void {
   const current = melody.value;
   if (!current) return;
   verdict.value = judgeSinging(current, historyBuffer.columns(), sing.startedAt);
   sing.phase = "judged";
-
-  if (!sing.loop) {
-    sing.running = false;
-    return;
-  }
-  // Look at the result, then go again on a new line.
-  loopTimer = window.setTimeout(() => {
+  sing.reps += 1;
+  if (!sing.running) return;
+  later(() => {
     newMelody();
-    void startTake();
-  }, REVIEW_MS);
+    void runRep();
+  }, REVIEW_SECONDS);
 }
 
-/** Stop the loop where it is; the verdict on screen stays. */
-export function stopLoop(): void {
-  window.clearTimeout(loopTimer);
-  window.clearTimeout(timer);
-  loopTimer = 0;
-  timer = 0;
-  sing.running = false;
-  if (sing.phase !== "judged") sing.phase = "idle";
-}
-
-export function cancelTake(): void {
-  window.clearTimeout(timer);
-  window.clearTimeout(loopTimer);
-  timer = 0;
-  loopTimer = 0;
-  sing.running = false;
+/** Leaving the tool. */
+export function releaseSing(): void {
+  stop();
+  stopHistory();
+  setDetectorRange(null);
   sing.phase = "idle";
   sing.startedAt = 0;
-}
-
-export function setLoop(value: boolean): void {
-  sing.loop = value;
-  if (!value) window.clearTimeout(loopTimer);
-}
-
-/** Leaving the tool: drop the lease and stop capturing. */
-export function releaseSing(): void {
-  cancelTake();
-  stopHistory();
   voices?.dispose();
   voices = null;
   lease?.release();
   lease = null;
+}
+
+export function setTonic(midi: number): void {
+  sing.tonicMidi = midi;
+  if (!sing.running) newMelody();
+}
+
+export function setTempo(bpm: number): void {
+  sing.bpm = bpm;
+  if (!sing.running) newMelody();
+}
+
+export function setBars(bars: number): void {
+  sing.bars = bars;
+  if (!sing.running) newMelody();
 }
 
 /** The written line as segments on the audio clock, for the plot. */
@@ -201,4 +234,11 @@ export function targetSegments() {
     end: sing.startedAt + note.start + note.duration,
     grade: grades[index]?.grade
   }));
+}
+
+/** Window the plot should show: the rep, with a moment of lead-in. */
+export function takeWindow(nowSeconds: number): { start: number; end: number } {
+  const length = melody.value ? melodySeconds(melody.value) : 8;
+  if (sing.startedAt) return { start: sing.startedAt - 1, end: sing.startedAt + length + 0.5 };
+  return { start: nowSeconds - length, end: nowSeconds + 0.5 };
 }

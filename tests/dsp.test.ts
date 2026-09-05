@@ -117,3 +117,30 @@ describe("analyzeSpectrum", () => {
     expect(Math.abs(result.dominantPitch!.frequency - 30.87)).toBeLessThan(1.5);
   });
 });
+
+describe("pitch detection on voice-like tones", () => {
+  /** A fundamental with harmonics — what a sung note actually looks like. */
+  function harmonicTone(hz: number, rate: number, count: number): Float32Array {
+    const out = new Float32Array(count);
+    for (let i = 0; i < count; i += 1) {
+      out[i] =
+        0.5 * Math.sin((2 * Math.PI * hz * i) / rate) +
+        0.2 * Math.sin((4 * Math.PI * hz * i) / rate) +
+        0.1 * Math.sin((6 * Math.PI * hz * i) / rate);
+    }
+    return out;
+  }
+
+  it("reports the fundamental rather than half or double it", () => {
+    // Octave errors are the failure mode that matters on voice: they look
+    // like a leap nobody sang and they survive every later stage.
+    for (const hz of [130.81, 261.63, 329.63, 440, 659.26]) {
+      const result = detectPitchYin(harmonicTone(hz, 48000, 16384), 48000, -52, {
+        minHz: 60,
+        maxHz: 1400
+      });
+      expect(result.pitch?.frequency ?? 0, `${hz} Hz`).toBeCloseTo(hz, 0);
+      expect(result.pitch?.confidence ?? 0).toBeGreaterThan(0.9);
+    }
+  });
+});

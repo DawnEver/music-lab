@@ -11,6 +11,7 @@ import { chromium } from "playwright-core";
 import { spawn } from "node:child_process";
 import { once } from "node:events";
 
+
 const PORT = process.env.SMOKE_PORT ?? "5199";
 const BASE_URL = process.env.SMOKE_URL ?? `http://localhost:${PORT}`;
 
@@ -60,7 +61,42 @@ const stopDevServer = await startDevServer();
 // only have Edge.
 const CHANNEL = process.env.SMOKE_BROWSER ?? "chrome";
 
-const browser = await chromium.launch({ channel: CHANNEL, headless: true });
+const browser = await chromium.launch({
+  channel: CHANNEL,
+  headless: true,
+  args: ["--use-fake-ui-for-media-stream", "--autoplay-policy=no-user-gesture-required"]
+});
+
+/**
+ * A synthetic singer, installed in the page before it loads.
+ *
+ * Sight-singing is the one feature whose whole point is the round trip —
+ * microphone, capture, pitch detection, history, judging — and a browser's
+ * fake capture device gives no control over what is sung. An oscillator
+ * routed into a MediaStream does: the test can read the written line off
+ * the page and sing it.
+ */
+const SYNTHETIC_MIC = () => {
+  const ctx = new AudioContext();
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+  const dest = ctx.createMediaStreamDestination();
+  osc.type = "sawtooth";
+  osc.frequency.value = 220;
+  gain.gain.value = 0.0001;
+  osc.connect(gain);
+  gain.connect(dest);
+  osc.start();
+  navigator.mediaDevices.getUserMedia = async () => dest.stream;
+  window.__sing = (midi) => {
+    if (midi === null) {
+      gain.gain.setTargetAtTime(0.0001, ctx.currentTime, 0.01);
+      return;
+    }
+    osc.frequency.setValueAtTime(440 * Math.pow(2, (midi - 69) / 12), ctx.currentTime);
+    gain.gain.setTargetAtTime(0.3, ctx.currentTime, 0.01);
+  };
+};
 const errors = [];
 
 function attachListeners(page, label) {
@@ -291,7 +327,7 @@ async function walkTrace(page, label) {
 }
 
 /** Ear training: the whole loop is hear -> answer -> verdict -> next. */
-async function walkEar(page, label) {
+async function walkEar(page, label, { fullRep = false } = {}) {
   await gotoTool(page, "ear");
   await page.waitForSelector("[data-ear-pad] .ear-choice", { timeout: 8000 });
 
@@ -325,19 +361,66 @@ async function walkEar(page, label) {
   if (chordChoices < 2) throw new Error(`${label}: chord pad should render choices`);
   console.log(`✓ ${label}: switching question kind swaps the answer pad`);
 
-  // Sight-singing is a mode of the same tool, and the only one that asks
-  // for a microphone.
+  // Sight-singing: one button runs the whole rep, and the fake microphone
+  // sings a steady C4 into it.
   await page.locator('[data-ear-kind="sing"]').click();
   await page.waitForSelector("[data-sing-canvas] canvas", { timeout: 8000 });
-  if ((await page.locator(".source-actions").count()) === 0) {
-    throw new Error(`${label}: sight-singing needs the source bar`);
+  if (!(await page.locator("[data-sing-start]").isEnabled())) {
+    throw new Error(`${label}: start must never be disabled — it acquires the mic itself`);
   }
-  if (await page.locator("[data-sing-start]").isEnabled()) {
-    throw new Error(`${label}: singing should be blocked until an input is chosen`);
+  console.log(`✓ ${label}: sight-singing offers one transport control`);
+
+  if (fullRep) {
+    // The round trip: press start once, sing the line the page is showing,
+    // and read the verdict. Nothing else is pressed.
+    // Read the line and the tempo first, then let the page itself wait for
+    // the count-in: a round trip per attribute would smear the first note
+    // by a fraction of a beat, and that is the difference between "sung in
+    // tune" and "sung the note before".
+    const stage = page.locator("[data-sing-plan]");
+    const plan = JSON.parse(await stage.getAttribute("data-sing-plan"));
+    const beat = Number(await stage.getAttribute("data-sing-beat"));
+    const countIn = Number(await stage.getAttribute("data-sing-countin"));
+
+    const performance_ = page.evaluate(
+      async ({ notes, lead }) => {
+        const phase = () => document.querySelector("[data-sing-canvas]")?.dataset.singPhase;
+        while (phase() !== "countIn") await new Promise((r) => requestAnimationFrame(r));
+        const begins = performance.now() + lead * 1000;
+        for (const note of notes) {
+          const wait = begins + note.start * 1000 - performance.now();
+          if (wait > 0) await new Promise((resolve) => setTimeout(resolve, wait));
+          window.__sing(note.midi);
+        }
+        await new Promise((resolve) => setTimeout(resolve, 400));
+        window.__sing(null);
+      },
+      { notes: plan, lead: beat * countIn }
+    );
+
+    await page.locator("[data-sing-start]").click();
+    await performance_;
+
+    await page.waitForFunction(
+      () => document.querySelector("[data-sing-verdict]")?.textContent?.includes("%"),
+      undefined,
+      { timeout: 20000 }
+    );
+    const grades = (await page.locator("[data-sing-notes]").getAttribute("data-sing-notes")).split(",");
+    const cents = await page.locator("[data-sing-notes]").getAttribute("data-sing-cents");
+    const heard = grades.filter((grade) => grade !== "missed").length;
+    const good = grades.filter((grade) => grade === "good").length;
+    if (heard < grades.length - 1) {
+      throw new Error(`${label}: the take was not heard (${grades.join(",")} / cents ${cents})`);
+    }
+    // Sung dead in tune by an oscillator: most notes must come back good,
+    // or something between the microphone and the judge is out of step.
+    if (good < Math.ceil(grades.length * 0.6)) {
+      throw new Error(`${label}: an in-tune take scored ${good}/${grades.length} (cents ${cents})`);
+    }
+    await page.locator("[data-sing-start]").click();
+    console.log(`✓ ${label}: an in-tune take scores ${good}/${grades.length} notes good`);
   }
-  await page.locator("[data-sing-new]").click();
-  await page.waitForTimeout(120);
-  console.log(`✓ ${label}: sight-singing draws the written line and waits for a mic`);
 
   await assertNoHOverflow(page, `${label} ear`);
   await gotoTool(page, "tune");
@@ -468,7 +551,11 @@ try {
   console.log("✓ legacy hash bookmark migrates to a clean route");
 
   // ---- Desktop ----
-  const desktop = await browser.newPage({ viewport: { width: 1280, height: 900 } });
+  const desktop = await browser.newPage({
+    viewport: { width: 1280, height: 900 },
+    permissions: ["microphone"]
+  });
+  await desktop.addInitScript(SYNTHETIC_MIC);
   attachListeners(desktop, "desktop");
   await desktop.goto(BASE_URL, { waitUntil: "networkidle" });
   await walkWorkbench(desktop, "desktop");
@@ -523,7 +610,7 @@ try {
   console.log("✓ desktop: theme toggle switches dark/light without overflow");
 
   await walkTrace(desktop, "desktop");
-  await walkEar(desktop, "desktop");
+  await walkEar(desktop, "desktop", { fullRep: true });
   await walkMetronome(desktop, "desktop", { expectSingleScreen: true });
 
   // ---- Mobile ----

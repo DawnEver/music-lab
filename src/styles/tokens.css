@@ -43,6 +43,7 @@
       --screen: linear-gradient(180deg, rgba(124, 156, 255, 0.035), rgba(5, 9, 20, 0.38)), #080d1c;
       /* Plot colours. Canvas cannot read CSS vars, so lib/plot/palette.ts
          reads these once per theme and hands them to the renderers. */
+      --plot-surface: #070c18;
       --plot-axis: rgba(148, 163, 184, 0.56);
       --plot-grid: rgba(148, 163, 184, 0.105);
       --plot-fill-1: rgba(94, 234, 212, 0.36);
@@ -107,7 +108,8 @@
       --notice-text: #92400e;
       --notice-strong: #78350f;
       --screen: linear-gradient(180deg, rgba(79, 95, 213, 0.05), rgba(15, 23, 42, 0.04)), #f3f6fc;
-      --plot-axis: rgba(15, 23, 42, 0.6);
+      --plot-surface: #f7f9fe;
+      --plot-axis: rgba(15, 23, 42, 0.62);
       --plot-grid: rgba(15, 23, 42, 0.09);
       --plot-fill-1: rgba(13, 148, 136, 0.24);
       --plot-fill-2: rgba(79, 95, 213, 0.13);

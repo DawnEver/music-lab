@@ -75,47 +75,99 @@ export function dbScale(floorDb: number, ceilingDb: number): Scale {
   return scaleFrom([floorDb, ceilingDb], (value) => value, (value) => value);
 }
 
+/**
+ * How many labels fit in a run of pixels. Ticks that collide are worse
+ * than no ticks: overlapping text reads as damage, not as detail.
+ */
+export function tickBudget(pixels: number, minSpacing = 22): number {
+  return Math.max(2, Math.floor(pixels / minSpacing));
+}
+
+export interface TickOptions {
+  tuning?: number;
+  /** Upper bound on labels; the axis thins itself to fit. */
+  maxTicks?: number;
+}
+
+/** Keep at most `maxTicks`, evenly, always keeping both ends. */
+function thin<T>(items: T[], maxTicks: number | undefined): T[] {
+  if (!maxTicks || items.length <= maxTicks) return items;
+  const step = Math.ceil((items.length - 1) / (maxTicks - 1));
+  const kept = items.filter((_, index) => index % step === 0);
+  const last = items[items.length - 1];
+  if (kept[kept.length - 1] !== last) kept.push(last);
+  return kept;
+}
+
 const FREQUENCY_TICKS = [
   20, 30, 50, 80, 100, 200, 300, 500, 800, 1000, 2000, 3000, 5000, 8000, 10000, 15000
 ];
 
 /** Decade-ish frequency gridlines inside the scale's domain. */
-export function frequencyTicks(scale: Scale): Tick[] {
+export function frequencyTicks(scale: Scale, options: TickOptions = {}): Tick[] {
   const [min, max] = scale.domain;
-  return FREQUENCY_TICKS.filter((value) => value >= min && value <= max).map((value) => ({
+  const ticks = FREQUENCY_TICKS.filter((value) => value >= min && value <= max).map((value) => ({
     value,
     position: scale.position(value),
     label: value >= 1000 ? `${value / 1000}k` : `${value}`,
     accidental: false
   }));
+  return thin(ticks, options.maxTicks);
 }
 
 /**
- * One tick per note. Wide ranges would produce an unreadable comb, so
- * accidentals drop out first and then whole octaves, keeping the label
- * count bounded no matter how much range is on screen.
+ * One tick per note, thinned until the labels fit.
+ *
+ * Density is chosen from the space available rather than from the range
+ * alone: the same octave is legible on a tall canvas and a smear on a
+ * short one. Accidentals drop first, then notes, then whole octaves — and
+ * once the step reaches an octave the labels align to C, so what survives
+ * reads as a scale rather than as an arbitrary sample.
  */
-export function semitoneTicks(scale: Scale, tuning = 440): Tick[] {
+export function semitoneTicks(scale: Scale, options: TickOptions | number = {}): Tick[] {
+  const settings: TickOptions = typeof options === "number" ? { tuning: options } : options;
+  const tuning = settings.tuning ?? 440;
   const lowMidi = Math.round(frequencyToMidi(scale.domain[0], tuning));
   const highMidi = Math.round(frequencyToMidi(scale.domain[1], tuning));
-  const span = highMidi - lowMidi;
-  const step = span > 60 ? 12 : span > 24 ? 2 : 1;
-  const naturalsOnly = span > 24;
+  const span = Math.max(1, highMidi - lowMidi);
+  const budget = settings.maxTicks ?? Infinity;
+
+  // Without a pixel budget, fall back to the range: a comb of 60 labels is
+  // unreadable however much room it has.
+  const STEPS = [1, 2, 3, 4, 6, 12, 24, 36];
+  const fallbackStep = span > 60 ? 12 : span > 24 ? 2 : 1;
+  const step = Number.isFinite(budget)
+    ? STEPS.find((candidate) => tickCount(lowMidi, highMidi, candidate) <= budget) ?? 36
+    : fallbackStep;
+  const naturalsOnly = step > 1 || span > 24;
 
   const ticks: Tick[] = [];
-  for (let midi = lowMidi; midi <= highMidi; midi += 1) {
+  // An octave step or wider anchors on C; anything finer starts at the low
+  // end so the bottom label is always the bottom of the axis.
+  const anchor = step >= 12 ? lowMidi + ((12 - (lowMidi % 12)) % 12) : lowMidi;
+  for (let midi = anchor; midi <= highMidi; midi += step) {
     const pitchClass = ((midi % 12) + 12) % 12;
     const name = NOTE_NAMES[pitchClass];
     const accidental = name.length > 1;
     if (naturalsOnly && accidental) continue;
-    if (step > 1 && (midi - lowMidi) % step !== 0 && midi !== highMidi) continue;
-    const value = midiToFrequency(midi, tuning);
     ticks.push({
-      value,
-      position: scale.position(value),
+      value: midiToFrequency(midi, tuning),
+      position: scale.position(midiToFrequency(midi, tuning)),
       label: `${name}${Math.floor(midi / 12) - 1}`,
       accidental
     });
   }
-  return ticks;
+  return thin(ticks, settings.maxTicks);
+}
+
+/** How many labels a step would actually print, accidentals included. */
+function tickCount(lowMidi: number, highMidi: number, step: number): number {
+  let count = 0;
+  const anchor = step >= 12 ? lowMidi + ((12 - (lowMidi % 12)) % 12) : lowMidi;
+  const naturalsOnly = step > 1 || highMidi - lowMidi > 24;
+  for (let midi = anchor; midi <= highMidi; midi += step) {
+    if (naturalsOnly && NOTE_NAMES[((midi % 12) + 12) % 12].length > 1) continue;
+    count += 1;
+  }
+  return count;
 }

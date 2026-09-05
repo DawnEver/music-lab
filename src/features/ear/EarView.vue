@@ -10,8 +10,6 @@ import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 import { useI18n } from "../../composables/useI18n.js";
 import AnswerPad from "./components/AnswerPad.vue";
 import SingStage from "./components/SingStage.vue";
-import SourceBar from "../../shared/components/SourceBar.vue";
-import StatusPill from "../../shared/components/StatusPill.vue";
 import { releaseSing } from "./stores/sing.js";
 import { EXERCISE_KINDS, type ExerciseKind } from "./domain/exercise.js";
 import { accuracy } from "./domain/grade.js";
@@ -137,11 +135,6 @@ onBeforeUnmount(() => {
         {{ t("earAuto") }}
       </button>
     </p>
-  </div>
-
-  <div v-if="singing" class="tool-bar" data-tool="ear-source">
-    <SourceBar />
-    <StatusPill />
   </div>
 
   <section v-if="singing" class="card ear-stage">

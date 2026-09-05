@@ -5,7 +5,8 @@ import {
   timeScale,
   dbScale,
   frequencyTicks,
-  semitoneTicks
+  semitoneTicks,
+  tickBudget
 } from "../src/lib/plot/scale.js";
 
 describe("log frequency scale", () => {
@@ -103,6 +104,38 @@ describe("ticks", () => {
     const wide = semitoneTicks(semitoneScale(24, 96));
     expect(wide.every((tick) => tick.accidental === false)).toBe(true);
     expect(wide.length).toBeLessThan(40);
+  });
+
+  it("thins to fit the space it is given, because labels must not collide", () => {
+    // A four-octave range on a short canvas: unthinned this prints 49
+    // labels into 200px and they overlap into mush.
+    const scale = semitoneScale(36, 84);
+    const few = semitoneTicks(scale, { maxTicks: 6 });
+    expect(few.length).toBeLessThanOrEqual(6);
+    expect(few.length).toBeGreaterThan(1);
+    // Whatever survives is evenly spread, and the ends are kept.
+    expect(few[0].position).toBeCloseTo(0, 6);
+    expect(few[few.length - 1].position).toBeCloseTo(1, 6);
+  });
+
+  it("keeps octave names when it has to thin hard", () => {
+    const ticks = semitoneTicks(semitoneScale(36, 84), { maxTicks: 5 });
+    expect(ticks.every((tick) => tick.label.startsWith("C"))).toBe(true);
+  });
+
+  it("thins frequency ticks the same way", () => {
+    const ticks = frequencyTicks(logFrequencyScale(40, 12000), { maxTicks: 4 });
+    expect(ticks.length).toBeLessThanOrEqual(4);
+    expect(ticks.length).toBeGreaterThan(1);
+  });
+});
+
+describe("tick capacity", () => {
+  it("turns available pixels into a tick budget", () => {
+    expect(tickBudget(400, 22)).toBe(18);
+    expect(tickBudget(60, 22)).toBe(2);
+    // Never zero: an axis with no labels is not an axis.
+    expect(tickBudget(5, 22)).toBe(2);
   });
 });
 

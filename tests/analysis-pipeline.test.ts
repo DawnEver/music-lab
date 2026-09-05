@@ -154,3 +154,43 @@ describe("AnalysisPipeline detector range", () => {
     if (result.pitch) expect(result.pitch.frequency).toBeGreaterThan(270);
   });
 });
+
+describe("AnalysisPipeline raw vs display pitch", () => {
+  it("reports the detected pitch alongside the smoothed one", () => {
+    const pipeline = makePipeline();
+    let now = 0;
+    const a = sine(220);
+    const spectrumA = spectrum(220);
+    for (let frame = 0; frame < 6; frame += 1) {
+      now += PITCH_INTERVAL_MS;
+      push(pipeline, now, a, spectrumA);
+    }
+
+    // Jump a fifth. The display average still carries the old note for a
+    // few frames — which is what makes it steady — but the raw value must
+    // follow at once, or a time series lies about when the note changed.
+    const b = sine(330);
+    const spectrumB = spectrum(330);
+    now += PITCH_INTERVAL_MS;
+    const jumped = push(pipeline, now, b, spectrumB);
+
+    expect(jumped.rawPitch!.frequency).toBeCloseTo(330, 0);
+    expect(jumped.pitch!.frequency).toBeLessThan(320);
+    expect(jumped.pitch!.frequency).toBeGreaterThan(220);
+  });
+
+  it("clears both when the signal stops", () => {
+    const pipeline = makePipeline();
+    const loud = sine(440);
+    const quiet = sine(440, 0.000001);
+    let now = 0;
+    for (let frame = 0; frame < 4; frame += 1) {
+      now += PITCH_INTERVAL_MS;
+      push(pipeline, now, loud, spectrum(440));
+    }
+    now += SILENCE_MS + 10;
+    const cleared = push(pipeline, now, quiet, spectrum(null));
+    expect(cleared.pitch).toBeNull();
+    expect(cleared.rawPitch).toBeNull();
+  });
+});

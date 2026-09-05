@@ -18,7 +18,8 @@ export interface TraceState {
   showPitch: boolean;
   /** This instant's energy against frequency, as a strip below. */
   showSpectrum: boolean;
-  colormap: ColormapId;
+  /** "auto" follows the theme, which is what most people want. */
+  colormap: ColormapId | "auto";
   scale: TraceScale;
   /** Seconds of history on screen. */
   window: number;
@@ -39,7 +40,7 @@ function defaults(): TraceState {
     showSpectrogram: true,
     showPitch: true,
     showSpectrum: true,
-    colormap: "magma",
+    colormap: "auto",
     scale: "log",
     window: 10,
     floorDb: -90,
@@ -71,7 +72,10 @@ const stored = storedJson<TraceState>("trace", defaults, (raw, base) => {
     showSpectrogram: typeof value.showSpectrogram === "boolean" ? value.showSpectrogram : base.showSpectrogram,
     showPitch: typeof value.showPitch === "boolean" ? value.showPitch : base.showPitch,
     showSpectrum: typeof value.showSpectrum === "boolean" ? value.showSpectrum : base.showSpectrum,
-    colormap: COLORMAP_IDS.includes(value.colormap as ColormapId) ? (value.colormap as ColormapId) : base.colormap,
+    colormap:
+      value.colormap === "auto" || COLORMAP_IDS.includes(value.colormap as ColormapId)
+        ? (value.colormap as ColormapId | "auto")
+        : base.colormap,
     scale: value.scale === "semitone" ? "semitone" : base.scale,
     window: WINDOWS.includes(Number(value.window)) ? Number(value.window) : base.window,
     floorDb: inRange(value.floorDb, -120, -40) ?? base.floorDb,
