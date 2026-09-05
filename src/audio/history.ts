@@ -39,6 +39,8 @@ let frequencyData: Float32Array<ArrayBuffer> | null = null;
 let animationId = 0;
 let nextCaptureAt = 0;
 let resolution: ResolutionId = "balanced";
+/** Audio-clock time until which capture is held; 0 means capturing. */
+let heldUntil = 0;
 
 function bandOptions(sampleRate: number, fftSize: number) {
   return {
@@ -88,6 +90,22 @@ export function historyRunning(): boolean {
   return capture !== null;
 }
 
+/**
+ * Stop recording for a moment, because the app itself is making the sound.
+ *
+ * A reference tone, a count-in or a preview comes out of the speakers and
+ * straight back into the microphone. Recording that would draw the app's
+ * own voice into the player's take and, on the way, into their score.
+ */
+export function holdHistory(seconds: number): void {
+  const now = audioContext()?.currentTime ?? 0;
+  heldUntil = Math.max(heldUntil, now + seconds);
+}
+
+export function releaseHistoryHold(): void {
+  heldUntil = 0;
+}
+
 function tick(): void {
   const analyser = capture?.analyser();
   const context = audioContext();
@@ -97,6 +115,12 @@ function tick(): void {
   }
 
   const now = context.currentTime;
+  if (now < heldUntil) {
+    // Keep the pacing honest: resume on the grid rather than in a burst.
+    nextCaptureAt = heldUntil;
+    animationId = requestAnimationFrame(tick);
+    return;
+  }
   if (now >= nextCaptureAt) {
     analyser.getFloatFrequencyData(frequencyData);
     historyBuffer.push({

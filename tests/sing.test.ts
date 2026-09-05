@@ -145,3 +145,32 @@ describe("judging a take", () => {
     expect(result.score).toBe(0);
   });
 });
+
+describe("register", () => {
+  const melody = {
+    tonicMidi: 60,
+    bpm: 60,
+    notes: [
+      { midi: 60, start: 0, duration: 1 },
+      { midi: 64, start: 1, duration: 1 }
+    ]
+  };
+
+  it("an octave down is right, not an octave wrong", () => {
+    // A tenor handed a soprano's line sings it an octave below. Judged
+    // against the written pitches that reads as an octave error; judged
+    // against the register he was asked to sing in, it is simply correct.
+    const sungLow = [...sung(48, 0, 1), ...sung(52, 1, 2)];
+    const asWritten = judgeSinging(melody, sungLow, 0);
+    expect(asWritten.notes.every((note) => note.octaveOff === -1)).toBe(true);
+
+    const transposed = {
+      ...melody,
+      tonicMidi: 48,
+      notes: melody.notes.map((note) => ({ ...note, midi: note.midi - 12 }))
+    };
+    const inRegister = judgeSinging(transposed, sungLow, 0);
+    expect(inRegister.notes.every((note) => note.octaveOff === 0)).toBe(true);
+    expect(inRegister.score).toBe(1);
+  });
+});

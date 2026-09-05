@@ -13,11 +13,18 @@ import { reactive, shallowRef } from "vue";
 import { acquireAudio } from "../../../audio/context.js";
 import type { AudioEngineHandle } from "../../../audio/types.js";
 import { createVoicePlayer, type VoicePlayer } from "../../../audio/voice.js";
-import { historyBuffer, startHistory, stopHistory } from "../../../audio/history.js";
+import {
+  historyBuffer,
+  holdHistory,
+  releaseHistoryHold,
+  startHistory,
+  stopHistory
+} from "../../../audio/history.js";
 import { analysisSettings, setDetectorRange } from "../../../audio/analysis.js";
 import { sourceStore } from "../../../audio/source.js";
 import { startMicrophone } from "../../../audio/session.js";
 import { midiToFrequency } from "../../../lib/music-theory.js";
+import { storedJson } from "../../../lib/persist.js";
 import { generateMelody, melodySeconds, type Melody } from "../domain/melody.js";
 import { judgeSinging, type TakeVerdict } from "../domain/sing-judge.js";
 import { noteSpec } from "../engine/player.js";
@@ -33,11 +40,23 @@ const TONIC_SECONDS = 1.2;
 /** How long the verdict stays up before the next line. */
 const REVIEW_SECONDS = 2.6;
 
+/** Registers the same written line can be sung in. */
+export type Register = "written" | "octaveDown";
+
 export const sing = reactive({
   phase: "idle" as SingPhase,
   bpm: 72,
   bars: 2,
   tonicMidi: 60,
+  /**
+   * Where the line is actually sung.
+   *
+   * A tenor handed a line written for a soprano sings it an octave down
+   * and is not wrong — so the register is a setting, and everything that
+   * sounds, draws or grades follows it. The written line does not move:
+   * that is the point of a register.
+   */
+  register: "written" as Register,
   /** Audio-clock time the melody starts at; 0 when not running. */
   startedAt: 0,
   /** True from pressing start until pressing stop, across many reps. */
@@ -80,6 +99,40 @@ export function beatSeconds(): number {
   return 60 / sing.bpm;
 }
 
+/** Semitones between what is written and what is sung. */
+export function registerShift(): number {
+  return sing.register === "octaveDown" ? -12 : 0;
+}
+
+/** The line as it will be sung: the written notes, moved to the register. */
+function soundingMelody(): Melody | null {
+  const current = melody.value;
+  if (!current) return null;
+  const shift = registerShift();
+  if (!shift) return current;
+  return {
+    ...current,
+    tonicMidi: current.tonicMidi + shift,
+    notes: current.notes.map((note) => ({ ...note, midi: note.midi + shift }))
+  };
+}
+
+export function setRegister(value: Register): void {
+  sing.register = value;
+  storedRegister.write(value);
+}
+
+const storedRegister = storedJson<Register>(
+  "ear.register",
+  () => "written",
+  (raw, base) => (raw === "octaveDown" || raw === "written" ? raw : base)
+);
+
+/** Read the stored register; the view calls this once. */
+export function hydrateSing(): void {
+  sing.register = storedRegister.read();
+}
+
 export function newMelody(): void {
   melody.value = generateMelody(
     { bars: sing.bars, tonicMidi: sing.tonicMidi, bpm: sing.bpm },
@@ -93,10 +146,14 @@ export function newMelody(): void {
 export async function previewMelody(): Promise<void> {
   const current = melody.value;
   if (!current || sing.running) return;
+  const sounding = soundingMelody();
+  if (!sounding) return;
   const handle = await ensureOutput();
   const start = handle.context.currentTime + 0.1;
-  voices?.play(noteSpec(sing.tonicMidi, TONIC_SECONDS, analysisSettings.tuning), start);
-  for (const note of current.notes) {
+  // The preview comes out of the speakers; do not record it back in.
+  holdHistory(TONIC_SECONDS + 0.4 + melodySeconds(sounding) + 0.3);
+  voices?.play(noteSpec(sounding.tonicMidi, TONIC_SECONDS, analysisSettings.tuning), start);
+  for (const note of sounding.notes) {
     voices?.play(
       noteSpec(note.midi, note.duration * 0.9, analysisSettings.tuning),
       start + TONIC_SECONDS + 0.2 + note.start
@@ -130,6 +187,7 @@ export async function start(): Promise<void> {
 /** Stop where we are; whatever is on screen stays on screen. */
 export function stop(): void {
   clearTimers();
+  releaseHistoryHold();
   sing.running = false;
   sing.countIn = 0;
   if (sing.phase !== "judged") sing.phase = "idle";
@@ -146,7 +204,10 @@ async function runRep(): Promise<void> {
   const tonicAt = now + 0.15;
 
   // Tonic, so there is somewhere to start from.
-  voices?.play(noteSpec(sing.tonicMidi, TONIC_SECONDS, analysisSettings.tuning), tonicAt);
+  voices?.play(
+    noteSpec(sing.tonicMidi + registerShift(), TONIC_SECONDS, analysisSettings.tuning),
+    tonicAt
+  );
   sing.phase = "tonic";
 
   const countInAt = tonicAt + TONIC_SECONDS + 0.25;
@@ -164,6 +225,9 @@ async function runRep(): Promise<void> {
   }
 
   sing.startedAt = countInAt + COUNT_IN_BEATS * beat;
+  // The tonic and the count-in are the app's own sound: hold capture until
+  // the singer's turn starts, so the take contains only the take.
+  holdHistory(sing.startedAt - handle.context.currentTime);
   later(() => {
     sing.phase = "countIn";
     sing.countIn = COUNT_IN_BEATS;
@@ -183,7 +247,7 @@ async function runRep(): Promise<void> {
 }
 
 function finishRep(): void {
-  const current = melody.value;
+  const current = soundingMelody();
   if (!current) return;
   verdict.value = judgeSinging(current, historyBuffer.columns(), sing.startedAt);
   sing.phase = "judged";
@@ -231,7 +295,7 @@ export function setBars(bars: number): void {
  * supplied to lay it out in whatever window is on screen.
  */
 export function targetSegments(anchor = sing.startedAt) {
-  const current = melody.value;
+  const current = soundingMelody();
   if (!current) return [];
   const grades = verdict.value?.notes ?? [];
   return current.notes.map((note, index) => ({

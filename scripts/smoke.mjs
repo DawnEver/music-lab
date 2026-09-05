@@ -413,14 +413,24 @@ async function walkEar(page, label, { fullRep = false } = {}) {
   if ((await page.locator(".score-head").count()) < 4) {
     throw new Error(`${label}: the staff should carry the written line`);
   }
-  await page.locator("[data-sing-notation]").click();
+  // Both notations are on screen as a choice, not hidden behind a toggle
+  // whose label is its own current state.
+  if ((await page.locator("[data-sing-notation]").count()) !== 2) {
+    throw new Error(`${label}: notation should be a choice between two, both visible`);
+  }
+  await page.locator('[data-sing-notation="jianpu"]').click();
   await page.waitForSelector(".score-degree", { timeout: 4000 });
   if ((await page.locator(".score-line").count()) !== 0) {
     throw new Error(`${label}: numbered notation should replace the staff`);
   }
-  await page.locator("[data-sing-notation]").click();
+  await page.locator('[data-sing-notation="staff"]').click();
   await page.waitForSelector(".score-head", { timeout: 4000 });
-  console.log(`✓ ${label}: the line is written, on a staff or in numbers`);
+
+  // A tenor sings a soprano's line an octave down and is not wrong.
+  await page.locator('[data-sing-register="octaveDown"]').click();
+  await page.waitForSelector(".score-octave", { timeout: 4000 });
+  await page.locator('[data-sing-register="written"]').click();
+  console.log(`✓ ${label}: the line is written, in either notation and either register`);
 
   console.log(`✓ ${label}: sight-singing offers one transport control`);
 

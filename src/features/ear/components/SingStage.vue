@@ -28,6 +28,9 @@ const storedNotation = storedJson<"staff" | "jianpu">(
 import {
   beatSeconds,
   COUNT_IN_BEATS,
+  hydrateSing,
+  registerShift,
+  setRegister,
   melody,
   newMelody,
   previewMelody,
@@ -41,20 +44,26 @@ import {
   previewAnchor,
   takeWindow,
   targetSegments,
-  verdict
+  verdict,
+  type Register
 } from "../stores/sing.js";
 
 const { t } = useI18n();
 
+hydrateSing();
+
 const notation = ref<"staff" | "jianpu">(readNotation());
+
+const NOTATIONS: Array<"staff" | "jianpu"> = ["staff", "jianpu"];
+const REGISTERS: Register[] = ["written", "octaveDown"];
 
 function readNotation(): "staff" | "jianpu" {
   return storedNotation.read();
 }
 
-function toggleNotation(): void {
-  notation.value = notation.value === "staff" ? "jianpu" : "staff";
-  storedNotation.write(notation.value);
+function setNotation(value: "staff" | "jianpu"): void {
+  notation.value = value;
+  storedNotation.write(value);
 }
 
 // Sight-singing is the one ear-training mode that listens.
@@ -148,6 +157,7 @@ onBeforeUnmount(() => {
     <Score
       :melody="melody"
       :notation="notation"
+      :octave-shift="registerShift()"
       :grades="noteGrades"
       :active-index="activeIndex"
     />
@@ -184,29 +194,6 @@ onBeforeUnmount(() => {
         <span>{{ sing.running ? t("singStop") : t("singStart") }}</span>
       </button>
 
-      <p
-        class="sing-phase"
-        data-sing-verdict
-        :data-sing-notes="verdict ? verdict.notes.map((note) => note.grade).join(',') : null"
-        :data-sing-cents="verdict ? verdict.notes.map((note) => (note.centsOff === null ? 'x' : Math.round(note.centsOff))).join(',') : null"
-        :data-sing-octaves="verdict ? verdict.notes.map((note) => note.octaveOff).join(',') : null"
-      >
-        <span class="sing-phase-main" :class="{ 'is-count': sing.phase === 'countIn' }">
-          {{ phaseText }}
-        </span>
-        <span v-if="phaseHint" class="sing-phase-hint">{{ phaseHint }}</span>
-      </p>
-    </div>
-
-    <div class="trace-toggles sing-setup">
-      <button
-        type="button"
-        class="metro-chip"
-        data-sing-notation
-        @click="toggleNotation"
-      >
-        {{ t(`singNotation.${notation}`) }}
-      </button>
       <button
         type="button"
         class="metro-chip"
@@ -226,41 +213,94 @@ onBeforeUnmount(() => {
         {{ t("singNew") }}
       </button>
 
-      <span class="trace-group-label">{{ t("singKey") }}</span>
-      <button
-        v-for="midi in TONICS"
-        :key="midi"
-        type="button"
-        class="metro-chip"
-        :class="{ 'is-active': sing.tonicMidi === midi }"
-        @click="setTonic(midi)"
+      <p
+        class="sing-phase"
+        data-sing-verdict
+        :data-sing-notes="verdict ? verdict.notes.map((note) => note.grade).join(',') : null"
+        :data-sing-cents="verdict ? verdict.notes.map((note) => (note.centsOff === null ? 'x' : Math.round(note.centsOff))).join(',') : null"
+        :data-sing-octaves="verdict ? verdict.notes.map((note) => note.octaveOff).join(',') : null"
       >
-        {{ tonicLabel(midi) }}
-      </button>
+        <span class="sing-phase-main" :class="{ 'is-count': sing.phase === 'countIn' }">
+          {{ phaseText }}
+        </span>
+        <span v-if="phaseHint" class="sing-phase-hint">{{ phaseHint }}</span>
+      </p>
+    </div>
 
-      <span class="trace-group-label">{{ t("singTempo") }}</span>
-      <button
-        v-for="bpm in TEMPOS"
-        :key="bpm"
-        type="button"
-        class="metro-chip"
-        :class="{ 'is-active': sing.bpm === bpm }"
-        @click="setTempo(bpm)"
-      >
-        {{ bpm }}
-      </button>
+    <!-- Grouped by the question being answered, not by what happens to be
+         a toggle: what am I reading, what am I singing, what do I do now. -->
+    <div class="sing-controls">
+      <div class="sing-group">
+        <span class="trace-group-label">{{ t("singRead") }}</span>
+        <button
+          v-for="value in NOTATIONS"
+          :key="value"
+          type="button"
+          class="metro-chip"
+          :class="{ 'is-active': notation === value }"
+          :data-sing-notation="value"
+          @click="setNotation(value)"
+        >
+          {{ t(`singNotation.${value}`) }}
+        </button>
+      </div>
 
-      <span class="trace-group-label">{{ t("singBars") }}</span>
-      <button
-        v-for="bars in BAR_CHOICES"
-        :key="bars"
-        type="button"
-        class="metro-chip"
-        :class="{ 'is-active': sing.bars === bars }"
-        @click="setBars(bars)"
-      >
-        {{ bars }}
-      </button>
+      <div class="sing-group">
+        <span class="trace-group-label">{{ t("singRegister") }}</span>
+        <button
+          v-for="value in REGISTERS"
+          :key="value"
+          type="button"
+          class="metro-chip"
+          :class="{ 'is-active': sing.register === value }"
+          :data-sing-register="value"
+          @click="setRegister(value)"
+        >
+          {{ t(`singRegister.${value}`) }}
+        </button>
+      </div>
+
+      <div class="sing-group">
+        <span class="trace-group-label">{{ t("singKey") }}</span>
+        <button
+          v-for="midi in TONICS"
+          :key="midi"
+          type="button"
+          class="metro-chip"
+          :class="{ 'is-active': sing.tonicMidi === midi }"
+          @click="setTonic(midi)"
+        >
+          {{ tonicLabel(midi) }}
+        </button>
+      </div>
+
+      <div class="sing-group">
+        <span class="trace-group-label">{{ t("singTempo") }}</span>
+        <button
+          v-for="bpm in TEMPOS"
+          :key="bpm"
+          type="button"
+          class="metro-chip"
+          :class="{ 'is-active': sing.bpm === bpm }"
+          @click="setTempo(bpm)"
+        >
+          {{ bpm }}
+        </button>
+      </div>
+
+      <div class="sing-group">
+        <span class="trace-group-label">{{ t("singBars") }}</span>
+        <button
+          v-for="bars in BAR_CHOICES"
+          :key="bars"
+          type="button"
+          class="metro-chip"
+          :class="{ 'is-active': sing.bars === bars }"
+          @click="setBars(bars)"
+        >
+          {{ bars }}
+        </button>
+      </div>
     </div>
   </div>
 </template>

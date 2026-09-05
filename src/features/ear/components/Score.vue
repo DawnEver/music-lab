@@ -31,8 +31,10 @@ const props = withDefaults(
     grades?: NoteGrade[];
     /** Index of the note being sung, or null. */
     activeIndex?: number | null;
+    /** Semitones between what is written and what is sung. */
+    octaveShift?: number;
   }>(),
-  { notation: "staff", grades: () => [], activeIndex: null }
+  { notation: "staff", grades: () => [], activeIndex: null, octaveShift: 0 }
 );
 
 /** Geometry: one gap between staff lines is the unit everything derives from. */
@@ -147,6 +149,9 @@ function noteClass(index: number): string {
         <text class="score-meter" :x="HEAD_LEFT - 26" :y="yOf(6) + 4">{{ staff.beatsPerBar }}</text>
         <text class="score-meter" :x="HEAD_LEFT - 26" :y="yOf(2) + 4">4</text>
 
+        <!-- Sung an octave down: the notation says so rather than moving. -->
+        <text v-if="octaveShift === -12" class="score-octave" x="14" :y="yOf(-4)">8vb</text>
+
         <line
           v-for="(x, index) in barLines"
           :key="`bar-${index}`"
@@ -204,7 +209,9 @@ function noteClass(index: number): string {
           :y2="PAD_TOP + 30"
         />
 
-        <text class="score-key" x="16" :y="PAD_TOP + 14">1 = {{ jianpuKey }}</text>
+        <text class="score-key" x="16" :y="PAD_TOP + 14">
+          1 = {{ jianpuKey }}<tspan v-if="octaveShift === -12"> · 8vb</tspan>
+        </text>
 
         <g v-for="note in jianpu.notes" :key="`jnote-${note.index}`" :class="noteClass(note.index)">
           <text

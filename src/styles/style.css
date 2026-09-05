@@ -3012,3 +3012,25 @@
 .score-note.is-missed {
   opacity: 0.45;
 }
+
+/* Sight-singing controls, grouped by the question each one answers. */
+.sing-controls {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px 18px;
+  width: 100%;
+}
+
+.sing-group {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.score-octave {
+  fill: var(--muted);
+  font-size: 13px;
+  font-style: italic;
+}

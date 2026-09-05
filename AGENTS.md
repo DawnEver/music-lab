@@ -49,6 +49,9 @@
 - UI changes must run `npm run smoke` (desktop + mobile viewports).
 - Boundaries are enforced by the import graph and by grep over the source, not by convention: features never import each other, shared layers never import a feature, `lib/` never imports `audio/`, only `audio/` names Web Audio, and only the router names a feature view.
 - Anything with randomness in it takes an injected random source, so a question, a practice pattern or a generated melody is reproducible in a test.
+- A control whose label is its own current state is ambiguous — "Staff" could mean "you are reading a staff" or "switch to a staff". Choices are segmented with every option visible and the current one marked; only genuine on/off switches are single chips. Controls are grouped by the question they answer (what am I reading, what am I singing, what do I do now), not by what happens to be a toggle.
+- The app never records its own voice. A reference tone, a count-in or a preview comes out of the speakers and back into the microphone; capture is held while the app is sounding, or the player's take contains the app.
+- Register is a setting, not an error. A tenor sings a soprano's line an octave down and is right: everything that sounds, draws and grades follows the chosen register, while the written line stays where it was written.
 - Sight-singing means reading: the line is written down as a staff or as numbered notation, laid out by pure functions in `lib/notation.ts`. A pitch plot shows what came out; it is not a score.
 - Anything an rAF loop reads from the audio clock must be read *in the loop*. `AudioContext.currentTime` is not reactive, so a `computed` window is evaluated once — before the context exists — and the view then draws the same long-gone seconds forever. Pass a function, not a value.
 - Progress can always be reset. A level earned on a bad microphone otherwise follows the learner forever.
