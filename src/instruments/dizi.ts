@@ -10,6 +10,8 @@ export const dizi = {
   id: "dizi",
   name: { zh: "笛子", en: "Dizi" },
   category: "winds",
+  timbre: "flute",
+  surface: { kind: "holes" },
   tuning: {
     layout: "fingering",
     defaultPresetId: "D",

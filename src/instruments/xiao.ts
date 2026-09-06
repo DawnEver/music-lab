@@ -10,6 +10,8 @@ export const xiao = {
   id: "xiao",
   name: { zh: "箫", en: "Xiao" },
   category: "winds",
+  timbre: "flute",
+  surface: { kind: "holes" },
   tuning: {
     layout: "fingering",
     defaultPresetId: "G",

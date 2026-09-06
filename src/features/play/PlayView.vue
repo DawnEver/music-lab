@@ -13,8 +13,10 @@ import ControlSheet, { closeAllSheets } from "../../shared/components/ControlShe
 import PianoKeys from "./components/PianoKeys.vue";
 import FretBoard from "./components/FretBoard.vue";
 import DrumPads from "./components/DrumPads.vue";
+import HoleChart from "./components/HoleChart.vue";
 import PlayControl from "./components/PlayControl.vue";
 import { keymapSpan, midiForKey } from "./domain/keymap.js";
+import { isTuned } from "../../instruments/index.js";
 import {
   allNotesOff,
   hydratePlay,
@@ -39,13 +41,17 @@ const highMidi = computed(() => settings.baseMidi + span.high);
 const surface = computed(() => instrument.value.surface);
 const isKeys = computed(() => surface.value.kind === "keys");
 const pieces = computed(() => (surface.value.kind === "pads" ? surface.value.pieces : []));
+const wind = computed(() =>
+  surface.value.kind === "holes" && isTuned(instrument.value) ? instrument.value.tuning.wind : null
+);
 const frets = computed(() =>
   instrument.value.surface.kind === "frets" ? instrument.value.surface.frets : 0
 );
 
 const hint = computed(() => {
   if (isKeys.value) return t("playKeysHint");
-  return pieces.value.length ? t("playPadsHint") : t("playFretsHint");
+  if (pieces.value.length) return t("playPadsHint");
+  return wind.value ? t("playHolesHint") : t("playFretsHint");
 });
 
 const octaveLabel = computed(() => `C${Math.floor(settings.baseMidi / 12) - 1}`);
@@ -147,6 +153,14 @@ onBeforeUnmount(() => {
       :pieces="pieces"
       :struck="struck"
       @hit="strike"
+    />
+    <HoleChart
+      v-else-if="wind && preset"
+      :preset="preset"
+      :wind="wind"
+      :sounding="sounding"
+      @down="(midi: number) => noteOn(midi)"
+      @up="noteOff"
     />
     <FretBoard
       v-else-if="preset"

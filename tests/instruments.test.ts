@@ -455,3 +455,29 @@ describe("the drum kit", () => {
     expect(new Set(choked.map((piece) => piece.choke)).size).toBe(1);
   });
 });
+
+describe("playable winds", () => {
+  const winds = allInstruments.filter((entry) => entry.surface?.kind === "holes");
+
+  it("covers the flutes and the reed", () => {
+    expect(winds.map((entry) => entry.id).sort()).toEqual(["dizi", "saxophone", "xiao"]);
+  });
+
+  it("can be played only because it is also tuned — the chart is its data", () => {
+    for (const instrument of winds) {
+      expect(instrument.tuning, instrument.id).toBeTruthy();
+      expect(instrument.tuning!.wind, instrument.id).toBeTruthy();
+      for (const preset of instrument.tuning!.presets) {
+        expect(preset.fingerings?.length, `${instrument.id}/${preset.id}`).toBe(preset.notes.length);
+      }
+    }
+  });
+
+  it("blows with a breathy, sustaining voice — a wind that decays is a pluck", () => {
+    for (const instrument of winds) {
+      const voice = TIMBRES.find((entry) => entry.id === instrument.timbre)!;
+      expect(voice.sustain, instrument.id).toBeGreaterThan(0);
+      expect(voice.breath, instrument.id).toBeGreaterThan(0);
+    }
+  });
+});

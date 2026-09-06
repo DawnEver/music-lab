@@ -105,7 +105,7 @@ watch(tick, syncCards);
 
       <div class="fingering-foot">
         <span v-if="target.fingering?.keys?.length" class="fingering-key">
-          {{ target.fingering.keys.map((key) => t(`tuner.windKey.${key}`)).join(" · ") }}
+          {{ target.fingering.keys.map((key) => t(`instrument.windKey.${key}`)).join(" · ") }}
         </span>
         <span class="fingering-cents">{{ cards[index]?.centsText ?? "" }}</span>
       </div>

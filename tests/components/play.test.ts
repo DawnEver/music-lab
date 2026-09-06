@@ -3,6 +3,7 @@ import { mount } from "@vue/test-utils";
 import PianoKeys from "../../src/features/play/components/PianoKeys.vue";
 import FretBoard from "../../src/features/play/components/FretBoard.vue";
 import DrumPads from "../../src/features/play/components/DrumPads.vue";
+import HoleChart from "../../src/features/play/components/HoleChart.vue";
 import { getInstrument, getPreset, getTunedInstrument } from "../../src/instruments/index.js";
 import { setLang } from "../../src/lib/i18n/index.js";
 
@@ -188,5 +189,56 @@ describe("DrumPads", () => {
     const wrapper = pads();
     await wrapper.find('[data-piece="crash"]').trigger("pointerdown");
     expect(wrapper.emitted("hit")?.[0]).toEqual(["crash"]);
+  });
+});
+
+describe("HoleChart", () => {
+  const dizi = getTunedInstrument("dizi")!;
+
+  function chart(sounding = new Set<number>()) {
+    return mount(HoleChart, {
+      props: {
+        preset: getPreset(dizi, dizi.tuning.defaultPresetId),
+        wind: dizi.tuning.wind!,
+        sounding
+      }
+    });
+  }
+
+  it("draws one card per note, with the instrument's own hole count", () => {
+    const wrapper = chart();
+    const cards = wrapper.findAll(".hole-card");
+    expect(cards).toHaveLength(getPreset(dizi, dizi.tuning.defaultPresetId).notes.length);
+    expect(cards[0].findAll(".hole-dot")).toHaveLength(6);
+  });
+
+  it("fills a closed hole and leaves an open one empty", () => {
+    // 筒音: every hole closed. The next note lifts the bottom finger.
+    const cards = chart().findAll(".hole-card");
+    expect(cards[0].findAll(".hole-dot.is-closed")).toHaveLength(6);
+    expect(cards[1].findAll(".hole-dot.is-closed")).toHaveLength(5);
+  });
+
+  it("marks the overblown octave with the technique that reaches it", () => {
+    const cards = chart().findAll(".hole-card");
+    const upper = cards[cards.length - 1];
+    expect(upper.find(".hole-key").exists()).toBe(true);
+  });
+
+  it("lights the note being blown", () => {
+    const preset = getPreset(dizi, dizi.tuning.defaultPresetId);
+    const wrapper = chart(new Set([preset.notes[2]]));
+    const lit = wrapper.findAll(".hole-card.is-down");
+    expect(lit).toHaveLength(1);
+  });
+
+  it("sounds while held and stops when let go", async () => {
+    const wrapper = chart();
+    const card = wrapper.findAll(".hole-card")[0];
+    await card.trigger("pointerdown");
+    await card.trigger("pointerup");
+    const midi = getPreset(dizi, dizi.tuning.defaultPresetId).notes[0];
+    expect(wrapper.emitted("down")?.[0]).toEqual([midi]);
+    expect(wrapper.emitted("up")?.[0]).toEqual([midi]);
   });
 });

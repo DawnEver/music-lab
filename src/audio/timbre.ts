@@ -30,7 +30,9 @@ export type TimbreId =
   | "hihatOpen"
   | "tom"
   | "crash"
-  | "ride";
+  | "ride"
+  | "flute"
+  | "reed";
 
 export interface Timbre {
   id: TimbreId;
@@ -52,8 +54,10 @@ export interface Timbre {
    * filter sweep.
    */
   ring?: number;
-  /** Present for sustaining timbres (organ, bowed); absent means a pluck. */
+  /** Present for sustaining timbres (organ, wind); absent means a pluck. */
   sustain?: number;
+  /** Relative gain of a noise layer riding on the note — breath. */
+  breath?: number;
   decay?: number;
   release?: number;
   /**
@@ -214,6 +218,35 @@ export const TIMBRES: Timbre[] = [
     release: 0.2
   },
   {
+    // A blown edge: mostly fundamental, held, and audibly breathy. The
+    // noise layer is not decoration — take it away and this is a sine.
+    id: "flute",
+    waveform: "sine",
+    gain: 0.3,
+    attack: 0.055,
+    decay: 0.06,
+    sustain: 0.86,
+    release: 0.09,
+    ring: 1.4,
+    breath: 0.1,
+    partials: [0.16, 0.06]
+  },
+  {
+    // A reed: odd harmonics through a resonant filter, with less air than
+    // a flute because the reed, not the edge, is making the sound.
+    id: "reed",
+    waveform: "sawtooth",
+    gain: 0.12,
+    attack: 0.03,
+    decay: 0.05,
+    sustain: 0.88,
+    release: 0.08,
+    ring: 1.4,
+    breath: 0.05,
+    partials: [0.5, 0.42, 0.3, 0.2, 0.12],
+    filter: { type: "lowpass", harmonic: 6, q: 1.4, envelope: 2 }
+  },
+  {
     // The ear trainer's tone: a bare sine is hard to hear an interval in.
     id: "singable",
     waveform: "sine",
@@ -261,6 +294,7 @@ export function timbreSpecAt(timbre: Timbre, frequency: number, duration: number
     glide: timbre.glide,
     partials: timbre.partials,
     sustain: timbre.sustain,
+    breath: timbre.breath,
     decay: timbre.decay,
     release: timbre.release,
     filter: timbre.filter

@@ -56,7 +56,7 @@ export type InstrumentLayout = "list" | "grid" | "fingering";
 
 export type HoleState = "closed" | "open" | "half";
 
-/** Closed set: the dictionary carries a `tuner.windKey.<key>` for each. */
+/** Closed set: the dictionary carries an `instrument.windKey.<key>` for each. */
 export type WindKey = "octave" | "overblow";
 
 /** How a wind instrument's holes and keys are held for one note. */
@@ -110,7 +110,8 @@ export interface LayoutVariant {
 export type PlaySurface =
   | { kind: "keys" }
   | { kind: "frets"; frets: number }
-  | { kind: "pads"; pieces: KitPiece[] };
+  | { kind: "pads"; pieces: KitPiece[] }
+  | { kind: "holes" };
 
 /** Closed set: the dictionary carries a `kit.<id>` for each. */
 export type KitPieceId =

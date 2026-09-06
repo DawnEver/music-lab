@@ -55,6 +55,11 @@ export interface VoiceSpec {
   decay?: number;
   /** Seconds from the sustain level to silence, at the end of the note. */
   release?: number;
+  /**
+   * Relative gain of a noise layer riding on the note. A flute without it
+   * is a sine: the breath is not decoration, it is most of the sound.
+   */
+  breath?: number;
   filter?: VoiceFilter;
 }
 
@@ -114,6 +119,21 @@ export function createVoicePlayer(
   const out = context.createGain();
   out.gain.value = volume;
   out.connect(destination);
+
+  /** A looping noise band an octave above the note, for breath. */
+  function breathSource(spec: VoiceSpec, at: number, destination: AudioNode) {
+    if (!noise) noise = noiseBuffer(context);
+    const source = context.createBufferSource();
+    source.buffer = noise;
+    source.loop = true;
+    const band = context.createBiquadFilter();
+    band.type = "highpass";
+    band.frequency.value = spec.frequency * 2;
+    source.connect(band);
+    band.connect(destination);
+    source.start(at);
+    return { source, band };
+  }
 
   function envelope(spec: VoiceSpec, at: number, gain: number): GainNode {
     const node = context.createGain();
@@ -242,6 +262,18 @@ export function createVoicePlayer(
         if (relative <= 0) return;
         tone(spec, at, spec.frequency * (index + 2), spec.gain * level * relative, level);
       });
+
+      if (spec.breath && spec.breath > 0) {
+        const total = voiceSeconds(spec);
+        const node = envelope(spec, at, spec.gain * level * spec.breath);
+        const { source, band } = breathSource(spec, at, node);
+        source.stop(at + total + 0.02);
+        source.onended = () => {
+          source.disconnect();
+          band.disconnect();
+          node.disconnect();
+        };
+      }
     },
     hold(spec: VoiceSpec, time: number, velocity = 1): HeldVoice {
       const at = Math.max(time, context.currentTime);
@@ -257,7 +289,7 @@ export function createVoicePlayer(
       const input = shaper ?? node;
 
       const parts: AudioNode[] = [];
-      const oscillators: OscillatorNode[] = [];
+      const sources: AudioScheduledSourceNode[] = [];
       const addTone = (harmonic: number, relative: number) => {
         const oscillator = context.createOscillator();
         oscillator.type = spec.waveform === "noise" ? "sine" : spec.waveform;
@@ -272,7 +304,7 @@ export function createVoicePlayer(
           parts.push(trim);
         }
         oscillator.start(at);
-        oscillators.push(oscillator);
+        sources.push(oscillator);
       };
 
       addTone(1, 1);
@@ -280,15 +312,24 @@ export function createVoicePlayer(
         if (relative > 0) addTone(index + 2, relative);
       });
 
+      if (spec.breath && spec.breath > 0) {
+        const trim = context.createGain();
+        trim.gain.value = spec.breath;
+        trim.connect(input);
+        const { source, band } = breathSource(spec, at, trim);
+        parts.push(trim, band);
+        sources.push(source);
+      }
+
       let endsAt = Infinity;
       const stop = (endAt: number) => {
         if (endAt >= endsAt) return;
         endsAt = endAt;
-        let alive = oscillators.length;
-        for (const oscillator of oscillators) {
-          oscillator.stop(endAt + 0.02);
-          oscillator.onended = () => {
-            oscillator.disconnect();
+        let alive = sources.length;
+        for (const source of sources) {
+          source.stop(endAt + 0.02);
+          source.onended = () => {
+            source.disconnect();
             alive -= 1;
             if (alive > 0) return;
             for (const part of parts) part.disconnect();

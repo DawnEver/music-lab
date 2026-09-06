@@ -67,6 +67,8 @@ export const saxophone = {
   id: "saxophone",
   name: { zh: "萨克斯", en: "Saxophone" },
   category: "winds",
+  timbre: "reed",
+  surface: { kind: "holes" },
   tuning: {
     layout: "fingering",
     defaultPresetId: "alto",

@@ -468,13 +468,35 @@ async function walkPlay(page, label) {
   await page.waitForSelector('[data-piece="kick"].is-hit', { timeout: 4000 });
   await assertNoHOverflow(page, `${label} pads`);
 
+  // Fourth surface: a wind is played through the same chart the tuner
+  // draws, and it is held rather than struck.
+  await page.locator(".value-chip").first().click();
+  await page.waitForSelector('[data-instrument="dizi"]', { timeout: 4000 });
+  await page.locator('[data-instrument="dizi"]').click();
+  await page.waitForSelector(".hole-chart", { timeout: 8000 });
+  await page.keyboard.press("Escape");
+  if ((await page.locator(".pad-grid").count()) !== 0) {
+    throw new Error(`${label}: a dizi should not draw pads`);
+  }
+  const cards = await page.locator(".hole-card").count();
+  if (cards !== 14) throw new Error(`${label}: expected two octaves of notes, got ${cards}`);
+  const dots = await page.locator(".hole-card").first().locator(".hole-dot").count();
+  if (dots !== 6) throw new Error(`${label}: a dizi has six holes, got ${dots}`);
+  await page.locator(".hole-card").first().dispatchEvent("pointerdown");
+  await page.waitForSelector(".hole-card.is-down", { timeout: 4000 });
+  await page.locator(".hole-card").first().dispatchEvent("pointerup");
+  await page.waitForFunction(() => document.querySelectorAll(".hole-card.is-down").length === 0, {
+    timeout: 4000
+  });
+  await assertNoHOverflow(page, `${label} winds`);
+
   // A play tool has no use for a microphone.
   if ((await page.locator(".audio-source").count()) !== 0) {
     throw new Error(`${label}: the play tool should not ask for a microphone`);
   }
 
   await assertNoHOverflow(page, `${label} fretboard`);
-  console.log(`✓ ${label}: keys, frets and pads all play, and fit their width`);
+  console.log(`✓ ${label}: keys, frets, pads and holes all play, and fit their width`);
 }
 
 /** Ear training: the whole loop is hear -> answer -> verdict -> next. */
