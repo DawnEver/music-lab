@@ -5,6 +5,8 @@ export const bass = {
   id: "bass",
   name: { zh: "贝斯", en: "Bass Guitar" },
   category: "plucked",
+  timbre: "bass",
+  surface: { kind: "frets", frets: 15 },
   tuning: {
     layout: "list",
     defaultPresetId: "standard4",

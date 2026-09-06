@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createPerformer } from "../src/features/keyboard/engine/performer.js";
+import { createPerformer } from "../src/features/play/engine/performer.js";
 import type { VoiceSpec, VoicePlayer } from "../src/audio/voice.js";
 
 /** A voice player that records what it was asked to hold. */

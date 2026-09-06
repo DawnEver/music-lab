@@ -8,8 +8,8 @@ import {
   keysForMidi,
   midiForKey,
   shiftBase
-} from "../src/features/keyboard/domain/keymap.js";
-import { isBlackKey, keyboardLayout } from "../src/features/keyboard/domain/layout.js";
+} from "../src/features/play/domain/keymap.js";
+import { isBlackKey, keyboardLayout } from "../src/features/play/domain/layout.js";
 
 describe("key map", () => {
   it("puts the two rows an octave apart", () => {

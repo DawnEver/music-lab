@@ -8,6 +8,8 @@ export const mandolin = {
   id: "mandolin",
   name: { zh: "曼陀林", en: "Mandolin" },
   category: "plucked",
+  timbre: "steel",
+  surface: { kind: "frets", frets: 15 },
   tuning: {
     layout: "list",
     defaultPresetId: "standard",

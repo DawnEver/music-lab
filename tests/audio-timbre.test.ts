@@ -46,14 +46,24 @@ describe("timbreSpec", () => {
 });
 
 describe("the keyboard family", () => {
-  it("offers a struck, a tine and a sustaining voice", () => {
-    expect(TIMBRES.map((entry) => entry.id)).toEqual(["piano", "epiano", "organ", "singable"]);
+  it("offers a struck, a tine, a sustaining and three plucked voices", () => {
+    expect(TIMBRES.map((entry) => entry.id)).toEqual([
+      "piano",
+      "epiano",
+      "organ",
+      "steel",
+      "nylon",
+      "bass",
+      "singable"
+    ]);
   });
 
   it("makes struck voices decay and the organ hold", () => {
     // A pluck has no sustain level: the note dies whether or not you let go.
     expect(getTimbre("piano").sustain).toBeUndefined();
     expect(getTimbre("epiano").sustain).toBeUndefined();
+    expect(getTimbre("steel").sustain).toBeUndefined();
+    expect(getTimbre("bass").sustain).toBeUndefined();
     expect(getTimbre("organ").sustain).toBeGreaterThan(0.5);
   });
 

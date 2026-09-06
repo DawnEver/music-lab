@@ -5,6 +5,8 @@ export const pipa = {
   id: "pipa",
   name: { zh: "琵琶", en: "Pipa" },
   category: "plucked",
+  timbre: "nylon",
+  surface: { kind: "frets", frets: 12 },
   tuning: {
     layout: "list",
     defaultPresetId: "standard",

@@ -16,7 +16,14 @@ import { midiToFrequency } from "../lib/music-theory.js";
 import type { VoiceFilter, VoiceSpec, Waveform } from "./voice.js";
 
 /** Closed set: the dictionary carries a `timbre.<id>` for each. */
-export type TimbreId = "piano" | "epiano" | "organ" | "singable";
+export type TimbreId =
+  | "piano"
+  | "epiano"
+  | "organ"
+  | "steel"
+  | "nylon"
+  | "bass"
+  | "singable";
 
 export interface Timbre {
   id: TimbreId;
@@ -91,6 +98,42 @@ export const TIMBRES: Timbre[] = [
     release: 0.07,
     ring: 1,
     partials: [0.7, 0.5, 0.6, 0.25, 0.4, 0.2]
+  },
+  {
+    // A steel string: struck hard and bright, with the top of the spectrum
+    // going first. The short attack is the pick, not the string.
+    id: "steel",
+    waveform: "sawtooth",
+    gain: 0.13,
+    attack: 0.003,
+    ring: 3,
+    release: 0.09,
+    partials: [0.42, 0.3, 0.2, 0.12, 0.07, 0.04],
+    filter: { type: "lowpass", harmonic: 7, q: 0.9, envelope: 4 }
+  },
+  {
+    // Nylon and silk: the same gesture with the highs already gone, which
+    // is a lower resting cutoff rather than fewer partials.
+    id: "nylon",
+    waveform: "triangle",
+    gain: 0.3,
+    attack: 0.008,
+    ring: 2.6,
+    release: 0.1,
+    partials: [0.42, 0.18, 0.09, 0.04],
+    filter: { type: "lowpass", harmonic: 4, q: 0.7, envelope: 2.5 }
+  },
+  {
+    // A bass string is nearly a fundamental: the partials that survive are
+    // the low ones, and it rings far longer than anything above it.
+    id: "bass",
+    waveform: "sine",
+    gain: 0.4,
+    attack: 0.006,
+    ring: 5,
+    release: 0.14,
+    partials: [0.45, 0.14, 0.05],
+    filter: { type: "lowpass", harmonic: 5, q: 0.8, envelope: 3 }
   },
   {
     // The ear trainer's tone: a bare sine is hard to hear an interval in.

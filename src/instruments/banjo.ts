@@ -9,6 +9,8 @@ export const banjo = {
   id: "banjo",
   name: { zh: "班卓琴", en: "Banjo" },
   category: "plucked",
+  timbre: "steel",
+  surface: { kind: "frets", frets: 17 },
   tuning: {
     layout: "list",
     defaultPresetId: "openG",

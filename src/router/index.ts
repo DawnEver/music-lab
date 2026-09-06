@@ -74,7 +74,7 @@ const routes: RouteRecordRaw[] = [
   {
     path: "/play",
     name: "play",
-    component: () => import("../features/keyboard/KeyboardView.vue")
+    component: () => import("../features/play/PlayView.vue")
   },
   { path: "/", redirect: "/tune" },
   { path: "/tuning", redirect: "/tune" },

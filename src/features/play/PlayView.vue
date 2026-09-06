@@ -2,37 +2,47 @@
 /**
  * Play a note.
  *
- * One focus that never scrolls: the keyboard. Everything that is set once
- * and then played — timbre, level — hides behind the value it changes;
- * the octave is on screen because it is part of the loop, not before it.
+ * One tool, one focus: the instrument's own surface, which never scrolls.
+ * The instrument decides what is drawn and what is heard, so there is no
+ * timbre control to contradict its name — and the octave shift is on
+ * screen only where it is part of the loop, which is the keyed surface.
  */
 import { computed, onBeforeUnmount, onMounted } from "vue";
 import { useI18n } from "../../composables/useI18n.js";
 import ControlSheet, { closeAllSheets } from "../../shared/components/ControlSheet.vue";
 import PianoKeys from "./components/PianoKeys.vue";
-import TimbreControl from "./components/TimbreControl.vue";
+import FretBoard from "./components/FretBoard.vue";
+import PlayControl from "./components/PlayControl.vue";
 import { keymapSpan, midiForKey } from "./domain/keymap.js";
 import {
   allNotesOff,
-  hydrateKeyboard,
+  hydratePlay,
+  instrument,
   noteOff,
   noteOn,
-  releaseKeyboard,
+  preset,
+  releasePlay,
   settings,
   shiftOctave,
   sounding
-} from "./stores/keyboard.js";
+} from "./stores/play.js";
 
-const { t } = useI18n();
+const { t, lang } = useI18n();
 
 const span = keymapSpan();
 const lowMidi = computed(() => settings.baseMidi + span.low);
 const highMidi = computed(() => settings.baseMidi + span.high);
 
-const octaveLabel = computed(() => `C${Math.floor(settings.baseMidi / 12) - 1}`);
-const soundValue = computed(
-  () => `${t(`timbre.${settings.timbreId}`)} · ${Math.round(settings.volume * 100)}%`
+const isKeys = computed(() => instrument.value.surface.kind === "keys");
+const frets = computed(() =>
+  instrument.value.surface.kind === "frets" ? instrument.value.surface.frets : 0
 );
+
+const octaveLabel = computed(() => `C${Math.floor(settings.baseMidi / 12) - 1}`);
+const setupValue = computed(() => {
+  const name = instrument.value.name[lang.value];
+  return preset.value ? `${name} · ${preset.value.name[lang.value]}` : name;
+});
 
 /** Auto-repeat must not retrigger: a held key is one note, not forty. */
 function onKeydown(event: KeyboardEvent): void {
@@ -41,11 +51,13 @@ function onKeydown(event: KeyboardEvent): void {
   if (event.metaKey || event.ctrlKey || event.altKey) return;
 
   if (event.code === "ArrowLeft" || event.code === "ArrowRight") {
+    if (!isKeys.value) return;
     event.preventDefault();
     shiftOctave(event.code === "ArrowRight" ? 1 : -1);
     return;
   }
 
+  if (!isKeys.value) return;
   const midi = midiForKey(event.code, settings.baseMidi);
   if (midi === null) return;
   event.preventDefault();
@@ -54,6 +66,7 @@ function onKeydown(event: KeyboardEvent): void {
 }
 
 function onKeyup(event: KeyboardEvent): void {
+  if (!isKeys.value) return;
   const midi = midiForKey(event.code, settings.baseMidi);
   if (midi !== null) noteOff(midi);
 }
@@ -64,7 +77,7 @@ function onBlur(): void {
 }
 
 onMounted(() => {
-  hydrateKeyboard();
+  hydratePlay();
   window.addEventListener("keydown", onKeydown);
   window.addEventListener("keyup", onKeyup);
   window.addEventListener("blur", onBlur);
@@ -75,26 +88,26 @@ onBeforeUnmount(() => {
   window.removeEventListener("keyup", onKeyup);
   window.removeEventListener("blur", onBlur);
   closeAllSheets();
-  releaseKeyboard();
+  releasePlay();
 });
 </script>
 
 <template>
-  <section class="card kbd-stage" data-tool="play">
-    <div class="kbd-octave">
+  <section class="card play-stage" data-tool="play">
+    <div v-if="isKeys" class="kbd-octave">
       <button
         type="button"
         class="kbd-octave-btn"
-        :aria-label="t('kbdOctaveDown')"
+        :aria-label="t('playOctaveDown')"
         @click="shiftOctave(-1)"
       >
         −
       </button>
-      <span class="kbd-octave-value">{{ t("kbdOctave") }} {{ octaveLabel }}</span>
+      <span class="kbd-octave-value">{{ t("playOctave") }} {{ octaveLabel }}</span>
       <button
         type="button"
         class="kbd-octave-btn"
-        :aria-label="t('kbdOctaveUp')"
+        :aria-label="t('playOctaveUp')"
         @click="shiftOctave(1)"
       >
         +
@@ -102,6 +115,7 @@ onBeforeUnmount(() => {
     </div>
 
     <PianoKeys
+      v-if="isKeys"
       :low-midi="lowMidi"
       :high-midi="highMidi"
       :base-midi="settings.baseMidi"
@@ -109,14 +123,22 @@ onBeforeUnmount(() => {
       @down="(midi: number) => noteOn(midi)"
       @up="noteOff"
     />
+    <FretBoard
+      v-else-if="preset"
+      :preset="preset"
+      :frets="frets"
+      :sounding="sounding"
+      @down="(midi: number) => noteOn(midi)"
+      @up="noteOff"
+    />
 
-    <p class="kbd-hint">{{ t("kbdHint") }}</p>
+    <p class="kbd-hint">{{ isKeys ? t("playKeysHint") : t("playFretsHint") }}</p>
   </section>
 
   <!-- Outside the card: .card clips, and a sheet must not be clipped. -->
   <div class="metro-chip-row">
-    <ControlSheet name="timbre" :label="t('kbdSoundTitle')" :value="soundValue">
-      <TimbreControl />
+    <ControlSheet name="setup" :label="t('playSetupTitle')" :value="setupValue">
+      <PlayControl />
     </ControlSheet>
   </div>
 </template>

@@ -3038,13 +3038,6 @@
 /* Keyboard tool — the keys are positioned, not flowed: a black key
    straddles the boundary between two white ones, which no flex row can
    express. Widths arrive as percentages from the layout. */
-.kbd-stage {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 14px;
-}
-
 .kbd-octave {
   display: flex;
   align-items: center;
@@ -3148,5 +3141,107 @@
 
   .kbd-cap {
     display: none;
+  }
+}
+
+/* Fretboard — rows are strings, columns are frets. The open string gets
+   its own column because it is played, not fretted. */
+.fret-board {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  user-select: none;
+  touch-action: none;
+}
+
+.fret-row {
+  display: grid;
+  grid-template-columns: 28px repeat(var(--fret-count), minmax(0, 1fr));
+  gap: 3px;
+  align-items: stretch;
+}
+
+.fret-label {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+.fret-number {
+  text-align: center;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--muted-2);
+  padding-bottom: 2px;
+}
+
+.fret-number[data-inlay="single"],
+.fret-number[data-inlay="double"] {
+  color: var(--accent-2);
+  font-weight: 700;
+}
+
+.fret-cell {
+  position: relative;
+  min-height: 34px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--glass);
+  cursor: pointer;
+  transition: background 0.06s ease, border-color 0.06s ease;
+}
+
+/* The open string is a different gesture, so it reads differently. */
+.fret-cell.is-open {
+  border-style: dashed;
+}
+
+.fret-cell:hover {
+  border-color: var(--accent-2);
+}
+
+.fret-cell.is-down {
+  background: linear-gradient(180deg, var(--accent-2), var(--accent));
+  border-color: transparent;
+}
+
+.fret-dot {
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: transparent;
+}
+
+.fret-cell.is-down .fret-dot {
+  background: rgba(11, 13, 18, 0.55);
+}
+
+.play-stage {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+}
+
+@media (max-width: 720px) {
+  .fret-row {
+    grid-template-columns: 22px repeat(var(--fret-count), minmax(0, 1fr));
+    gap: 2px;
+  }
+
+  .fret-cell {
+    min-height: 26px;
+  }
+
+  .fret-number {
+    font-size: 9px;
   }
 }

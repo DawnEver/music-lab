@@ -17,12 +17,13 @@ import { tuning } from "./dictionaries/tuning.js";
 import { metronome } from "./dictionaries/metronome.js";
 import { trace } from "./dictionaries/trace.js";
 import { ear } from "./dictionaries/ear.js";
-import { keyboard } from "./dictionaries/keyboard.js";
+import { play } from "./dictionaries/play.js";
+import { instruments } from "./dictionaries/instruments.js";
 
 export type Lang = "zh" | "en";
 
-const zh = { ...shell.zh, ...tuning.zh, ...metronome.zh, ...trace.zh, ...ear.zh, ...keyboard.zh };
-const en = { ...shell.en, ...tuning.en, ...metronome.en, ...trace.en, ...ear.en, ...keyboard.en };
+const zh = { ...shell.zh, ...tuning.zh, ...metronome.zh, ...trace.zh, ...ear.zh, ...play.zh, ...instruments.zh };
+const en = { ...shell.en, ...tuning.en, ...metronome.en, ...trace.en, ...ear.en, ...play.en, ...instruments.en };
 
 export type MessageKey = keyof typeof zh;
 

@@ -10,6 +10,7 @@
 import { chromium } from "playwright-core";
 import { spawn } from "node:child_process";
 import { once } from "node:events";
+import { fileURLToPath } from "node:url";
 
 
 const PORT = process.env.SMOKE_PORT ?? "5199";
@@ -23,11 +24,17 @@ const BASE_URL = process.env.SMOKE_URL ?? `http://localhost:${PORT}`;
 async function startDevServer() {
   if (process.env.SMOKE_URL) return () => {};
 
-  // npx is a .cmd on Windows, which spawn will not find without a shell.
-  const server = spawn("npx", ["vite", "--port", PORT, "--strictPort"], {
-    stdio: ["ignore", "pipe", "pipe"],
-    shell: process.platform === "win32"
+  // Run vite's entry through this same node rather than through npx: the
+  // launcher is a .cmd on Windows, which needs a shell, and killing the
+  // shell leaves the real server holding the port.
+  const viteBin = fileURLToPath(new URL("../node_modules/vite/bin/vite.js", import.meta.url));
+  const server = spawn(process.execPath, [viteBin, "--port", PORT, "--strictPort"], {
+    stdio: ["ignore", "pipe", "pipe"]
   });
+  // Both pipes must be drained. An undrained stderr fills its buffer and
+  // blocks the server mid-run, which reads as the whole test hanging.
+  const serverErrors = [];
+  server.stderr.on("data", (chunk) => serverErrors.push(String(chunk)));
   const stop = () => {
     if (!server.killed) server.kill("SIGTERM");
   };
@@ -43,7 +50,7 @@ async function startDevServer() {
     });
     server.on("exit", (code) => {
       clearTimeout(timer);
-      reject(new Error(`dev server exited with code ${code}`));
+      reject(new Error(`dev server exited with code ${code}: ${serverErrors.join("")}`));
     });
   });
 
@@ -359,31 +366,28 @@ async function walkTrace(page, label, { live = false } = {}) {
   await gotoTool(page, "tune");
 }
 
-/** The keyboard: geometry only a browser can answer, plus it must sound. */
-async function walkKeyboard(page, label) {
+/** The play tool: two surfaces, and geometry only a browser can answer. */
+async function walkPlay(page, label) {
   await gotoTool(page, "play");
   await page.waitForSelector(".kbd-key", { timeout: 8000 });
 
   const keys = await page.locator(".kbd-key").count();
   if (keys !== 32) throw new Error(`${label}: expected 32 keys, got ${keys}`);
 
-  // Black keys must sit above the white ones and inside the keyboard.
+  // Black keys must be narrower and shorter, and stay inside the board.
   const board = await page.locator(".kbd-keys").boundingBox();
   const black = await page.locator(".kbd-key.is-black").first().boundingBox();
   const white = await page.locator(".kbd-key:not(.is-black)").first().boundingBox();
   if (!board || !black || !white) throw new Error(`${label}: missing keyboard geometry`);
-  if (!(black.width < white.width)) {
-    throw new Error(`${label}: a black key should be narrower than a white one`);
-  }
-  if (!(black.height < white.height)) {
-    throw new Error(`${label}: a black key should be shorter than a white one`);
+  if (!(black.width < white.width && black.height < white.height)) {
+    throw new Error(`${label}: a black key should be narrower and shorter than a white one`);
   }
   const last = await page.locator(".kbd-key").last().boundingBox();
   if (last.x + last.width > board.x + board.width + 1) {
     throw new Error(`${label}: the keyboard runs past its own width`);
   }
 
-  // Pressing a key lights it and, when released, lets it go.
+  // Pressing a key lights it, and releasing lets it go.
   await page.locator(".kbd-key").first().dispatchEvent("pointerdown");
   await page.waitForSelector(".kbd-key.is-down", { timeout: 4000 });
   await page.locator(".kbd-key").first().dispatchEvent("pointerup");
@@ -398,34 +402,57 @@ async function walkKeyboard(page, label) {
   if (down !== 1) throw new Error(`${label}: one key held should light one key, got ${down}`);
   await page.keyboard.up("z");
 
-  // Octave shift moves the labels, and nothing hangs.
+  // Octave shift moves the labels and hangs nothing.
   const before = await page.locator(".kbd-octave-value").innerText();
   await page.locator(".kbd-octave-btn").last().click();
-  const after = await page.locator(".kbd-octave-value").innerText();
-  if (before === after) throw new Error(`${label}: octave shift did nothing`);
+  if ((await page.locator(".kbd-octave-value").innerText()) === before) {
+    throw new Error(`${label}: octave shift did nothing`);
+  }
   if ((await page.locator(".kbd-key.is-down").count()) !== 0) {
     throw new Error(`${label}: shifting octaves must not leave notes hanging`);
   }
-
-  // Timbre is set once and then played, so it hides behind its own value.
-  await page.locator('[data-sheet="timbre"] .value-chip, .value-chip').first().click();
-  await page.waitForSelector(".metro-chip", { timeout: 4000 });
-  const timbres = await page.locator(".metro-chip").count();
-  if (timbres !== 4) throw new Error(`${label}: expected 4 timbres, got ${timbres}`);
-  await page.locator(".metro-chip").nth(2).click();
-  const chipValue = await page.locator(".value-chip").first().innerText();
-  if (!/Organ|风琴/.test(chipValue)) {
-    throw new Error(`${label}: the chip should show the chosen timbre, got "${chipValue}"`);
-  }
-  await page.keyboard.press("Escape");
-
-  // A keyboard has no use for a microphone.
-  if ((await page.locator(".audio-source").count()) !== 0) {
-    throw new Error(`${label}: the keyboard should not ask for a microphone`);
-  }
-
   await assertNoHOverflow(page, `${label} keyboard`);
-  console.log(`✓ ${label}: keyboard plays, shifts octave and fits its width`);
+
+  // The instrument decides the surface: switching to a guitar draws a
+  // fretboard, and its own tunings come with it.
+  await page.locator(".value-chip").first().click();
+  await page.waitForSelector('[data-instrument="guitar"]', { timeout: 4000 });
+  await page.locator('[data-instrument="guitar"]').click();
+  await page.waitForSelector(".fret-board", { timeout: 8000 });
+  if ((await page.locator(".kbd-key").count()) !== 0) {
+    throw new Error(`${label}: a guitar should not draw a keyboard`);
+  }
+  if ((await page.locator(".kbd-octave").count()) !== 0) {
+    throw new Error(`${label}: octave shift belongs to the keyed surface only`);
+  }
+
+  const rows = await page.locator(".fret-row").count();
+  if (rows !== 7) throw new Error(`${label}: expected 6 strings and a number row, got ${rows}`);
+
+  // The tuning row appears only because a guitar has alternate tunings.
+  const tunings = await page.locator("[data-preset]").count();
+  if (tunings < 2) throw new Error(`${label}: expected the guitar's tunings, got ${tunings}`);
+  await page.locator('[data-preset="dropD"]').click();
+  await page.keyboard.press("Escape");
+  const lowest = page.locator(".fret-row").last().locator(".fret-cell").first();
+  if ((await lowest.getAttribute("aria-label")) !== "D2") {
+    throw new Error(`${label}: Drop D should restring the lowest row`);
+  }
+
+  await page.locator(".fret-cell").first().dispatchEvent("pointerdown");
+  await page.waitForSelector(".fret-cell.is-down", { timeout: 4000 });
+  // The same note appears at more than one place on a fretboard.
+  const lit = await page.locator(".fret-cell.is-down").count();
+  if (lit < 1) throw new Error(`${label}: pressing a fret should light it`);
+  await page.locator(".fret-cell").first().dispatchEvent("pointerup");
+
+  // A play tool has no use for a microphone.
+  if ((await page.locator(".audio-source").count()) !== 0) {
+    throw new Error(`${label}: the play tool should not ask for a microphone`);
+  }
+
+  await assertNoHOverflow(page, `${label} fretboard`);
+  console.log(`✓ ${label}: keyboard and fretboard both play, and fit their width`);
 }
 
 /** Ear training: the whole loop is hear -> answer -> verdict -> next. */
@@ -747,7 +774,7 @@ try {
   await walkTrace(desktop, "desktop", { live: true });
   await walkEar(desktop, "desktop", { fullRep: true });
   await walkMetronome(desktop, "desktop", { expectSingleScreen: true });
-  await walkKeyboard(desktop, "desktop");
+  await walkPlay(desktop, "desktop");
 
   // ---- Mobile ----
   const mobile = await browser.newPage({ viewport: { width: 375, height: 667 } });
@@ -767,7 +794,7 @@ try {
   await walkTrace(mobile, "mobile");
   await walkEar(mobile, "mobile");
   await walkMetronome(mobile, "mobile");
-  await walkKeyboard(mobile, "mobile");
+  await walkPlay(mobile, "mobile");
 
   await mobile.close();
   await desktop.close();

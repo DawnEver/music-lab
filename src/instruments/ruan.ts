@@ -14,6 +14,8 @@ export const ruan = {
   id: "ruan",
   name: { zh: "阮", en: "Ruan" },
   category: "plucked",
+  timbre: "nylon",
+  surface: { kind: "frets", frets: 12 },
   tuning: {
     layout: "list",
     defaultPresetId: "zhong",

@@ -5,6 +5,8 @@ export const liuqin = {
   id: "liuqin",
   name: { zh: "柳琴", en: "Liuqin" },
   category: "plucked",
+  timbre: "nylon",
+  surface: { kind: "frets", frets: 12 },
   tuning: {
     layout: "list",
     defaultPresetId: "standard",

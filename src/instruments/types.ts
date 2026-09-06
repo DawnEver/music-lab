@@ -40,7 +40,7 @@ export interface PitchBounds {
 }
 
 /** Grouping in the instrument picker, by how the instrument is sounded. */
-export type InstrumentCategory = "plucked" | "bowed" | "winds" | "other";
+export type InstrumentCategory = "keys" | "plucked" | "bowed" | "winds" | "other";
 /**
  * How the targets are presented: a list of rows (one pitch each), a
  * hole x breath grid (harmonica), or a fingering chart (winds, where a
@@ -96,8 +96,14 @@ export interface LayoutVariant {
   reeds: HarmonicaLayout;
 }
 
-/** How an instrument is played, and therefore how it is drawn. */
-export type PlaySurface = "keys" | "frets" | "pads";
+/**
+ * How an instrument is played, and therefore how it is drawn. A union
+ * rather than a flag: a fretboard needs a fret count and a keyboard does
+ * not, and the two should not both carry the other's fields.
+ */
+export type PlaySurface =
+  | { kind: "keys" }
+  | { kind: "frets"; frets: number };
 
 /** Everything the tuner needs. Absent means the instrument is not tuned. */
 export interface InstrumentTuning {

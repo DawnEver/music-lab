@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { mount } from "@vue/test-utils";
-import PianoKeys from "../../src/features/keyboard/components/PianoKeys.vue";
+import PianoKeys from "../../src/features/play/components/PianoKeys.vue";
+import FretBoard from "../../src/features/play/components/FretBoard.vue";
+import { getPreset, getTunedInstrument } from "../../src/instruments/index.js";
 import { setLang } from "../../src/lib/i18n/index.js";
 
 setLang("en");
@@ -82,5 +84,66 @@ describe("PianoKeys", () => {
     const wrapper = keyboard();
     const notes = wrapper.findAll(".kbd-note").map((node) => node.text());
     expect(notes).toEqual(["C3", "C4", "C5"]);
+  });
+});
+
+describe("FretBoard", () => {
+  const guitar = getTunedInstrument("guitar")!;
+
+  function board(presetId = "standard", frets = 5, sounding = new Set<number>()) {
+    return mount(FretBoard, { props: { preset: getPreset(guitar, presetId), frets, sounding } });
+  }
+
+  it("draws one row per string and one cell per fret, open included", () => {
+    const wrapper = board();
+    expect(wrapper.findAll(".fret-row")).toHaveLength(7); // 6 strings + the number row
+    expect(wrapper.findAll(".fret-cell")).toHaveLength(6 * 6);
+  });
+
+  it("puts the first string on top and labels every row", () => {
+    const labels = board().findAll(".fret-label").map((node) => node.text());
+    expect(labels).toEqual(["", "1", "2", "3", "4", "5", "6"]);
+  });
+
+  it("names each cell by the note it sounds", () => {
+    const cells = board().findAll(".fret-cell");
+    expect(cells[0].attributes("aria-label")).toBe("E4");
+    expect(cells[1].attributes("aria-label")).toBe("F4");
+  });
+
+  it("marks the open string as played rather than fretted", () => {
+    const wrapper = board();
+    expect(wrapper.findAll(".fret-cell.is-open")).toHaveLength(6);
+  });
+
+  it("lights every place a sounding note can be played", () => {
+    // E4 is the open first string and the fifth fret of the second.
+    const wrapper = board("standard", 5, new Set([64]));
+    expect(wrapper.findAll(".fret-cell.is-down")).toHaveLength(2);
+  });
+
+  it("follows the chosen tuning", () => {
+    const dropD = board("dropD");
+    const rows = dropD.findAll(".fret-row");
+    const lowest = rows[rows.length - 1].findAll(".fret-cell")[0];
+    expect(lowest.attributes("aria-label")).toBe("D2");
+  });
+
+  it("emits down on press and up on release", async () => {
+    const wrapper = board();
+    const cell = wrapper.findAll(".fret-cell")[0];
+    await cell.trigger("pointerdown");
+    await cell.trigger("pointerup");
+    expect(wrapper.emitted("down")?.[0]).toEqual([64]);
+    expect(wrapper.emitted("up")?.[0]).toEqual([64]);
+  });
+
+  it("slides under a held pointer only", async () => {
+    const wrapper = board();
+    const cell = wrapper.findAll(".fret-cell")[1];
+    await cell.trigger("pointerenter", { buttons: 0 });
+    expect(wrapper.emitted("down")).toBeUndefined();
+    await cell.trigger("pointerenter", { buttons: 1 });
+    expect(wrapper.emitted("down")?.[0]).toEqual([65]);
   });
 });

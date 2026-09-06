@@ -9,6 +9,8 @@ export const ukulele = {
   id: "ukulele",
   name: { zh: "尤克里里", en: "Ukulele" },
   category: "plucked",
+  timbre: "nylon",
+  surface: { kind: "frets", frets: 15 },
   tuning: {
     layout: "list",
     defaultPresetId: "standard",

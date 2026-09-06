@@ -32,12 +32,17 @@ import { kalimba } from "./kalimba.js";
 import { dizi } from "./dizi.js";
 import { xiao } from "./xiao.js";
 import { saxophone } from "./saxophone.js";
+import { piano, electricPiano, organ } from "./keyboards.js";
 
 export * from "./types.js";
 export * from "./targets.js";
 
 /** Picker order: by category, western before Chinese inside each group. */
 export const allInstruments: InstrumentDefinition[] = [
+  // keys
+  piano,
+  electricPiano,
+  organ,
   // plucked
   guitar,
   bass,
@@ -67,7 +72,13 @@ export const allInstruments: InstrumentDefinition[] = [
 ];
 
 /** Group order of the instrument picker. */
-export const instrumentCategories: InstrumentCategory[] = ["plucked", "bowed", "winds", "other"];
+export const instrumentCategories: InstrumentCategory[] = [
+  "keys",
+  "plucked",
+  "bowed",
+  "winds",
+  "other"
+];
 
 /**
  * An instrument the tuner can work with. Narrowing by capability rather
@@ -97,6 +108,23 @@ export function instrumentsByCategory(
 
 export function getInstrument(id: string): InstrumentDefinition | null {
   return allInstruments.find((instrument) => instrument.id === id) ?? null;
+}
+
+/** An instrument with something to play on. */
+export type PlayableInstrument = InstrumentDefinition & {
+  surface: NonNullable<InstrumentDefinition["surface"]>;
+  timbre: NonNullable<InstrumentDefinition["timbre"]>;
+};
+
+export function isPlayable(instrument: InstrumentDefinition): instrument is PlayableInstrument {
+  return instrument.surface !== undefined && instrument.timbre !== undefined;
+}
+
+/** Everything the play tool offers, in picker order. */
+export const playableInstruments: PlayableInstrument[] = allInstruments.filter(isPlayable);
+
+export function getPlayableInstrument(id: string): PlayableInstrument | null {
+  return playableInstruments.find((instrument) => instrument.id === id) ?? null;
 }
 
 export function getTunedInstrument(id: string): TunedInstrument | null {

@@ -5,6 +5,8 @@ export const guitar = {
   id: "guitar",
   name: { zh: "吉他", en: "Guitar" },
   category: "plucked",
+  timbre: "steel",
+  surface: { kind: "frets", frets: 15 },
   tuning: {
     layout: "list",
     defaultPresetId: "standard",

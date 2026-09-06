@@ -18,7 +18,7 @@ const instrumentItems = computed(() =>
     const items = instrumentsByCategory(category, tunedInstruments);
     if (!items.length) return [];
     return [
-      { type: "subheader" as const, title: t(`tuner.category.${category}`) },
+      { type: "subheader" as const, title: t(`instrument.category.${category}`) },
       ...items.map((instrument) => ({ title: instrument.name[lang.value], value: instrument.id }))
     ];
   })
