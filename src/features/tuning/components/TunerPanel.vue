@@ -29,8 +29,8 @@ onBeforeUnmount(() => tuner.deactivateTuner());
     <div class="tuner-main">
       <TunerBigNeedle />
 
-      <StringsPanel v-if="tuner.instrument.value?.layout === 'list'" />
-      <FingeringPanel v-else-if="tuner.instrument.value?.layout === 'fingering'" />
+      <StringsPanel v-if="tuner.instrument.value?.tuning.layout === 'list'" />
+      <FingeringPanel v-else-if="tuner.instrument.value?.tuning.layout === 'fingering'" />
       <HarmonicaPanel v-else />
     </div>
 

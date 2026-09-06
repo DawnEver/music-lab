@@ -18,17 +18,19 @@ function makePreset(id: string, name: { zh: string; en: string }, notes: number[
   return { id, name, notes, noteLabels: GUQIN_STRINGS };
 }
 
-export const guqin: InstrumentDefinition = {
+export const guqin = {
   id: "guqin",
   name: { zh: "古琴", en: "Guqin" },
   category: "plucked",
-  layout: "list",
-  defaultPresetId: "zheng",
-  presets: [
-    makePreset("zheng", { zh: "正调 (仲吕调)", en: "Standard" }, [36, 38, 41, 43, 45, 48, 50]),
-    makePreset("man1", { zh: "慢一弦 (慢角调)", en: "Slow 1st string" }, [35, 38, 41, 43, 45, 48, 50]),
-    makePreset("man3", { zh: "慢三弦 (慢宫调)", en: "Slow 3rd string" }, [36, 38, 40, 43, 45, 48, 50]),
-    makePreset("jin5", { zh: "紧五弦 (蕤宾调)", en: "Tight 5th string" }, [36, 38, 41, 43, 46, 48, 50]),
-    makePreset("jin25", { zh: "紧二五弦 (清商调)", en: "Tight 2nd & 5th" }, [36, 39, 41, 43, 46, 48, 50])
-  ]
-};
+  tuning: {
+    layout: "list",
+    defaultPresetId: "zheng",
+    presets: [
+      makePreset("zheng", { zh: "正调 (仲吕调)", en: "Standard" }, [36, 38, 41, 43, 45, 48, 50]),
+      makePreset("man1", { zh: "慢一弦 (慢角调)", en: "Slow 1st string" }, [35, 38, 41, 43, 45, 48, 50]),
+      makePreset("man3", { zh: "慢三弦 (慢宫调)", en: "Slow 3rd string" }, [36, 38, 40, 43, 45, 48, 50]),
+      makePreset("jin5", { zh: "紧五弦 (蕤宾调)", en: "Tight 5th string" }, [36, 38, 41, 43, 46, 48, 50]),
+      makePreset("jin25", { zh: "紧二五弦 (清商调)", en: "Tight 2nd & 5th" }, [36, 39, 41, 43, 46, 48, 50])
+    ]
+  }
+} satisfies InstrumentDefinition;

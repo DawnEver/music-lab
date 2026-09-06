@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
   allInstruments,
   getInstrument,
+  getTunedInstrument,
+  tunedInstruments,
   getPreset,
   nearestTarget,
   stringStatus,
@@ -11,6 +13,7 @@ import {
   instrumentsByCategory
 } from "../src/instruments/index.js";
 import { harmonica } from "../src/instruments/harmonica.js";
+import { TIMBRES } from "../src/audio/timbre.js";
 import { midiToFrequency, frequencyToMidi } from "../src/lib/music-theory.js";
 
 describe("registry", () => {
@@ -18,21 +21,21 @@ describe("registry", () => {
     const ids = allInstruments.map((instrument) => instrument.id);
     expect(new Set(ids).size).toBe(ids.length);
 
-    for (const instrument of allInstruments) {
-      const presetIds = instrument.presets.map((preset) => preset.id);
+    for (const instrument of tunedInstruments) {
+      const presetIds = instrument.tuning.presets.map((preset) => preset.id);
       expect(new Set(presetIds).size).toBe(presetIds.length);
-      expect(presetIds).toContain(instrument.defaultPresetId);
-      if (instrument.presets[0].noteLabels) {
-        expect(instrument.presets[0].noteLabels!.length).toBe(instrument.presets[0].notes.length);
+      expect(presetIds).toContain(instrument.tuning.defaultPresetId);
+      if (instrument.tuning.presets[0].noteLabels) {
+        expect(instrument.tuning.presets[0].noteLabels!.length).toBe(instrument.tuning.presets[0].notes.length);
       }
     }
   });
 
   it("the derived detector band covers every pitch the instrument can make", () => {
-    for (const instrument of allInstruments) {
+    for (const instrument of tunedInstruments) {
       const range = deriveRange(instrument);
-      const variants = instrument.variants ?? [null];
-      for (const preset of instrument.presets) {
+      const variants = instrument.tuning.variants ?? [null];
+      for (const preset of instrument.tuning.presets) {
         for (const variant of variants) {
           for (const target of buildTargets(instrument, preset, variant?.reeds)) {
             for (const position of target.positions) {
@@ -51,13 +54,13 @@ describe("registry", () => {
   });
 
   it("every preset labels every note, and every instrument sits in a picker group", () => {
-    for (const instrument of allInstruments) {
+    for (const instrument of tunedInstruments) {
       expect(instrumentCategories).toContain(instrument.category);
-      for (const preset of instrument.presets) {
+      for (const preset of instrument.tuning.presets) {
         expect(preset.notes.length).toBeGreaterThan(0);
         if (preset.noteLabels) expect(preset.noteLabels.length).toBe(preset.notes.length);
       }
-      if (instrument.layout === "grid") expect(instrument.reeds).toBeTruthy();
+      if (instrument.tuning.layout === "grid") expect(instrument.tuning.reeds).toBeTruthy();
     }
     // The grouped picker shows each instrument exactly once.
     const grouped = instrumentCategories.flatMap((category) => instrumentsByCategory(category));
@@ -67,8 +70,34 @@ describe("registry", () => {
   });
 });
 
+describe("capabilities", () => {
+  it("every instrument declares at least one thing it can do", () => {
+    for (const instrument of allInstruments) {
+      const capable = Boolean(instrument.tuning || instrument.surface);
+      expect(capable, `${instrument.id} does nothing`).toBe(true);
+    }
+  });
+
+  it("the tuner list is exactly the instruments that can be tuned", () => {
+    expect(tunedInstruments.map((entry) => entry.id)).toEqual(
+      allInstruments.filter((entry) => entry.tuning).map((entry) => entry.id)
+    );
+    for (const instrument of tunedInstruments) {
+      expect(getTunedInstrument(instrument.id)).toBe(instrument);
+    }
+  });
+
+  it("anything with a playing surface names the voice it plays with", () => {
+    for (const instrument of allInstruments) {
+      if (!instrument.surface) continue;
+      expect(instrument.timbre, `${instrument.id} has a surface but no timbre`).toBeTruthy();
+      expect(TIMBRES.map((entry) => entry.id)).toContain(instrument.timbre);
+    }
+  });
+});
+
 describe("added instruments (tunings are locked data)", () => {
-  const notes = (id: string, presetId: string) => getPreset(getInstrument(id)!, presetId).notes;
+  const notes = (id: string, presetId: string) => getPreset(getTunedInstrument(id)!, presetId).notes;
 
   it("bowed family runs in fifths, the double bass in fourths", () => {
     expect(notes("violin", "standard")).toEqual([55, 62, 69, 76]); // G3 D4 A4 E5
@@ -124,7 +153,7 @@ describe("added instruments (tunings are locked data)", () => {
 });
 
 describe("guitar", () => {
-  const guitar = getInstrument("guitar")!;
+  const guitar = getTunedInstrument("guitar")!;
 
   it("standard tuning is E2 A2 D3 G3 B3 E4", () => {
     expect(getPreset(guitar, "standard").notes).toEqual([40, 45, 50, 55, 59, 64]);
@@ -136,7 +165,7 @@ describe("guitar", () => {
 });
 
 describe("guzheng", () => {
-  const guzheng = getInstrument("guzheng")!;
+  const guzheng = getTunedInstrument("guzheng")!;
 
   it("D 调 has 21 strings D2..D6 pentatonic (ascending)", () => {
     const notes = getPreset(guzheng, "dTune").notes;
@@ -155,7 +184,7 @@ describe("guzheng", () => {
 });
 
 describe("guqin", () => {
-  const guqin = getInstrument("guqin")!;
+  const guqin = getTunedInstrument("guqin")!;
 
   it("the five 调式 tables are exact", () => {
     expect(getPreset(guqin, "zheng").notes).toEqual([36, 38, 41, 43, 45, 48, 50]); // C2 D2 F2 G2 A2 C3 D3
@@ -226,7 +255,7 @@ describe("harmonica", () => {
   });
 
   it("every key builds 20 targets (10 holes × blow/draw)", () => {
-    for (const preset of harmonica.presets) {
+    for (const preset of harmonica.tuning.presets) {
       const targets = buildTargets(harmonica, preset);
       expect(targets).toHaveLength(20);
       expect(new Set(targets.map((target) => target.id)).size).toBe(20);
@@ -236,7 +265,7 @@ describe("harmonica", () => {
 
 describe("nearestTarget / stringStatus", () => {
   const guitarTargets = () => {
-    const guitar = getInstrument("guitar")!;
+    const guitar = getTunedInstrument("guitar")!;
     return buildTargets(guitar, getPreset(guitar, "standard"));
   };
 
@@ -262,8 +291,8 @@ describe("nearestTarget / stringStatus", () => {
   });
 
   it("frequencyToMidi round-trips through every instrument note", () => {
-    for (const instrument of allInstruments) {
-      for (const preset of instrument.presets) {
+    for (const instrument of tunedInstruments) {
+      for (const preset of instrument.tuning.presets) {
         for (const midi of preset.notes) {
           expect(Math.abs(frequencyToMidi(midiToFrequency(midi)) - midi)).toBeLessThan(1e-9);
         }
@@ -275,14 +304,14 @@ describe("nearestTarget / stringStatus", () => {
 describe("harmonica tuning variants", () => {
   const paddyPreset = () => getPreset(harmonica, "C");
   const paddyTargets = () =>
-    buildTargets(harmonica, paddyPreset(), harmonica.variants!.find((variant) => variant.id === "paddy")!.reeds);
+    buildTargets(harmonica, paddyPreset(), harmonica.tuning.variants!.find((variant) => variant.id === "paddy")!.reeds);
   const column = (targets: ReturnType<typeof paddyTargets>, name: string) =>
     targets.filter((target) => target.slot?.column === name);
 
   it("standard is the first variant and matches the instrument layout", () => {
-    expect(harmonica.variants!.map((variant) => variant.id)).toEqual(["standard", "paddy"]);
-    expect(harmonica.variants![0].reeds).toBe(harmonica.reeds);
-    expect(harmonica.defaultVariantId).toBe("standard");
+    expect(harmonica.tuning.variants!.map((variant) => variant.id)).toEqual(["standard", "paddy"]);
+    expect(harmonica.tuning.variants![0].reeds).toBe(harmonica.tuning.reeds);
+    expect(harmonica.tuning.defaultVariantId).toBe("standard");
   });
 
   it("Paddy Richter raises hole 3 blow a whole tone, leaving every other note alone", () => {
@@ -305,7 +334,7 @@ describe("harmonica tuning variants", () => {
 
 describe("wind instruments (fingering charts)", () => {
   const targetsOf = (id: string, presetId: string) => {
-    const instrument = getInstrument(id)!;
+    const instrument = getTunedInstrument(id)!;
     return buildTargets(instrument, getPreset(instrument, presetId));
   };
   const closed = (target: { fingering?: { holes: string[] } }) =>
@@ -369,12 +398,12 @@ describe("wind instruments (fingering charts)", () => {
   });
 
   it("every wind instrument declares its hole geometry and fingers every note", () => {
-    for (const instrument of allInstruments.filter((entry) => entry.layout === "fingering")) {
-      expect(instrument.wind, instrument.id).toBeTruthy();
-      for (const preset of instrument.presets) {
+    for (const instrument of tunedInstruments.filter((entry) => entry.tuning.layout === "fingering")) {
+      expect(instrument.tuning.wind, instrument.id).toBeTruthy();
+      for (const preset of instrument.tuning.presets) {
         expect(preset.fingerings?.length, `${instrument.id}/${preset.id}`).toBe(preset.notes.length);
         for (const fingering of preset.fingerings!) {
-          expect(fingering.holes).toHaveLength(instrument.wind!.holeCount);
+          expect(fingering.holes).toHaveLength(instrument.tuning.wind!.holeCount);
         }
       }
     }

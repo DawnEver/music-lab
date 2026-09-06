@@ -4,7 +4,12 @@
  * framework-agnostic and unit-tested.
  */
 
-import type { InstrumentDefinition, TuningPreset, InstrumentCategory } from "./types.js";
+import type {
+  InstrumentDefinition,
+  InstrumentTuning,
+  TuningPreset,
+  InstrumentCategory
+} from "./types.js";
 import { guitar } from "./guitar.js";
 import { bass } from "./bass.js";
 import { ukulele } from "./ukulele.js";
@@ -64,20 +69,45 @@ export const allInstruments: InstrumentDefinition[] = [
 /** Group order of the instrument picker. */
 export const instrumentCategories: InstrumentCategory[] = ["plucked", "bowed", "winds", "other"];
 
+/**
+ * An instrument the tuner can work with. Narrowing by capability rather
+ * than by a boolean flag means the compiler, not a comment, is what stops
+ * a drum kit reaching `buildTargets`.
+ */
+export type TunedInstrument = InstrumentDefinition & { tuning: InstrumentTuning };
+
+export function isTuned(instrument: InstrumentDefinition): instrument is TunedInstrument {
+  return instrument.tuning !== undefined;
+}
+
+/** Everything the tuner offers, in picker order. */
+export const tunedInstruments: TunedInstrument[] = allInstruments.filter(isTuned);
+
+export function instrumentsByCategory<T extends InstrumentDefinition>(
+  category: InstrumentCategory,
+  from: readonly T[]
+): T[];
+export function instrumentsByCategory(category: InstrumentCategory): InstrumentDefinition[];
 export function instrumentsByCategory(
-  category: InstrumentCategory
+  category: InstrumentCategory,
+  from: readonly InstrumentDefinition[] = allInstruments
 ): InstrumentDefinition[] {
-  return allInstruments.filter((instrument) => instrument.category === category);
+  return from.filter((instrument) => instrument.category === category);
 }
 
 export function getInstrument(id: string): InstrumentDefinition | null {
   return allInstruments.find((instrument) => instrument.id === id) ?? null;
 }
 
-export function getPreset(instrument: InstrumentDefinition, presetId: string): TuningPreset {
+export function getTunedInstrument(id: string): TunedInstrument | null {
+  return tunedInstruments.find((instrument) => instrument.id === id) ?? null;
+}
+
+export function getPreset(instrument: TunedInstrument, presetId: string): TuningPreset {
+  const { presets, defaultPresetId } = instrument.tuning;
   return (
-    instrument.presets.find((preset) => preset.id === presetId) ??
-    instrument.presets.find((preset) => preset.id === instrument.defaultPresetId)!
+    presets.find((preset) => preset.id === presetId) ??
+    presets.find((preset) => preset.id === defaultPresetId)!
   );
 }
 
@@ -94,8 +124,8 @@ export function stringStatus(cents: number, hasSignal: boolean, confidence: numb
 }
 
 /** The layout variant to use for an instrument, by id. */
-export function getVariant(instrument: InstrumentDefinition, variantId: string) {
-  const variants = instrument.variants;
+export function getVariant(instrument: TunedInstrument, variantId: string) {
+  const variants = instrument.tuning.variants;
   if (!variants?.length) return null;
   return variants.find((variant) => variant.id === variantId) ?? variants[0];
 }

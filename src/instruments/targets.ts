@@ -14,7 +14,7 @@ import { midiToFrequency } from "../lib/music-theory.js";
 import type {
   Fingering,
   HarmonicaLayout,
-  InstrumentDefinition,
+  InstrumentTuning,
   LocalizedName,
   PitchBounds,
   TuningPreset
@@ -59,12 +59,12 @@ const POSITION_PRECEDENCE: Record<PositionKind, number> = {
 
 /** Build the targets of a preset (with the active layout variant, if any). */
 export function buildTargets(
-  instrument: InstrumentDefinition,
+  instrument: { tuning: InstrumentTuning },
   preset: TuningPreset,
   reeds?: HarmonicaLayout | null
 ): TuningTarget[] {
-  if (instrument.layout === "grid") {
-    const layout = reeds ?? instrument.reeds;
+  if (instrument.tuning.layout === "grid") {
+    const layout = reeds ?? instrument.tuning.reeds;
     if (!layout) return [];
     return buildGridTargets(layout, preset.notes[0] - layout.blowOffsets[0]);
   }
@@ -188,14 +188,14 @@ const RANGE_MARGIN_SEMITONES = 2;
  * actually produce. Deriving beats hand-maintaining: the band can never
  * drift away from the data it is supposed to cover.
  */
-export function deriveRange(instrument: InstrumentDefinition): PitchBounds {
-  if (instrument.range) return instrument.range;
+export function deriveRange(instrument: { tuning: InstrumentTuning }): PitchBounds {
+  if (instrument.tuning.range) return instrument.tuning.range;
 
-  const variants = instrument.variants ?? [null];
+  const variants = instrument.tuning.variants ?? [null];
   let minMidi = Infinity;
   let maxMidi = -Infinity;
 
-  for (const preset of instrument.presets) {
+  for (const preset of instrument.tuning.presets) {
     for (const variant of variants) {
       for (const target of buildTargets(instrument, preset, variant?.reeds)) {
         for (const position of target.positions) {

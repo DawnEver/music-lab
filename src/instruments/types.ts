@@ -1,9 +1,16 @@
 /**
  * Instrument data contract. Adding a new instrument is adding one data
  * file that exports an InstrumentDefinition — the registry, tuner panels,
- * and detector-range wiring all derive from it. Optionally provide a
- * custom layout component (e.g. the harmonica blow/draw grid).
+ * and detector-range wiring all derive from it.
+ *
+ * The capabilities are separate and each is optional, because instruments
+ * do not all have all of them. A piano has no tuning a player would set;
+ * a drum kit has no pitch at all; a guqin can be tuned long before anyone
+ * writes a timbre for it. Forcing one shape on all three is what makes an
+ * abstraction stop constraining anything.
  */
+
+import type { TimbreId } from "../audio/timbre.js";
 
 export interface LocalizedName {
   zh: string;
@@ -89,10 +96,11 @@ export interface LayoutVariant {
   reeds: HarmonicaLayout;
 }
 
-export interface InstrumentDefinition {
-  id: string;
-  name: LocalizedName;
-  category: InstrumentCategory;
+/** How an instrument is played, and therefore how it is drawn. */
+export type PlaySurface = "keys" | "frets" | "pads";
+
+/** Everything the tuner needs. Absent means the instrument is not tuned. */
+export interface InstrumentTuning {
   /** Which panel renders this instrument. */
   layout: InstrumentLayout;
   presets: TuningPreset[];
@@ -110,4 +118,16 @@ export interface InstrumentDefinition {
   /** Selectable reed layouts; the first one is the default. */
   variants?: LayoutVariant[];
   defaultVariantId?: string;
+}
+
+export interface InstrumentDefinition {
+  id: string;
+  name: LocalizedName;
+  category: InstrumentCategory;
+  /** Present when the instrument appears in the tuner. */
+  tuning?: InstrumentTuning;
+  /** Present when the instrument can be played; names a voice. */
+  timbre?: TimbreId;
+  /** Present when the instrument has a playing surface to draw. */
+  surface?: PlaySurface;
 }

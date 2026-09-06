@@ -82,14 +82,16 @@ function makeKeyPreset(key: { id: string; rootMidi: number }): TuningPreset {
   };
 }
 
-export const harmonica: InstrumentDefinition = {
+export const harmonica = {
   id: "harmonica",
   name: { zh: "布鲁斯口琴", en: "Blues Harmonica" },
   category: "winds",
-  layout: "grid",
-  defaultPresetId: "C",
-  reeds: HARMONICA_LAYOUT,
-  variants: HARMONICA_VARIANTS,
-  defaultVariantId: "standard",
-  presets: KEYS.map(makeKeyPreset)
-};
+  tuning: {
+    layout: "grid",
+    defaultPresetId: "C",
+    reeds: HARMONICA_LAYOUT,
+    variants: HARMONICA_VARIANTS,
+    defaultVariantId: "standard",
+    presets: KEYS.map(makeKeyPreset)
+  }
+} satisfies InstrumentDefinition;

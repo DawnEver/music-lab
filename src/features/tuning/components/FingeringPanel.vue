@@ -25,8 +25,8 @@ interface CardState {
 
 const cards = reactive<CardState[]>([]);
 const targets = computed(() => tuner.targets.value);
-const holeCount = computed(() => tuner.instrument.value?.wind?.holeCount ?? 6);
-const backHoles = computed(() => tuner.instrument.value?.wind?.backHoles ?? []);
+const holeCount = computed(() => tuner.instrument.value?.tuning.wind?.holeCount ?? 6);
+const backHoles = computed(() => tuner.instrument.value?.tuning.wind?.backHoles ?? []);
 
 function initCards(): void {
   cards.splice(0, cards.length);

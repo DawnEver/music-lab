@@ -2,7 +2,11 @@
 import { computed } from "vue";
 import { useI18n } from "../../../composables/useI18n.js";
 import { useTuner } from "../stores/tuner.js";
-import { instrumentCategories, instrumentsByCategory } from "../../../instruments/index.js";
+import {
+  instrumentCategories,
+  instrumentsByCategory,
+  tunedInstruments
+} from "../../../instruments/index.js";
 
 const { t, lang } = useI18n();
 const tuner = useTuner();
@@ -10,7 +14,8 @@ const tuner = useTuner();
 // One subheader per category, so ~20 instruments stay scannable.
 const instrumentItems = computed(() =>
   instrumentCategories.flatMap((category) => {
-    const items = instrumentsByCategory(category);
+    // Only what the tuner can actually work with.
+    const items = instrumentsByCategory(category, tunedInstruments);
     if (!items.length) return [];
     return [
       { type: "subheader" as const, title: t(`tuner.category.${category}`) },
@@ -21,7 +26,7 @@ const instrumentItems = computed(() =>
 
 const variantItems = computed(
   () =>
-    tuner.instrument.value?.variants?.map((item) => ({
+    tuner.instrument.value?.tuning.variants?.map((item) => ({
       title: item.name[lang.value],
       value: item.id
     })) ?? []
@@ -29,7 +34,7 @@ const variantItems = computed(
 
 const presetItems = computed(
   () =>
-    tuner.instrument.value?.presets.map((preset) => ({
+    tuner.instrument.value?.tuning.presets.map((preset) => ({
       title: preset.name[lang.value],
       value: preset.id
     })) ?? []

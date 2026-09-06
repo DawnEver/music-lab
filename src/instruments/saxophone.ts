@@ -63,17 +63,19 @@ function saxPreset(
   return { id, name, notes, noteLabels, fingerings };
 }
 
-export const saxophone: InstrumentDefinition = {
+export const saxophone = {
   id: "saxophone",
   name: { zh: "萨克斯", en: "Saxophone" },
   category: "winds",
-  layout: "fingering",
-  defaultPresetId: "alto",
-  wind: { holeCount: 6, keyLabels: ["octave"] },
-  presets: [
-    saxPreset("alto", { zh: "中音 (E♭)", en: "Alto (E♭)" }, 9),
-    saxPreset("tenor", { zh: "次中音 (B♭)", en: "Tenor (B♭)" }, 14),
-    saxPreset("soprano", { zh: "高音 (B♭)", en: "Soprano (B♭)" }, 2),
-    saxPreset("baritone", { zh: "上低音 (E♭)", en: "Baritone (E♭)" }, 21)
-  ]
-};
+  tuning: {
+    layout: "fingering",
+    defaultPresetId: "alto",
+    wind: { holeCount: 6, keyLabels: ["octave"] },
+    presets: [
+      saxPreset("alto", { zh: "中音 (E♭)", en: "Alto (E♭)" }, 9),
+      saxPreset("tenor", { zh: "次中音 (B♭)", en: "Tenor (B♭)" }, 14),
+      saxPreset("soprano", { zh: "高音 (B♭)", en: "Soprano (B♭)" }, 2),
+      saxPreset("baritone", { zh: "上低音 (E♭)", en: "Baritone (E♭)" }, 21)
+    ]
+  }
+} satisfies InstrumentDefinition;

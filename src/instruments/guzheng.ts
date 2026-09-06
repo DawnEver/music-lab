@@ -20,14 +20,16 @@ function makeGuzhengPreset(id: string, topMidi: number, name: { zh: string; en: 
   };
 }
 
-export const guzheng: InstrumentDefinition = {
+export const guzheng = {
   id: "guzheng",
   name: { zh: "古筝", en: "Guzheng" },
   category: "plucked",
-  layout: "list",
-  defaultPresetId: "dTune",
-  presets: [
-    makeGuzhengPreset("dTune", 86, { zh: "D 调", en: "Key of D" }), // 1弦 D6 … 21弦 D2
-    makeGuzhengPreset("cTune", 84, { zh: "C 调", en: "Key of C" }) //  1弦 C6 … 21弦 C2
-  ]
-};
+  tuning: {
+    layout: "list",
+    defaultPresetId: "dTune",
+    presets: [
+      makeGuzhengPreset("dTune", 86, { zh: "D 调", en: "Key of D" }), // 1弦 D6 … 21弦 D2
+      makeGuzhengPreset("cTune", 84, { zh: "C 调", en: "Key of C" }) //  1弦 C6 … 21弦 C2
+    ]
+  }
+} satisfies InstrumentDefinition;

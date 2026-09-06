@@ -11,7 +11,7 @@ import { computed, ref, watch } from "vue";
 import {
   buildTargets,
   deriveRange,
-  getInstrument,
+  getTunedInstrument,
   getPreset,
   getVariant,
   nearestTarget,
@@ -66,7 +66,7 @@ const selection = ref<{ targetIndex: number; positionIndex: number } | null>(nul
 /** Auto-detected target (only while confident and auto-follow is on). */
 const autoMatch = ref<TargetMatch | null>(null);
 
-export const instrument = computed(() => getInstrument(instrumentId.value));
+export const instrument = computed(() => getTunedInstrument(instrumentId.value));
 export const preset = computed(() =>
   instrument.value ? getPreset(instrument.value, presetId.value) : null
 );
@@ -85,17 +85,17 @@ export const targets = computed(() => {
 export function hydrateTuner(): void {
   choices = storedChoices.read();
   const storedId = storedInstrument.read();
-  instrumentId.value = getInstrument(storedId) ? storedId : DEFAULT_INSTRUMENT;
+  instrumentId.value = getTunedInstrument(storedId) ? storedId : DEFAULT_INSTRUMENT;
   autoMode.value = storedAuto.read() === "1";
   applyChoice(instrumentId.value);
 }
 
 function applyChoice(id: string): void {
-  const next = getInstrument(id);
+  const next = getTunedInstrument(id);
   if (!next) return;
   const choice = choices[id] ?? {};
-  presetId.value = choice.preset ?? next.defaultPresetId;
-  variantId.value = choice.variant ?? next.defaultVariantId ?? "";
+  presetId.value = choice.preset ?? next.tuning.defaultPresetId;
+  variantId.value = choice.variant ?? next.tuning.defaultVariantId ?? "";
   resetTargets();
 }
 
@@ -108,7 +108,7 @@ function rememberChoice(): void {
 }
 
 export function setInstrument(id: string): void {
-  const next = getInstrument(id);
+  const next = getTunedInstrument(id);
   if (!next) return;
   instrumentId.value = id;
   storedInstrument.write(id);

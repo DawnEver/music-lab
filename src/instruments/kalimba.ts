@@ -26,18 +26,20 @@ const TINES: Array<{ midi: number; label: string }> = [
   { midi: 88, label: "3··" } //  E6
 ];
 
-export const kalimba: InstrumentDefinition = {
+export const kalimba = {
   id: "kalimba",
   name: { zh: "卡林巴", en: "Kalimba" },
   category: "other",
-  layout: "list",
-  defaultPresetId: "c17",
-  presets: [
-    {
-      id: "c17",
-      name: { zh: "17 音 C 调", en: "17-key, key of C" },
-      notes: TINES.map((tine) => tine.midi),
-      noteLabels: TINES.map((tine) => ({ zh: tine.label, en: tine.label }))
-    }
-  ]
-};
+  tuning: {
+    layout: "list",
+    defaultPresetId: "c17",
+    presets: [
+      {
+        id: "c17",
+        name: { zh: "17 音 C 调", en: "17-key, key of C" },
+        notes: TINES.map((tine) => tine.midi),
+        noteLabels: TINES.map((tine) => ({ zh: tine.label, en: tine.label }))
+      }
+    ]
+  }
+} satisfies InstrumentDefinition;
