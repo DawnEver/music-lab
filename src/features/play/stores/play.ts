@@ -34,8 +34,16 @@ import { createPerformer, type Performer } from "../engine/performer.js";
 
 export const DEFAULT_INSTRUMENT = "piano";
 
+export type FretOrientation = "horizontal" | "vertical";
+
 export interface PlaySettings {
   instrumentId: string;
+  /**
+   * Which way the neck runs. A phone cannot hold sixteen frets across, so
+   * the first visit picks by viewport; after that it is the player's
+   * choice and nothing overrides it.
+   */
+  fretOrientation: FretOrientation;
   /** Where the computer keyboard sits, for keyed instruments. */
   baseMidi: number;
   /** Chosen tuning per fretted instrument; the tuner's choice is its own. */
@@ -46,6 +54,7 @@ export interface PlaySettings {
 function defaults(): PlaySettings {
   return {
     instrumentId: DEFAULT_INSTRUMENT,
+    fretOrientation: "horizontal",
     baseMidi: DEFAULT_BASE_MIDI,
     presets: {},
     volume: 0.8
@@ -66,6 +75,7 @@ const stored = storedJson<PlaySettings>("play", defaults, (raw, base) => {
   return {
     // An instrument that no longer exists must not survive as a dead pick.
     instrumentId: getPlayableInstrument(String(value.instrumentId)) ? value.instrumentId! : base.instrumentId,
+    fretOrientation: value.fretOrientation === "vertical" ? "vertical" : base.fretOrientation,
     baseMidi: Math.min(MAX_BASE_MIDI, Math.max(MIN_BASE_MIDI, Math.round(baseMidi / 12) * 12)),
     presets: value.presets && typeof value.presets === "object" ? { ...value.presets } : base.presets,
     volume: typeof value.volume === "number" ? Math.min(1, Math.max(0, value.volume)) : base.volume
@@ -90,8 +100,24 @@ function persist(): void {
   stored.write({ ...settings, presets: { ...settings.presets } });
 }
 
-export function hydratePlay(): void {
-  Object.assign(settings, stored.read());
+/** Below this a sixteen-fret row gives cells too small to hit. */
+export const NARROW_SCREEN_PX = 720;
+
+export function hydratePlay(viewportWidth?: number): void {
+  const wasStored = stored.read();
+  Object.assign(settings, wasStored);
+  // Only a first visit takes the viewport's advice.
+  if (viewportWidth !== undefined && !hasStoredChoice()) {
+    settings.fretOrientation = viewportWidth < NARROW_SCREEN_PX ? "vertical" : "horizontal";
+  }
+}
+
+function hasStoredChoice(): boolean {
+  try {
+    return window.localStorage.getItem("ml.play") !== null;
+  } catch (_) {
+    return false;
+  }
 }
 
 /**
@@ -168,6 +194,11 @@ export function setPreset(id: string): void {
   if (!isTuned(current)) return;
   settings.presets = { ...settings.presets, [current.id]: id };
   allNotesOff();
+  persist();
+}
+
+export function setFretOrientation(value: FretOrientation): void {
+  settings.fretOrientation = value;
   persist();
 }
 

@@ -92,8 +92,15 @@ describe("PianoKeys", () => {
 describe("FretBoard", () => {
   const guitar = getTunedInstrument("guitar")!;
 
-  function board(presetId = "standard", frets = 5, sounding = new Set<number>()) {
-    return mount(FretBoard, { props: { preset: getPreset(guitar, presetId), frets, sounding } });
+  function board(
+    presetId = "standard",
+    frets = 5,
+    sounding = new Set<number>(),
+    orientation: "horizontal" | "vertical" = "horizontal"
+  ) {
+    return mount(FretBoard, {
+      props: { preset: getPreset(guitar, presetId), frets, sounding, orientation }
+    });
   }
 
   it("draws one row per string and one cell per fret, open included", () => {
@@ -107,10 +114,20 @@ describe("FretBoard", () => {
     expect(labels).toEqual(["", "1", "2", "3", "4", "5", "6"]);
   });
 
-  it("names each cell by the note it sounds", () => {
+  it("names each cell by the note it sounds, and shows the letter", () => {
     const cells = board().findAll(".fret-cell");
     expect(cells[0].attributes("aria-label")).toBe("E4");
     expect(cells[1].attributes("aria-label")).toBe("F4");
+    // An anonymous box is not a fretboard: the letter is on the cell.
+    expect(cells[0].find(".fret-note").text()).toBe("E");
+    expect(cells[1].find(".fret-note").text()).toBe("F");
+  });
+
+  it("marks the inlay frets on the board, not only in the numbers", () => {
+    const wrapper = board("standard", 5);
+    const marked = wrapper.findAll(".fret-cell.is-marked");
+    // Frets 3 and 5 carry inlays, on all six strings.
+    expect(marked).toHaveLength(12);
   });
 
   it("marks the open string as played rather than fretted", () => {
@@ -138,6 +155,38 @@ describe("FretBoard", () => {
     await cell.trigger("pointerup");
     expect(wrapper.emitted("down")?.[0]).toEqual([64]);
     expect(wrapper.emitted("up")?.[0]).toEqual([64]);
+  });
+
+  it("transposes when the neck runs down the screen", () => {
+    const wrapper = board("standard", 5, new Set(), "vertical");
+    // One heading row plus one row per fret, open included.
+    expect(wrapper.findAll(".fret-row")).toHaveLength(7);
+    // Headings are now the strings, lowest on the left as the neck points away.
+    const headings = wrapper.findAll(".fret-heading").map((node) => node.text());
+    expect(headings).toEqual(["6", "5", "4", "3", "2", "1"]);
+    // The first line is the open strings, low to high.
+    const open = wrapper.findAll(".fret-row")[1].findAll(".fret-cell");
+    expect(open.map((cell) => cell.attributes("aria-label"))).toEqual([
+      "E2",
+      "A2",
+      "D3",
+      "G3",
+      "B3",
+      "E4"
+    ]);
+    expect(wrapper.findAll(".fret-cell.is-open")).toHaveLength(6);
+  });
+
+  it("sounds the same notes whichever way the neck runs", () => {
+    const across = board("standard", 5)
+      .findAll(".fret-cell")
+      .map((cell) => cell.attributes("aria-label"))
+      .sort();
+    const down = board("standard", 5, new Set(), "vertical")
+      .findAll(".fret-cell")
+      .map((cell) => cell.attributes("aria-label"))
+      .sort();
+    expect(down).toEqual(across);
   });
 
   it("slides under a held pointer only", async () => {

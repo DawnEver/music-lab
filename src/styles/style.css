@@ -45,12 +45,24 @@
       -webkit-tap-highlight-color: transparent;
     }
 
+    /*
+     * No page-level width cap. A maximum width is only ever earned by
+     * reading line length, and almost nothing here is prose: every main
+     * surface — a keyboard, a fretboard, a spectrogram, a beat grid, a
+     * staff — is more usable the wider it gets. So the cap lives on the
+     * text that needs it (.notice, .footer, hints), never on the page.
+     */
     .shell {
-      width: min(1440px, calc(100% - 32px));
+      width: calc(100% - 32px);
       margin: 0 auto;
       padding: 28px 0 40px;
       position: relative;
       z-index: 1;
+      /* A column of full height, so a tool can be told to own whatever is
+         left over instead of guessing the chrome's height in vh. */
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
     }
 
     .topbar {
@@ -281,6 +293,7 @@
     }
 
     .notice {
+      max-width: 78ch;
       display: none;
       align-items: flex-start;
       gap: 12px;
@@ -302,10 +315,24 @@
       color: var(--notice-strong);
     }
 
+    /*
+     * Column count follows the width instead of two columns stretching
+     * forever: past ~1500px a third card is more use than two sparse ones.
+     * The 480px floor keeps a 1280 laptop on the two columns it had.
+     */
     .dashboard {
       display: grid;
-      grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr);
+      grid-template-columns: repeat(auto-fit, minmax(480px, 1fr));
       gap: 18px;
+      flex: 1 1 auto;
+      align-content: start;
+    }
+
+    /* One tool owns the leftover height: an instrument is played, not read,
+       so it sits in the middle of the room rather than under the nav with
+       the page empty below. Everything else stays top-aligned. */
+    .dashboard:has(.play-stage) {
+      align-content: stretch;
     }
 
     .card {
@@ -1110,7 +1137,7 @@
 
     @media (max-width: 720px) {
       .shell {
-        width: min(100% - 20px, 1440px);
+        width: calc(100% - 20px);
         padding-top: 18px;
       }
 
@@ -1327,12 +1354,50 @@
   font-size: 13px;
 }
 
-/* Fingering panel — one card per note, with its hole diagram */
-.fingering-panel {
+/*
+ * One row per instrument.
+ *
+ * The number of cells is the instrument — six strings is a guitar, fourteen
+ * notes is two octaves of a scale — so the column count comes from the data
+ * (`--count`), not from a pixel minimum. `auto-fit` only takes over when a
+ * cell would shrink below `--cell-min`, i.e. when wrapping is the lesser
+ * evil; above that the row stays whole and the cells share the width.
+ */
+.fingering-panel,
+.strings-panel,
+.hole-chart {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(104px, 1fr));
+  grid-template-columns: repeat(var(--count, 6), minmax(0, 1fr));
   gap: 8px;
   align-content: start;
+}
+
+/* A phone is the one place where one row stops being the instrument: 21
+   guzheng strings across 390px is not a guzheng, it is a hairline. */
+@media (max-width: 720px) {
+  .fingering-panel,
+  .strings-panel,
+  .hole-chart {
+    grid-template-columns: repeat(auto-fill, minmax(var(--cell-min), 1fr));
+  }
+}
+
+/* A fingering card is a diagram; a string card carries a note and cents. */
+.fingering-panel,
+.hole-chart {
+  --cell-min: 76px;
+}
+
+.strings-panel {
+  --cell-min: 108px;
+}
+
+/* Cells must be free to shrink below their content, or a long row will
+   push the grid wider than the card. */
+.string-row,
+.fingering-card,
+.hole-card {
+  min-width: 0;
 }
 
 .fingering-card {
@@ -1426,13 +1491,7 @@
   color: var(--text);
 }
 
-/* Strings panel — adaptive grid of per-string cards */
-.strings-panel {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-  gap: 8px;
-  align-content: start;
-}
+/* Strings panel — see the shared one-row rule above. */
 
 .string-row {
   display: flex;
@@ -1718,6 +1777,24 @@
   border: 1px solid var(--line);
   border-radius: 999px;
   background: var(--glass);
+}
+
+/*
+ * Five tools do not fit a phone in one line, and a nav that runs off the
+ * edge hides a whole tool. Wrapping keeps every destination reachable —
+ * a scroll strip would need an affordance nothing else here has.
+ */
+@media (max-width: 560px) {
+  .tool-nav {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    border-radius: var(--radius-xl);
+  }
+
+  .tool-nav-link {
+    padding: 0 11px;
+  }
 }
 
 .tool-nav-link {
@@ -3074,7 +3151,9 @@
 .kbd-keys {
   position: relative;
   width: 100%;
-  height: 190px;
+  /* Keys get taller as the stage gets wider: a 100px-wide key on a 190px
+     board is the wrong shape for the hand that plays it. */
+  height: clamp(150px, 22vh, 260px);
   touch-action: none;
   user-select: none;
 }
@@ -3139,30 +3218,39 @@
     height: 150px;
   }
 
+  .fret-note {
+    opacity: 0.6;
+  }
+
   .kbd-cap {
     display: none;
   }
 }
 
-/* Fretboard — rows are strings, columns are frets. The open string gets
-   its own column because it is played, not fretted. */
+/*
+ * Fretboard. One generic grid: the orientation decides which axis carries
+ * the frets, so both directions share every rule below. The nut is a real
+ * edge — the open string is played, not fretted, and the eye needs to see
+ * where the neck starts.
+ */
 .fret-board {
   width: 100%;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 3px;
   user-select: none;
   touch-action: none;
 }
 
 .fret-row {
   display: grid;
-  grid-template-columns: 28px repeat(var(--fret-count), minmax(0, 1fr));
+  grid-template-columns: 30px repeat(var(--cols), minmax(0, 1fr));
   gap: 3px;
   align-items: stretch;
 }
 
-.fret-label {
+.fret-label,
+.fret-heading {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -3172,78 +3260,143 @@
   color: var(--muted);
 }
 
-.fret-number {
-  text-align: center;
-  font-family: var(--font-mono);
+.fret-heading {
+  font-weight: 400;
   font-size: 10px;
   color: var(--muted-2);
   padding-bottom: 2px;
 }
 
-.fret-number[data-inlay="single"],
-.fret-number[data-inlay="double"] {
+.fret-label[data-inlay="single"],
+.fret-label[data-inlay="double"],
+.fret-heading[data-inlay="single"],
+.fret-heading[data-inlay="double"] {
   color: var(--accent-2);
   font-weight: 700;
 }
 
 .fret-cell {
   position: relative;
-  min-height: 34px;
+  /* Cells grow with the room: a 100px-wide cell 34px tall is a stripe,
+     not a fret. */
+  min-height: clamp(32px, 5vh, 54px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
   border: 1px solid var(--line);
   border-radius: 4px;
   background: var(--glass);
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 10px;
   cursor: pointer;
-  transition: background 0.06s ease, border-color 0.06s ease;
+  transition: background 0.06s ease, border-color 0.06s ease, color 0.06s ease;
 }
 
-/* The open string is a different gesture, so it reads differently. */
+/* Inlay positions are tinted rather than dotted: a dot under a note name
+   is two marks fighting for the same 30 pixels. */
+.fret-cell.is-marked {
+  background: color-mix(in srgb, var(--accent-2) 9%, var(--glass));
+}
+
+/* The nut: the open string is a different gesture, and the board starts
+   after it. A dashed cell plus a hard edge says both. */
 .fret-cell.is-open {
   border-style: dashed;
+  color: var(--text);
+}
+
+.fret-board.is-horizontal .fret-cell.is-open {
+  border-right-width: 3px;
+  border-right-style: solid;
+  border-right-color: var(--muted);
+}
+
+.fret-board.is-vertical .fret-cell.is-open {
+  border-bottom-width: 3px;
+  border-bottom-style: solid;
+  border-bottom-color: var(--muted);
 }
 
 .fret-cell:hover {
   border-color: var(--accent-2);
+  color: var(--text);
 }
 
 .fret-cell.is-down {
   background: linear-gradient(180deg, var(--accent-2), var(--accent));
   border-color: transparent;
+  color: #0b0d12;
+  font-weight: 700;
 }
 
-.fret-dot {
-  position: absolute;
-  inset: 0;
-  margin: auto;
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: transparent;
+.fret-note {
+  opacity: 0.75;
+  pointer-events: none;
 }
 
-.fret-cell.is-down .fret-dot {
-  background: rgba(11, 13, 18, 0.55);
-}
-
-.play-stage {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 14px;
+.fret-cell.is-down .fret-note,
+.fret-cell.is-open .fret-note {
+  opacity: 1;
 }
 
 @media (max-width: 720px) {
   .fret-row {
-    grid-template-columns: 22px repeat(var(--fret-count), minmax(0, 1fr));
+    grid-template-columns: 22px repeat(var(--cols), minmax(0, 1fr));
     gap: 2px;
   }
 
   .fret-cell {
-    min-height: 26px;
-  }
-
-  .fret-number {
+    min-height: 30px;
     font-size: 9px;
   }
+
+  /*
+   * A phone cannot show a whole neck, and wrapping one is not a neck.
+   * So the instrument keeps its shape and scrolls along its own axis —
+   * which is what moving your hand up the neck does anyway — and the page
+   * itself still does not scroll. `touch-action` has to allow exactly that
+   * one direction, or the drag that slides between notes eats the scroll.
+   */
+  .fret-board.is-vertical {
+    /* The room a phone actually has: viewport minus the nav, the hint, the
+       instrument chip and the footer, all of which are fixed height here.
+       Smoke measures the result, so this number cannot quietly drift. */
+    max-height: calc(100vh - 440px);
+    min-height: 150px;
+    overflow-y: auto;
+    touch-action: pan-y;
+  }
+
+  .fret-board.is-vertical .fret-headings {
+    position: sticky;
+    top: 0;
+    z-index: 3;
+    background: var(--panel);
+  }
+
+  .fret-board.is-horizontal {
+    overflow-x: auto;
+    touch-action: pan-x;
+  }
+
+  .fret-board.is-horizontal .fret-row {
+    grid-template-columns: 22px repeat(var(--cols), minmax(34px, 1fr));
+    width: max-content;
+    min-width: 100%;
+  }
+}
+
+.play-stage {
+  /* An instrument is the whole tool: it spans every dashboard column,
+     the way every other stage does. */
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 0;
+  gap: 14px;
 }
 
 /* Drum pads — nothing is held, so a pad flashes rather than latching. */
@@ -3265,7 +3418,7 @@
 
 .pad {
   flex: 1 1 96px;
-  max-width: 160px;
+  max-width: 220px;
   min-height: 76px;
   display: flex;
   flex-direction: column;
@@ -3318,16 +3471,29 @@
    press a fingering and the note sounds until the finger lifts. */
 .hole-chart {
   width: 100%;
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 8px;
   touch-action: none;
   user-select: none;
 }
 
+@media (max-width: 720px) {
+  /* A wind chart is a scale: one ascending line, scrolled — never folded
+     into rows, which destroys the only order it has. */
+  .hole-chart {
+    display: flex;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    touch-action: pan-x;
+  }
+
+  .hole-card {
+    flex: 0 0 auto;
+    min-width: 72px;
+  }
+}
+
 .hole-card {
   display: flex;
+  min-width: 0;
   flex-direction: column;
   align-items: center;
   gap: 6px;

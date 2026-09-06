@@ -155,6 +155,7 @@ async function walkMetronome(page, label, { expectSingleScreen = false } = {}) {
     );
     if (overflow > 1) throw new Error(`${label}: metronome should fit one screen (${overflow}px over)`);
   }
+  await assertStageFillsWidth(page, `${label} metronome`, ".metro-stage");
   console.log(`✓ ${label}: metronome is one screen with no panels`);
 
   // Tapping a value opens exactly the editor for that value.
@@ -291,6 +292,7 @@ async function walkTrace(page, label, { live = false } = {}) {
   if (!size || size.height < 200) {
     throw new Error(`${label}: the scope canvas should be a stage, got ${size?.height}px`);
   }
+  await assertStageFillsWidth(page, `${label} trace`, ".trace-stage");
   console.log(`✓ ${label}: trace renders one wide canvas`);
 
   // Freeze and clear stay on the stage at every size.
@@ -366,13 +368,64 @@ async function walkTrace(page, label, { live = false } = {}) {
   await gotoTool(page, "tune");
 }
 
-/** The play tool: two surfaces, and geometry only a browser can answer. */
-async function walkPlay(page, label) {
+/**
+ * A tool's stage must use the width it was given.
+ *
+ * This exists because `/play` shipped without `grid-column: 1 / -1` and sat
+ * at 47% of the window while every other tool used 98% — a one-line
+ * omission that no unit test can see and that reads, on screen, as the app
+ * being broken. Measuring it is cheap; noticing it by eye is not.
+ */
+async function assertStageFillsWidth(page, label, selector, floor = 0.9) {
+  const ratio = await page.evaluate((sel) => {
+    const stage = document.querySelector(sel);
+    const main = document.querySelector("main");
+    if (!stage || !main) return null;
+    return stage.getBoundingClientRect().width / main.getBoundingClientRect().width;
+  }, selector);
+  if (ratio === null) throw new Error(`${label}: no stage for ${selector}`);
+  if (ratio < floor) {
+    throw new Error(
+      `${label}: ${selector} uses ${Math.round(ratio * 100)}% of the width, expected >= ${floor * 100}%`
+    );
+  }
+}
+
+/** No vertical page scroll — a tool with one focus must not scroll. */
+async function assertNoVOverflow(page, label) {
+  const over = await page.evaluate(
+    () => document.documentElement.scrollHeight - window.innerHeight
+  );
+  if (over > 2) throw new Error(`${label}: page scrolls by ${over}px`);
+}
+
+/**
+ * The cells of an instrument sit on one line.
+ *
+ * A guitar is six strings and a scale is one ascending run; wrapping either
+ * into a ragged block destroys the only order they have. The count comes
+ * from the instrument, so the row must too — this catches a grid that sizes
+ * itself from a pixel minimum instead.
+ */
+async function assertSingleRow(page, label, selector) {
+  const rows = await page.evaluate((sel) => {
+    const tops = [...document.querySelectorAll(sel)].map((el) =>
+      Math.round(el.getBoundingClientRect().top)
+    );
+    return new Set(tops).size;
+  }, selector);
+  if (rows !== 1) throw new Error(`${label}: ${selector} wrapped into ${rows} rows`);
+}
+
+/** The play tool: four surfaces, and geometry only a browser can answer. */
+async function walkPlay(page, label, { wide = false } = {}) {
   await gotoTool(page, "play");
   await page.waitForSelector(".kbd-key", { timeout: 8000 });
 
   const keys = await page.locator(".kbd-key").count();
   if (keys !== 32) throw new Error(`${label}: expected 32 keys, got ${keys}`);
+  await assertStageFillsWidth(page, `${label} keys`, ".play-stage");
+  await assertNoVOverflow(page, `${label} keys`);
 
   // Black keys must be narrower and shorter, and stay inside the board.
   const board = await page.locator(".kbd-keys").boundingBox();
@@ -419,6 +472,8 @@ async function walkPlay(page, label) {
   await page.waitForSelector('[data-instrument="guitar"]', { timeout: 4000 });
   await page.locator('[data-instrument="guitar"]').click();
   await page.waitForSelector(".fret-board", { timeout: 8000 });
+  // Measure the board with the sheet shut, or its popover is in the picture.
+  await page.keyboard.press("Escape");
   if ((await page.locator(".kbd-key").count()) !== 0) {
     throw new Error(`${label}: a guitar should not draw a keyboard`);
   }
@@ -426,18 +481,54 @@ async function walkPlay(page, label) {
     throw new Error(`${label}: octave shift belongs to the keyed surface only`);
   }
 
+  // The neck runs across on a laptop and down on a phone, because sixteen
+  // frets across 390px are not hittable. A first visit takes the viewport's
+  // advice; after that it is the player's choice.
+  const expected = wide ? "horizontal" : "vertical";
+  if (!(await page.locator(`.fret-board.is-${expected}`).count())) {
+    throw new Error(`${label}: expected the neck to default to ${expected}`);
+  }
+  // Across: a heading row plus one row per string. Down: a heading row plus
+  // one row per fret, open included.
   const rows = await page.locator(".fret-row").count();
-  if (rows !== 7) throw new Error(`${label}: expected 6 strings and a number row, got ${rows}`);
+  const expectedRows = wide ? 7 : 17;
+  if (rows !== expectedRows) {
+    throw new Error(`${label}: expected ${expectedRows} ${expected} rows, got ${rows}`);
+  }
+  await assertStageFillsWidth(page, `${label} frets`, ".play-stage");
+  await assertNoVOverflow(page, `${label} frets`);
+  // A fret carries its note name; an anonymous box is not a fretboard.
+  const firstCell = await page.locator(".fret-cell").first().innerText();
+  if (!/^[A-G]#?$/.test(firstCell.trim())) {
+    throw new Error(`${label}: expected a note name on the fret, got "${firstCell}"`);
+  }
+
+  // Turning the neck transposes the same notes rather than losing any.
+  // The sheet stays open from here to the end of the setup checks.
+  const cellsBefore = await page.locator(".fret-cell").count();
+  const flipped = expected === "horizontal" ? "vertical" : "horizontal";
+  await page.locator(".value-chip").first().click();
+  await page.waitForSelector(`[data-orientation="${flipped}"]`, { timeout: 4000 });
+  await page.locator(`[data-orientation="${flipped}"]`).click();
+  await page.waitForSelector(`.fret-board.is-${flipped}`, { timeout: 4000 });
+  if ((await page.locator(".fret-cell").count()) !== cellsBefore) {
+    throw new Error(`${label}: turning the neck changed how many notes exist`);
+  }
+  await page.locator(`[data-orientation="${expected}"]`).click();
+  await page.waitForSelector(`.fret-board.is-${expected}`, { timeout: 4000 });
 
   // The tuning row appears only because a guitar has alternate tunings.
   const tunings = await page.locator("[data-preset]").count();
   if (tunings < 2) throw new Error(`${label}: expected the guitar's tunings, got ${tunings}`);
+  // Standard tuning bottoms out on E2, so a D2 anywhere on the board is
+  // proof the sixth string was actually dropped — and it reads the same
+  // whichever way the neck is turned.
+  if ((await page.locator('.fret-cell[aria-label="D2"]').count()) !== 0) {
+    throw new Error(`${label}: standard tuning should not reach D2`);
+  }
   await page.locator('[data-preset="dropD"]').click();
   await page.keyboard.press("Escape");
-  const lowest = page.locator(".fret-row").last().locator(".fret-cell").first();
-  if ((await lowest.getAttribute("aria-label")) !== "D2") {
-    throw new Error(`${label}: Drop D should restring the lowest row`);
-  }
+  await page.waitForSelector('.fret-cell[aria-label="D2"]', { timeout: 4000 });
 
   await page.locator(".fret-cell").first().dispatchEvent("pointerdown");
   await page.waitForSelector(".fret-cell.is-down", { timeout: 4000 });
@@ -457,6 +548,8 @@ async function walkPlay(page, label) {
   }
   const padCount = await page.locator(".pad").count();
   if (padCount !== 9) throw new Error(`${label}: expected 9 pads, got ${padCount}`);
+  await assertStageFillsWidth(page, `${label} pads`, ".play-stage");
+  await assertNoVOverflow(page, `${label} pads`);
 
   // A pad flashes and finishes on its own; there is nothing to hold.
   await page.locator('[data-piece="snare"]').dispatchEvent("pointerdown");
@@ -482,6 +575,10 @@ async function walkPlay(page, label) {
   if (cards !== 14) throw new Error(`${label}: expected two octaves of notes, got ${cards}`);
   const dots = await page.locator(".hole-card").first().locator(".hole-dot").count();
   if (dots !== 6) throw new Error(`${label}: a dizi has six holes, got ${dots}`);
+  await assertStageFillsWidth(page, `${label} holes`, ".play-stage");
+  await assertNoVOverflow(page, `${label} holes`);
+  // A scale is one ascending line; folded into rows it stops being one.
+  if (wide) await assertSingleRow(page, `${label} dizi`, ".hole-card");
   await page.locator(".hole-card").first().dispatchEvent("pointerdown");
   await page.waitForSelector(".hole-card.is-down", { timeout: 4000 });
   await page.locator(".hole-card").first().dispatchEvent("pointerup");
@@ -534,6 +631,7 @@ async function walkEar(page, label, { fullRep = false } = {}) {
   }
   console.log(`✓ ${label}: progress can be reset`);
 
+  await assertStageFillsWidth(page, `${label} ear`, ".ear-stage");
   console.log(`✓ ${label}: ear training answers, grades and moves on`);
 
   // Switching kind swaps the pad.
@@ -632,7 +730,7 @@ async function walkEar(page, label, { fullRep = false } = {}) {
   await gotoTool(page, "tune");
 }
 
-async function walkWorkbench(page, label) {
+async function walkWorkbench(page, label, { wide = false } = {}) {
   // All five panels render.
   await page.waitForSelector(".strings-panel", { timeout: 8000 });
   await page.waitForSelector('[data-panel="pitch"]', { timeout: 8000 });
@@ -699,7 +797,10 @@ async function walkWorkbench(page, label) {
     })
   );
   if (card0.y !== card1.y) throw new Error(`${label}: guitar strings should be laid out horizontally`);
-  console.log(`✓ ${label}: guitar renders 6 strings in a horizontal grid`);
+  // All six on one line, not five and a widow: the column count is the
+  // instrument's, not whatever a pixel minimum happens to allow.
+  if (wide) await assertSingleRow(page, `${label} guitar`, ".string-row");
+  console.log(`✓ ${label}: guitar renders 6 strings in one horizontal row`);
 
   // The instrument picker is grouped: category subheaders are rendered as
   // subheaders, not as selectable rows.
@@ -722,6 +823,18 @@ async function walkWorkbench(page, label) {
     throw new Error(`${label}: expected 2 erhu strings`);
   }
   console.log(`✓ ${label}: instrument switch to erhu renders 2 strings`);
+
+  // A guzheng is the stress case for "one row per instrument": 21 strings
+  // must still be one row that fits, not 21 cells overflowing the card.
+  await page.locator(".v-select").nth(0).click();
+  await page.locator(".v-list-item").filter({ hasText: /^(Guzheng|古筝)$/ }).first().click();
+  await page.waitForTimeout(250);
+  if ((await page.locator(".string-row").count()) !== 21) {
+    throw new Error(`${label}: expected 21 guzheng strings`);
+  }
+  if (wide) await assertSingleRow(page, `${label} guzheng`, ".string-row");
+  await assertNoHOverflow(page, `${label} guzheng`);
+  console.log(`✓ ${label}: 21 guzheng strings stay on one row inside the card`);
 
   // Harmonica: 10×2 grid + position expansion.
   await page.locator(".v-select").nth(0).click();
@@ -764,7 +877,7 @@ try {
   await desktop.addInitScript(SYNTHETIC_MIC);
   attachListeners(desktop, "desktop");
   await desktop.goto(BASE_URL, { waitUntil: "networkidle" });
-  await walkWorkbench(desktop, "desktop");
+  await walkWorkbench(desktop, "desktop", { wide: true });
 
   // Tuner is horizontal: needle left, strings/harmonica right, same row.
   const needleBox = await desktop.locator(".tuner-big").boundingBox();
@@ -818,7 +931,7 @@ try {
   await walkTrace(desktop, "desktop", { live: true });
   await walkEar(desktop, "desktop", { fullRep: true });
   await walkMetronome(desktop, "desktop", { expectSingleScreen: true });
-  await walkPlay(desktop, "desktop");
+  await walkPlay(desktop, "desktop", { wide: true });
 
   // ---- Mobile ----
   const mobile = await browser.newPage({ viewport: { width: 375, height: 667 } });

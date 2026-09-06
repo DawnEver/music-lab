@@ -14,7 +14,15 @@ import {
   isTuned,
   playableInstruments
 } from "../../../instruments/index.js";
-import { instrument, preset, setInstrument, setPreset, setVolume, settings } from "../stores/play.js";
+import {
+  instrument,
+  preset,
+  setFretOrientation,
+  setInstrument,
+  setPreset,
+  setVolume,
+  settings
+} from "../stores/play.js";
 
 const { t, lang } = useI18n();
 
@@ -34,6 +42,13 @@ const presets = computed(() => {
   const current = instrument.value;
   return isTuned(current) ? current.tuning.presets : [];
 });
+
+const isFretted = computed(() => instrument.value.surface.kind === "frets");
+
+const ORIENTATIONS = [
+  { id: "horizontal", key: "playFretHorizontal" },
+  { id: "vertical", key: "playFretVertical" }
+] as const;
 </script>
 
 <template>
@@ -68,6 +83,23 @@ const presets = computed(() => {
           @click="setPreset(entry.id)"
         >
           {{ entry.name[lang] }}
+        </button>
+      </div>
+    </div>
+
+    <div v-if="isFretted" class="metro-field">
+      <span class="slider-label">{{ t("playFretOrientation") }}</span>
+      <div class="metro-chips">
+        <button
+          v-for="entry in ORIENTATIONS"
+          :key="entry.id"
+          type="button"
+          class="metro-chip"
+          :class="{ 'is-active': settings.fretOrientation === entry.id }"
+          :data-orientation="entry.id"
+          @click="setFretOrientation(entry.id)"
+        >
+          {{ t(entry.key) }}
         </button>
       </div>
     </div>

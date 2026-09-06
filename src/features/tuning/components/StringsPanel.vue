@@ -72,7 +72,12 @@ watch(tick, syncRows);
 </script>
 
 <template>
-  <div class="strings-panel" role="list" :aria-label="t('tunerSelectTuning')">
+  <div
+    class="strings-panel"
+    role="list"
+    :aria-label="t('tunerSelectTuning')"
+    :style="{ '--count': targets.length }"
+  >
     <div
       v-for="(target, index) in targets"
       :key="target.id"

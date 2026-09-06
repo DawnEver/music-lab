@@ -68,7 +68,12 @@ watch(tick, syncCards);
 </script>
 
 <template>
-  <div class="fingering-panel" role="list" :aria-label="t('tunerSelectTuning')">
+  <div
+    class="fingering-panel"
+    role="list"
+    :aria-label="t('tunerSelectTuning')"
+    :style="{ '--count': targets.length }"
+  >
     <div
       v-for="(target, index) in targets"
       :key="target.id"

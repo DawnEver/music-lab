@@ -41,7 +41,7 @@ function noteName(midi: number): string {
 </script>
 
 <template>
-  <div class="hole-chart">
+  <div class="hole-chart" :style="{ '--count': notes.length }">
     <button
       v-for="note in notes"
       :key="note.midi"

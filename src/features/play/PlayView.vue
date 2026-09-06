@@ -102,7 +102,7 @@ function onBlur(): void {
 }
 
 onMounted(() => {
-  hydratePlay();
+  hydratePlay(window.innerWidth);
   window.addEventListener("keydown", onKeydown);
   window.addEventListener("keyup", onKeyup);
   window.addEventListener("blur", onBlur);
@@ -167,6 +167,7 @@ onBeforeUnmount(() => {
       :preset="preset"
       :frets="frets"
       :sounding="sounding"
+      :orientation="settings.fretOrientation"
       @down="(midi: number) => noteOn(midi)"
       @up="noteOff"
     />

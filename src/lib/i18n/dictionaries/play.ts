@@ -3,6 +3,9 @@ export const play = {
   zh: {
     playSetupTitle: "乐器",
     playTuning: "调弦",
+    playFretOrientation: "指板方向",
+    playFretHorizontal: "横向",
+    playFretVertical: "纵向",
     playVolume: "音量",
     playOctave: "音区",
     playOctaveDown: "低八度",
@@ -24,6 +27,9 @@ export const play = {
   en: {
     playSetupTitle: "Instrument",
     playTuning: "Tuning",
+    playFretOrientation: "Neck",
+    playFretHorizontal: "Across",
+    playFretVertical: "Down",
     playVolume: "Volume",
     playOctave: "Octave",
     playOctaveDown: "Octave down",
