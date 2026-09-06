@@ -55,7 +55,7 @@
     .shell {
       width: calc(100% - 32px);
       margin: 0 auto;
-      padding: 28px 0 40px;
+      padding: 24px 0 20px;
       position: relative;
       z-index: 1;
       /* A column of full height, so a tool can be told to own whatever is
@@ -65,11 +65,37 @@
       min-height: 100vh;
     }
 
+    /*
+     * Brand, the set-once actions, then the nav. On a wide screen the
+     * actions sit on the nav's row; on a phone they move up beside the
+     * brand, because a third stacked row costs 44px of instrument.
+     */
     .topbar {
-      display: flex;
-      flex-direction: column;
+      display: grid;
+      grid-template-columns: 1fr auto;
+      align-items: center;
       gap: 16px;
-      margin-bottom: 22px;
+      /* Chrome is space taken from the tool. Trimmed until the trace's
+         canvas and its whole control panel share one 900px screen. */
+      margin-bottom: 12px;
+    }
+
+    .brand {
+      grid-column: 1;
+      grid-row: 1;
+    }
+
+    .topbar-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      grid-column: 2;
+      grid-row: 2;
+    }
+
+    .topbar-tools {
+      grid-column: 1;
+      grid-row: 2;
     }
 
     .topbar-tools {
@@ -1108,10 +1134,28 @@
     }
 
     .footer {
-      margin: 20px 2px 0;
+      margin: 10px 2px 0;
       color: var(--muted-2);
       font-size: 11px;
       line-height: 1.8;
+    }
+
+    /* One line on a phone: three stacked lines of colophon cost 39px that
+       the tool above needs more. */
+    @media (max-width: 720px) {
+      .footer {
+        margin-top: 12px;
+        line-height: 1.5;
+      }
+
+      .footer br {
+        display: none;
+      }
+
+      .footer a::before {
+        content: " · ";
+        color: var(--muted-2);
+      }
     }
 
     .text-center {
@@ -1138,11 +1182,34 @@
     @media (max-width: 720px) {
       .shell {
         width: calc(100% - 20px);
-        padding-top: 18px;
+        /* Chrome is 41% of a 667px phone before anything is played; every
+           padding here is taken from an instrument. */
+        padding: 12px 0 16px;
       }
 
       .topbar {
-        align-items: stretch;
+        gap: 10px;
+        margin-bottom: 12px;
+      }
+
+      /* The kicker above the product name is decoration; on a phone it is
+         12px taken from the picture below it. */
+      .eyebrow {
+        display: none;
+      }
+
+      .dashboard {
+        gap: 12px;
+      }
+
+      /* Beside the brand, not under the nav. */
+      .topbar-actions {
+        grid-column: 2;
+        grid-row: 1;
+      }
+
+      .topbar-tools {
+        grid-column: 1 / -1;
       }
 
       .topbar-tools .source-info {
@@ -2459,7 +2526,7 @@
   width: 100%;
   /* The canvas shares the screen with its controls: a picture you cannot
      adjust without scrolling is worse than a slightly smaller picture. */
-  height: clamp(180px, 25vh, 360px);
+  height: clamp(200px, 25vh, 360px);
   border-radius: var(--radius-md);
   background: var(--screen);
   overflow: hidden;
@@ -2514,8 +2581,19 @@
     padding: 10px;
   }
 
+  /* Not taller on a phone. The rule above — a picture you cannot adjust
+     without scrolling is worse than a slightly smaller picture — applies
+     most where the screen is smallest. */
   .trace-wrap {
-    height: clamp(260px, 46vh, 420px);
+    height: clamp(200px, 30vh, 300px);
+  }
+}
+
+@media (max-width: 720px) {
+  /* The intro sentence is not a control, and a tool with one focus must
+     not scroll. On a phone the sentence goes rather than the rule. */
+  .footnote {
+    display: none;
   }
 }
 
@@ -2972,6 +3050,22 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+/*
+ * On a phone the row wraps, so the line has the width to say what it says.
+ * A privacy claim cut off by an ellipsis is worse than no claim at all —
+ * the reader is left with "audio is never…".
+ */
+@media (max-width: 720px) {
+  .audio-detail {
+    flex-basis: 100%;
+    white-space: normal;
+    overflow: visible;
+    text-overflow: clip;
+    font-size: 0.72rem;
+    line-height: 1.35;
+  }
 }
 
 .audio-source .audio-host:not(:empty) {

@@ -40,10 +40,15 @@ const showSecureNotice = computed(
         </div>
       </div>
 
-      <div class="topbar-tools">
-        <ToolNav />
+      <!-- Language and theme are set once and then forgotten, so on a phone
+           they ride beside the brand and leave the row below to the nav. -->
+      <div class="topbar-actions">
         <LangToggle />
         <ThemeToggle />
+      </div>
+
+      <div class="topbar-tools">
+        <ToolNav />
       </div>
     </header>
 

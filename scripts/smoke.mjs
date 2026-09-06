@@ -156,6 +156,8 @@ async function walkMetronome(page, label, { expectSingleScreen = false } = {}) {
     if (overflow > 1) throw new Error(`${label}: metronome should fit one screen (${overflow}px over)`);
   }
   await assertStageFillsWidth(page, `${label} metronome`, ".metro-stage");
+  await assertNoVOverflow(page, `${label} metronome`);
+  await assertNavFits(page, label);
   console.log(`✓ ${label}: metronome is one screen with no panels`);
 
   // Tapping a value opens exactly the editor for that value.
@@ -293,7 +295,10 @@ async function walkTrace(page, label, { live = false } = {}) {
     throw new Error(`${label}: the scope canvas should be a stage, got ${size?.height}px`);
   }
   await assertStageFillsWidth(page, `${label} trace`, ".trace-stage");
-  console.log(`✓ ${label}: trace renders one wide canvas`);
+  // A picture you cannot adjust without scrolling is worse than a smaller
+  // picture — so the canvas and its knobs share one screen at every size.
+  await assertNoVOverflow(page, `${label} trace`);
+  console.log(`✓ ${label}: trace renders one wide canvas on one screen`);
 
   // Freeze and clear stay on the stage at every size.
   const actions = await page.locator(".trace-actions .metro-chip").count();
@@ -310,6 +315,14 @@ async function walkTrace(page, label, { live = false } = {}) {
   }
   await freeze.click();
   console.log(`✓ ${label}: freeze toggles and releases`);
+
+  // "audio is never…" is worse than saying nothing: the one line that
+  // makes a promise must not be cut off by an ellipsis.
+  const clipped = await page.evaluate(() => {
+    const el = document.querySelector(".audio-detail");
+    return el ? el.scrollWidth - el.clientWidth : 0;
+  });
+  if (clipped > 1) throw new Error(`${label}: the privacy line is truncated by ${clipped}px`);
 
   // The range summary is always present, even before anything is heard.
   await page.waitForSelector("[data-trace-range]", { timeout: 8000, state: "attached" });
@@ -655,6 +668,7 @@ async function walkEar(page, label, { fullRep = false } = {}) {
   console.log(`✓ ${label}: progress can be reset`);
 
   await assertStageFillsWidth(page, `${label} ear`, ".ear-stage");
+  await assertNoVOverflow(page, `${label} ear`);
   console.log(`✓ ${label}: ear training answers, grades and moves on`);
 
   // Switching kind swaps the pad.
