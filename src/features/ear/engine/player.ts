@@ -10,19 +10,12 @@
 import { acquireAudio } from "../../../audio/context.js";
 import type { AudioEngineHandle } from "../../../audio/types.js";
 import { createVoicePlayer, type VoicePlayer, type VoiceSpec } from "../../../audio/voice.js";
-import { midiToFrequency } from "../../../lib/music-theory.js";
+import { getTimbre, timbreSpec } from "../../../audio/timbre.js";
 import type { ExerciseNote } from "../domain/exercise.js";
 
-/** A singable tone rather than a test tone. */
+/** A singable tone rather than a test tone; the shape itself is data. */
 export function noteSpec(midi: number, duration: number, tuning = 440): VoiceSpec {
-  return {
-    waveform: "sine",
-    frequency: midiToFrequency(midi, tuning),
-    gain: 0.32,
-    duration,
-    attack: 0.02,
-    partials: [0.34, 0.16, 0.07]
-  };
+  return timbreSpec(getTimbre("singable"), midi, duration, tuning);
 }
 
 export interface EarPlayer {

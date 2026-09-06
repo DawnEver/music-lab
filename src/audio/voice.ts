@@ -1,13 +1,33 @@
 /**
  * Voices: the app's only synthesiser.
  *
- * A voice is plain data — waveform, partials, envelope — so a click, a
- * reference tone and an ear-training chord differ in data, not in code.
- * Everything is scheduled at an absolute audio-clock time and cleans itself
- * up on `ended`, so nothing accumulates over a long practice session.
+ * A voice is plain data — waveform, partials, envelope, filter — so a
+ * click, a reference tone, an ear-training chord and a piano key differ in
+ * data, not in code. Everything is scheduled at an absolute audio-clock
+ * time and cleans itself up on `ended`, so nothing accumulates over a long
+ * practice session.
+ *
+ * The envelope has two shapes, because instruments do. Without `sustain`
+ * a note decays to silence across its whole duration — a pluck, a click, a
+ * struck tine. With `sustain` it is attack → decay → hold → release, which
+ * is the only way an organ or a bowed note can hold a level.
  */
 
 export type Waveform = "sine" | "triangle" | "square" | "sawtooth" | "noise";
+
+/**
+ * A filter over the whole voice. `envelope` is the multiple of `frequency`
+ * the cutoff starts at and falls from over the note: brightness that
+ * decays with the sound is what a plucked string actually does, so one
+ * number buys the difference between a pluck and an organ.
+ */
+export interface VoiceFilter {
+  type: BiquadFilterType;
+  /** Cutoff in Hz at the end of the note. */
+  frequency: number;
+  q?: number;
+  envelope?: number;
+}
 
 export interface VoiceSpec {
   waveform: Waveform;
@@ -29,13 +49,31 @@ export interface VoiceSpec {
    * the difference between a test tone and something singable.
    */
   partials?: number[];
+  /** Level held after the attack, as a fraction of peak. Absent = a pluck. */
+  sustain?: number;
+  /** Seconds from peak down to the sustain level. */
+  decay?: number;
+  /** Seconds from the sustain level to silence, at the end of the note. */
+  release?: number;
+  filter?: VoiceFilter;
 }
 
 export interface VoicePlayer {
-  /** Sound a spec at an absolute `AudioContext.currentTime`. */
-  play(spec: VoiceSpec, time: number): void;
+  /**
+   * Sound a spec at an absolute `AudioContext.currentTime`. Velocity 0..1
+   * scales loudness and, when the voice has a filter envelope, brightness —
+   * hitting harder opens the filter, as it does on the instrument.
+   */
+  play(spec: VoiceSpec, time: number, velocity?: number): void;
   setVolume(value: number): void;
   dispose(): void;
+}
+
+/** The floor an exponential ramp can reach; 0 is not a legal target. */
+const SILENT = 0.0001;
+
+function clamp(value: number, low: number, high: number): number {
+  return Math.min(high, Math.max(low, value));
 }
 
 function noiseBuffer(context: BaseAudioContext): AudioBuffer {
@@ -46,6 +84,12 @@ function noiseBuffer(context: BaseAudioContext): AudioBuffer {
     data[index] = Math.random() * 2 - 1;
   }
   return buffer;
+}
+
+/** Total sounding time: never shorter than the attack it has to fit. */
+export function voiceSeconds(spec: VoiceSpec): number {
+  const attack = Math.max(0.001, spec.attack ?? 0.001);
+  return Math.max(spec.duration, attack + 0.01);
 }
 
 export function createVoicePlayer(
@@ -61,65 +105,114 @@ export function createVoicePlayer(
   function envelope(spec: VoiceSpec, at: number, gain: number): GainNode {
     const node = context.createGain();
     const attack = Math.max(0.001, spec.attack ?? 0.001);
-    node.gain.setValueAtTime(0.0001, at);
-    node.gain.exponentialRampToValueAtTime(Math.max(gain, 0.0002), at + attack);
-    node.gain.exponentialRampToValueAtTime(0.0001, at + Math.max(spec.duration, attack + 0.01));
+    const total = voiceSeconds(spec);
+    const peak = Math.max(gain, 2 * SILENT);
+
+    node.gain.setValueAtTime(SILENT, at);
+    node.gain.exponentialRampToValueAtTime(peak, at + attack);
+
+    if (spec.sustain === undefined) {
+      node.gain.exponentialRampToValueAtTime(SILENT, at + total);
+    } else {
+      const room = total - attack;
+      const release = clamp(spec.release ?? 0.08, 0.005, room);
+      const decay = clamp(spec.decay ?? 0.02, 0, room - release);
+      const level = Math.max(peak * clamp(spec.sustain, 0, 1), 2 * SILENT);
+      node.gain.exponentialRampToValueAtTime(level, at + attack + decay);
+      node.gain.setValueAtTime(level, at + total - release);
+      node.gain.exponentialRampToValueAtTime(SILENT, at + total);
+    }
+
     node.connect(out);
     return node;
   }
 
-  function tone(spec: VoiceSpec, at: number, frequency: number, gain: number): void {
+  /** The filter, already swept, or null when the voice has none. */
+  function filter(spec: VoiceSpec, at: number, velocity: number): BiquadFilterNode | null {
+    if (!spec.filter) return null;
+    const node = context.createBiquadFilter();
+    node.type = spec.filter.type;
+    if (spec.filter.q !== undefined) node.Q.value = spec.filter.q;
+
+    const target = spec.filter.frequency;
+    const open = spec.filter.envelope ?? 1;
+    if (open > 1) {
+      // Harder playing starts brighter; the sweep always lands on `frequency`.
+      const start = target * (1 + (open - 1) * velocity);
+      node.frequency.setValueAtTime(start, at);
+      node.frequency.exponentialRampToValueAtTime(target, at + voiceSeconds(spec));
+    } else {
+      node.frequency.setValueAtTime(target, at);
+    }
+    return node;
+  }
+
+  function tone(
+    spec: VoiceSpec,
+    at: number,
+    frequency: number,
+    gain: number,
+    velocity: number
+  ): void {
+    const total = voiceSeconds(spec);
     const node = envelope(spec, at, gain);
+    const shaper = filter(spec, at, velocity);
     const oscillator = context.createOscillator();
     oscillator.type = spec.waveform === "noise" ? "sine" : spec.waveform;
     oscillator.frequency.setValueAtTime(frequency, at);
     if (spec.glide && spec.glide !== 1) {
-      oscillator.frequency.exponentialRampToValueAtTime(
-        frequency * spec.glide,
-        at + spec.duration
-      );
+      oscillator.frequency.exponentialRampToValueAtTime(frequency * spec.glide, at + total);
     }
-    oscillator.connect(node);
+    if (shaper) {
+      oscillator.connect(shaper);
+      shaper.connect(node);
+    } else {
+      oscillator.connect(node);
+    }
     oscillator.start(at);
-    oscillator.stop(at + spec.duration + 0.02);
+    oscillator.stop(at + total + 0.02);
     oscillator.onended = () => {
       oscillator.disconnect();
+      shaper?.disconnect();
       node.disconnect();
     };
   }
 
   return {
-    play(spec: VoiceSpec, time: number) {
+    play(spec: VoiceSpec, time: number, velocity = 1) {
       const at = Math.max(time, context.currentTime);
+      const level = clamp(velocity, 0, 1);
+      if (level <= 0) return;
 
       if (spec.waveform === "noise") {
         if (!noise) noise = noiseBuffer(context);
-        const node = envelope(spec, at, spec.gain);
+        const total = voiceSeconds(spec);
+        const node = envelope(spec, at, spec.gain * level);
         const source = context.createBufferSource();
         source.buffer = noise;
-        const filter = context.createBiquadFilter();
-        filter.type = "highpass";
-        filter.frequency.value = spec.frequency;
-        source.connect(filter);
-        filter.connect(node);
+        const shaper = context.createBiquadFilter();
+        shaper.type = "highpass";
+        shaper.frequency.value = spec.frequency;
+        source.connect(shaper);
+        shaper.connect(node);
         source.start(at);
-        source.stop(at + spec.duration + 0.02);
+        source.stop(at + total + 0.02);
         source.onended = () => {
           source.disconnect();
-          filter.disconnect();
+          shaper.disconnect();
           node.disconnect();
         };
         return;
       }
 
-      tone(spec, at, spec.frequency, spec.gain);
+      tone(spec, at, spec.frequency, spec.gain * level, level);
       spec.partials?.forEach((relative, index) => {
         if (relative <= 0) return;
-        tone(spec, at, spec.frequency * (index + 2), spec.gain * relative);
+        tone(spec, at, spec.frequency * (index + 2), spec.gain * level * relative, level);
       });
     },
     setVolume(value: number) {
-      out.gain.setTargetAtTime(Math.min(1, Math.max(0, value)), context.currentTime, 0.01);
+      out.gain.setTargetAtTime(clamp(value, 0, 1), context.currentTime, 0.01);
     },
     dispose() {
       try {
