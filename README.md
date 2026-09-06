@@ -1,8 +1,8 @@
 # 音乐实验室 · Music Lab
 
-> 浏览器内的音乐练习工具台:**调音** + **声图** + **专业节拍器** + **视唱练耳**。实时音高/和弦分析 + 多乐器调音器 — 吉他、贝斯、尤克里里、小提琴、二胡、古筝、古琴、布鲁斯口琴(含压音/超吹目标)。Vue 3 + Vuetify 构建,音频只在浏览器本地处理,**不会上传**。
+> 浏览器内的音乐练习工具台:**调音** + **声图** + **专业节拍器** + **视唱练耳** + **演奏**。实时音高/和弦分析 + 多乐器调音器 — 吉他、贝斯、尤克里里、小提琴、二胡、古筝、古琴、布鲁斯口琴(含压音/超吹目标)。Vue 3 + Vuetify 构建,音频只在浏览器本地处理,**不会上传**。
 >
-> A browser music-practice workbench: **tuning**, a **trace** for looking at sound over time, a **professional metronome**, and **ear training with sight-singing**. Real-time pitch & chord analysis, a multi-instrument per-note tuner — guitar, bass, ukulele, violin, erhu, guzheng, guqin, and blues harmonica (with bend/overblow targets). Built with Vue 3 + Vuetify; audio never leaves your browser.
+> A browser music-practice workbench: **tuning**, a **trace** for looking at sound over time, a **professional metronome**, **ear training with sight-singing**, and a **play** tool for keys, frets, pads and fingering charts. Real-time pitch & chord analysis, a multi-instrument per-note tuner — guitar, bass, ukulele, violin, erhu, guzheng, guqin, and blues harmonica (with bend/overblow targets). Built with Vue 3 + Vuetify; audio never leaves your browser.
 
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Node](https://img.shields.io/badge/node-%3E%3D20-brightgreen)](#开发)
@@ -49,6 +49,12 @@
   - **音域可选**(`原调 / 低八度`):男声低八度唱是对的 —— 发声、画线、判分都跟着音域走,谱面不动只标 `8vb`
   - 起音滑音与"晚起一点"被排除在判分之外;调 / 速度 / 小节可选;进度可重置
   - app 自己发声时(参考音 / 预备拍 / 试听)暂停采集,不会把自己的声音录进你的 take
+- 🎹 **演奏**(`/play`):同一个工具,四种演奏面 —— 乐器自己决定画什么、响什么
+  - **键盘**:钢琴 / 电钢琴 / 风琴;鼠标、触摸、电脑键盘(Z–M 与 Q–P 两排)与八度切换
+  - **指板**:吉他 / 贝斯 / 尤克里里 / 曼陀林 / 班卓 / 琵琶 / 阮 / 柳琴 —— 每一品就是一个半音,**调弦数据直接生成指板**,Drop D、DADGAD、七弦全部免费
+  - **鼓垫**:架子鼓九件,闭镲与开镲互相**掐断**(choke group)
+  - **音孔图**:笛 / 箫 / 萨克斯 —— 调音页画的那张指法图,按住就吹响
+  - 音色全部为合成:包络与滤波决定音色,不是波形 —— 槌击弦会随衰减变暗,风琴不衰减,吹管带气声噪声层
 - 🌗 深色 / 浅色双主题,一键切换并记住选择
 - 🌐 中英双语界面,一键切换并记住选择;📱 响应式
 
@@ -57,7 +63,7 @@
 ```bash
 npm install
 npm run dev        # 开发服务器 → http://localhost:5173
-npm test           # Vitest 单元测试(算法 / 乐器数据 / 节拍器领域与调度)
+npm test           # Vitest 单元测试(算法 / 乐器数据 / 节拍器领域与调度 / 演奏)
 npm run build      # 类型检查 + 生产构建 → dist/
 ```
 
@@ -74,25 +80,50 @@ npm run build      # 类型检查 + 生产构建 → dist/
 
 ## 添加一种乐器 · Adding an Instrument
 
-架构上,加一种乐器 ≈ 在 `src/instruments/` 加一个数据文件:
+一件乐器 = **身份** + 若干**能力**,每种能力都是可选的。钢琴没有玩家会去设的调弦,架子鼓根本没有音高 —— 把三者塞进同一个形状,抽象就不再约束任何东西。
 
 ```ts
 import type { InstrumentDefinition } from "./types.js";
 
-export const myInstrument: InstrumentDefinition = {
+export const myInstrument = {
   id: "myInstrument",
   name: { zh: "乐器名", en: "Name" },
-  category: "strings" | "winds",
-  layout: "strings" | "harmonica",   // 通用弦列面板,或自定义面板
-  defaultPresetId: "standard",
-  range: { minHz: 80, maxHz: 600, minMidi: 30, maxMidi: 72 }, // 检测音域
-  presets: [
-    { id: "standard", name: { zh: "标准", en: "Standard" }, notes: [40, 45, 50, 55], noteLabels: [...] }
-  ]
-};
+  category: "plucked",              // keys | plucked | bowed | winds | percussion | other
+
+  // 能力一:可调音 —— 出现在 /tune 里。省略则不出现。
+  tuning: {
+    layout: "list",                 // list | grid | fingering
+    defaultPresetId: "standard",
+    presets: [
+      { id: "standard", name: { zh: "标准", en: "Standard" }, notes: [40, 45, 50, 55] }
+    ]
+    // range 通常省略:deriveRange() 从乐器能发出的所有音推导,不会与数据脱节
+  },
+
+  // 能力二:可演奏 —— 出现在 /play 里。surface 决定画什么,timbre 决定响什么。
+  timbre: "nylon",
+  surface: { kind: "frets", frets: 15 }
+} satisfies InstrumentDefinition;
 ```
 
-然后在 `src/instruments/index.ts` 的 `allInstruments` 里登记即可。测试(`tests/instruments.test.ts`)自动校验:所有音符落在该乐器音域内、预设 id 唯一、默认调式存在。
+`surface` 的四种形态:
+
+| kind | 画成 | 音高从哪来 |
+|---|---|---|
+| `keys` | 钢琴键 | 键盘映射 + 八度 |
+| `frets` | 指板 | `tuning.presets` 的空弦 + 品位算术 |
+| `holes` | 指法图 | `tuning.presets` 的 `fingerings`(所以必须同时可调音) |
+| `pads` | 鼓垫 | **没有音高** —— 每个 piece 自带 `timbre` 与 Hz |
+
+音色同样是数据(`src/audio/timbre.ts`),加一种音色是加一行:
+
+```ts
+{ id: "nylon", waveform: "triangle", gain: 0.3, attack: 0.008, ring: 2.6,
+  partials: [0.42, 0.18, 0.09, 0.04],
+  filter: { type: "lowpass", harmonic: 4, q: 0.7, envelope: 2.5 } }
+```
+
+然后在 `src/instruments/index.ts` 的 `allInstruments` 里登记。测试(`tests/instruments.test.ts`)自动校验:每件乐器至少声明一种能力、音符全部落在推导出的检测音域内、预设 id 唯一、有演奏面的必须有声音(鼓例外 —— 它的声音在每个 piece 上)。
 
 ## 项目结构 · Structure
 
@@ -118,7 +149,8 @@ music-lab/
 │   │   ├── spectrogram.ts pitch-track.ts colormap.ts notation.ts(五线谱/简谱布局)
 │   │   ├── plot/           # scale / palette / canvas / spectrum / trace(唯一的刻度真相)
 │   │   └── format.ts
-│   ├── instruments/        # 乐器数据层(types / 注册表 / 8 个数据文件)
+│   │   └── timbre.ts       # 音色即数据(键盘 / 拨弦 / 打击 / 吹管家族)
+│   ├── instruments/        # 乐器数据层(types / 注册表 / 每件乐器一个数据文件)
 │   ├── features/
 │   │   ├── tuning/         # 调音与分析工具
 │   │   │   ├── components/ # 各分析卡片 / tuner 面板
@@ -127,6 +159,7 @@ music-lab/
 │   │   │   └── TuningView.vue
 │   │   ├── trace/          # 声图(时频图 + 音高曲线 + 瞬时谱)
 │   │   ├── ear/            # 练耳与视唱(domain 出题/判分 → engine 发声 → stores → UI)
+│   │   ├── play/           # 演奏台(keymap/指板/音孔 domain → performer → stores → UI)
 │   │   └── metronome/
 │   │       ├── domain/     # meter / accent / tempo / rhythm / practice / presets(纯函数)
 │   │       ├── engine/     # transport 接口 + native-transport / scheduler / bar-cursor / click-engine / sound-bank

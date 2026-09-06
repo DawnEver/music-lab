@@ -1,14 +1,14 @@
 ---
 name: playable-instruments-refactor-plan
-description: 把「乐器」从调音目标集合提升为跨三原语的一等实体的重构架构计划;从键盘入手,音色即数据,吉他/钢琴/贝斯/架子鼓/管乐分阶段落地
+description: 把「乐器」从调音目标集合提升为跨三原语的一等实体;计划 + 实施记录 —— 音色即数据、能力正交、/play 四种演奏面(键盘/指板/鼓垫/音孔)全部落地
 metadata:
   type: project
 ---
 
 ## 2026-09-06 — 可演奏乐器重构:架构计划(尚未实现)
 
-> 状态:**计划,未动代码**。下面记录的是现状测绘 + 目标模型 + 分阶段路线,
-> 以及每条设计选择背后的成因。实现时若偏离,回来改这份文档。
+> 状态:**阶段 0–5 全部实施完成**(同日,v2.10.0)。上半部分是当初的现状测绘与
+> 目标模型,原样保留;文末「实施记录」写清最终做成了什么、哪里偏离了计划、为什么。
 
 ### 起点结论
 
@@ -196,3 +196,88 @@ Timbre { id, name, layers: VoiceSpec[], velocityCurve, release, filter? }
   说明这个抽象已经松到没有约束力了。
 - 音色方案(合成 vs 采样)的决策应当**推迟到契约定死之后**,而不是之前 ——
   契约稳定时,换 source 是零成本的。
+
+---
+
+# 实施记录(2026-09-06,阶段 0–5 全部落地)
+
+七个提交,470 项单测 + 双视口 smoke 全绿,`vue-tsc` 干净。
+
+## 最终形态
+
+**乐器 = 身份 + 正交能力**,两种能力都可选:
+```ts
+{ id, name, category,
+  tuning?: { layout, presets, reeds?, wind?, variants? },   // 出现在 /tune
+  timbre?: TimbreId,                                        // 出现在 /play
+  surface?: PlaySurface }
+```
+`TunedInstrument` / `PlayableInstrument` 用**类型收窄**表达能力,不是布尔标志 ——
+是编译器而不是注释拦住「鼓进 buildTargets」。
+
+`PlaySurface` 是判别联合,不是枚举 —— 指板需要品数,键盘不需要,两者不该互相背对方的字段:
+| kind | 画成 | 音高来源 |
+|---|---|---|
+| `keys` | 钢琴键 | 键位映射 + 八度 |
+| `frets` | 指板 | 空弦 + 品位算术(每品一个半音) |
+| `holes` | 指法图 | preset 的 `fingerings`(故必须同时可调音) |
+| `pads` | 鼓垫 | **无音高**,每个 piece 自带 timbre 与 Hz |
+
+`/play` 一个路由承载四种面。**乐器是唯一的选择** —— surface 决定画什么,
+timbre 决定响什么;单独的音色菜单会让名字和声音互相矛盾。
+
+## 与原计划的偏离(三处,都是实现中才看清的)
+
+1. **没有做成「键盘工具 + 音色选择器」**。原计划阶段 1 是键盘 + 3 个音色 chip。
+   实现到阶段 3 才发现:钢琴/电钢/风琴本来就是三件**乐器**,不是一个乐器的三种音色。
+   于是音色 chip 整个删掉,合并进乐器选择器,`features/keyboard` 改名 `features/play`。
+2. **`isPlayable` 不要求 instrument 级 timbre**。鼓的 instrument 级音色无物可指,
+   逼它填一个就是逼它撒谎。改成:有音高的面要 timbre,pads 面由每个 piece 自带。
+3. **采样方案没有启用,也不需要了**。原计划把「合成 vs 采样」列为待拍板项,
+   预期管乐是第一个必须采样的家族。实际给 `VoiceSpec` 加了一层 **breath 噪声层**
+   (循环噪声 + 高通在两倍频,骑同一条包络)之后,笛箫萨克斯已经足够可辨。
+   **契约先定死、source 后换**这一步是对的,但换的时机被推迟到了「暂时不需要」。
+
+## 发声层最终能力(`audio/voice.ts` + `audio/timbre.ts`)
+
+- 包络两种形状:**无 sustain = 拨弦**(自己衰减到静音),**有 sustain = ADSR**
+  (风琴、吹管)。松键对拨弦只是提前止音 —— 这正是手指离开钢琴键做的事。
+- `filter`:截止频率**按音的谐波数**给,不是固定 Hz,所以同一音色在低音区不发闷、
+  高音区不发尖。`envelope` 是起音时截止的倍数,随音衰减回落 —— 拨弦"越衰减越暗"。
+- `velocity` 同时缩放响度和滤波开度(敲得重 = 更亮)。
+- `hold()` 返回 `HeldVoice`,`release()` 用 `cancelAndHoldAtTime` 从音符实际所在的
+  电平往下走;已在自然结束的音不会被 release 拉长。
+- `breath`:循环噪声层,吹管的关键。
+- 16 个音色:piano / epiano / organ / steel / nylon / bass / kick / snare / hihat /
+  hihatOpen / tom / crash / ride / flute / reed / singable。
+  **区分乐器的是包络与亮度随时间的变化,不是波形。**
+
+## 演奏原语(`features/play/engine/performer.ts`)
+
+不是调度器,是**当前按下了什么的登记表**:`noteOn/noteOff/strike/allOff`。
+时钟仍然注入且仍然是 `AudioContext.currentTime`。
+`strike()` 给无音高的一击;同一 choke group 的 piece 互相掐断 —— 一个字段,
+却是闭镲听起来像闭镲而不是两片无关的铜的唯一原因。
+
+## 顺手修掉的真 bug
+
+- **smoke 自启的 dev server 会挂死**:stderr 被 pipe 却无人读取,缓冲区填满后
+  vite 阻塞,表现为整个测试卡住。同时 Windows 上 `shell: true` 杀掉的是 cmd,
+  真正的 vite 继续占着端口。改为直接用 `process.execPath` 跑 `vite/bin/vite.js`。
+- **Vuetify 下拉不能放进 ControlSheet**:菜单浮层 teleport 到 sheet 外,点选项被
+  判定为点到外面,sheet 在指针下先关掉了。改用 chip —— 顺带也符合
+  「选项全部可见」那条规则。
+
+## Reusable insight
+
+- **「先做能力最强的那件,再做最简单的那件」是错的顺序**。真正定型模型的是
+  **架子鼓**:任何能把无音高的鼓塞进去的「统一乐器抽象」都已经松到不约束任何东西。
+  应该更早拿它当判据,而不是等到阶段 4。
+- **同一份数据被第二个工具用上时,才知道它建模得对不对**。吉他的 8 种调弦
+  在调音器里躺了很久,直到指板复用它 —— 每品一个半音,Drop D / DADGAD / 七弦
+  全部免费。反过来,`layout`/`presets` 挂在乐器顶层这件事,也是直到钢琴和鼓
+  出现才暴露为错。
+- **判别联合优于「枚举 + 一堆可选字段」**:`surface: {kind:"frets", frets}` 让
+  「键盘没有品数」成为类型事实,而不是一条注释。
+- **不要为了未来的能力提前引入资源管线**。采样最终没做,因为契约定死之后,
+  一个 breath 噪声层就把管乐的差距补掉了。

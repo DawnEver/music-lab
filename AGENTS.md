@@ -7,7 +7,7 @@ taught them, live in `.claude/memory/`.
 Code and file contents in English; conversation may be in Chinese. UI copy lives in the i18n dictionary; Chinese UI text uses 调音, never 校音.
 
 ## What this app is
-Three primitives — **sound in** (source → frames → features), **sound out** (schedule → voices), **musical meaning** (pure maths). Every tool is a combination; sight-singing is all three. A tool needing both directions is normal, so both live in `audio/`: when two features need the same thing, move the layer, never relax the boundary.
+Three primitives — **sound in** (source → frames → features), **sound out** (schedule → voices), **musical meaning** (pure maths). Every tool is a combination; sight-singing is all three. A tool needing both directions is normal, so both live in `audio/`: when two features need the same thing, move the layer, never relax the boundary. Playing is sound out with no schedule — a note starts when a finger lands and ends when it lifts, so it is a register of what is down (`hold`/`release`), never the look-ahead scheduler.
 
 ## Architecture
 - One-way layers `features → audio → lib`, enforced by a test over the import graph. `lib/` is pure and must run in Node (no `audio/`, no DOM or Web Audio globals); `audio/` is the only layer that names Web Audio; `features/*` never import each other, and only the router names a feature view.
@@ -21,12 +21,16 @@ Three primitives — **sound in** (source → frames → features), **sound out*
 - `lib/plot/scale.ts` is the single source of "where does this value sit" (domain → 0..1, axis-agnostic); colours come from `--plot-*` tokens. The canvas paints its own surface, ramps come in dark-page and light-page families, tick density is budgeted by available pixels, and canvases draw through `onFrame` outside Vue reactivity.
 - History is a ring of columns stamped with audio time and a view is a *query* over it — never a canvas scrolled a pixel per frame, which ties the time axis to the frame rate and kills freezing, zooming and replay.
 - A pitch line has rules a heat map does not: break it where the signal is unvoiced, and fold one-off octave errors back onto it (a real leap is held; an artefact lasts a frame).
-- Everything enumerable is data — instruments, click banks, voices, exercise types, colour ramps. Adding one is a new row, never a new code path. One tuning model (`TuningTarget`) covers strings, tines, holes and fingerings; a new family adds a renderer, and an instrument is one data file with its band from `deriveRange`.
+- Everything enumerable is data — instruments, click banks, timbres, exercise types, colour ramps. Adding one is a new row, never a new code path. One tuning model (`TuningTarget`) covers strings, tines, holes and fingerings; a new family adds a renderer, and an instrument is one data file with its band from `deriveRange`.
+- An instrument is an identity plus **optional capabilities**: `tuning` (appears in `/tune`), `timbre` + `surface` (appears in `/play`). A piano has no tuning a player sets and a kit has no pitch at all, so requiring either of everything is how the abstraction stops constraining anything. Narrow by capability (`TunedInstrument`, `PlayableInstrument`), never by a boolean flag.
+- A timbre is note-independent data bound to a pitch by `timbreSpec()`, or to a bare frequency by `timbreSpecAt()` — percussion has a fundamental, not a note, and giving it a MIDI number puts it back among things that can be out of tune. Filter cutoffs are a harmonic of the note, so one timbre stays balanced across the range. What separates instruments is the envelope and the brightness over time, not the waveform.
 - Feature state lives in `features/*/stores/`; importing a store has no side effect (an explicit `hydrate*()` reads persisted state, always via `lib/persist.ts`). Styles have one source: `.card` plus variant classes.
 - Compatibility code carries an expiry: the `tcl-` keys and the legacy hash-route mapping retire in v3.0.
 
 ## Interaction
-- One tool per route, named for what the player is doing: `/tune`, `/trace`, `/rhythm`, `/ear`; renamed routes keep redirects. A graph belongs to the trace — a tuner's answer is one number.
+- One tool per route, named for what the player is doing: `/tune`, `/trace`, `/rhythm`, `/ear`, `/play`; renamed routes keep redirects. A graph belongs to the trace — a tuner's answer is one number.
+- In `/play` the instrument is the only choice: its `surface` decides what is drawn (keys, frets, pads, holes) and its `timbre` decides what is heard. A separate voice menu would let the name and the sound disagree.
+- A picker inside a `ControlSheet` must be chips, not a `v-select`: the menu overlay teleports out of the sheet, so choosing an option reads as clicking outside and closes the sheet under the pointer.
 - Layout follows use: the tuning workbench shows many readouts at once; the other tools each have one focus that never scrolls.
 - Settings placement follows one test — is the knob part of the loop? A meter is set once and then played, so it hides behind the value it changes (`ControlSheet`); a dB floor is set while watching the picture, so it stays on screen. One component, two placements, never two copies.
 - `AudioSource` is one shared control placed by each tool that offers an input — never in the shell, never where there is no use for a microphone.

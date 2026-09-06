@@ -1,7 +1,7 @@
 {
   "name": "music-lab",
-  "version": "2.9.0",
-  "description": "Music Lab — browser-based tuning, a time-frequency scope, a professional metronome, and ear training with sight-singing. Vue 3 + Vuetify, fully client-side.",
+  "version": "2.10.0",
+  "description": "Music Lab — browser-based tuning, a time-frequency scope, a professional metronome, ear training with sight-singing, and a play tool for keys, frets, pads and fingering charts. Vue 3 + Vuetify, fully client-side.",
   "type": "module",
   "private": false,
   "license": "MIT",
@@ -18,7 +18,11 @@
     "spectrogram",
     "ear-training",
     "sight-singing",
-    "solfege"
+    "solfege",
+    "keyboard",
+    "fretboard",
+    "drum-machine",
+    "synthesis"
   ],
   "scripts": {
     "dev": "vite",
