@@ -3034,3 +3034,119 @@
   font-size: 13px;
   font-style: italic;
 }
+
+/* Keyboard tool — the keys are positioned, not flowed: a black key
+   straddles the boundary between two white ones, which no flex row can
+   express. Widths arrive as percentages from the layout. */
+.kbd-stage {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+}
+
+.kbd-octave {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.kbd-octave-btn {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: 1px solid var(--line);
+  background: var(--glass);
+  color: var(--text);
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  transition: border-color 0.15s ease, color 0.15s ease;
+}
+
+.kbd-octave-btn:hover {
+  border-color: var(--accent-2);
+  color: var(--accent-2);
+}
+
+.kbd-octave-value {
+  min-width: 96px;
+  text-align: center;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+.kbd-keys {
+  position: relative;
+  width: 100%;
+  height: 190px;
+  touch-action: none;
+  user-select: none;
+}
+
+.kbd-key {
+  position: absolute;
+  top: 0;
+  padding: 0 0 8px;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 3px;
+  border: 1px solid var(--line);
+  border-radius: 0 0 6px 6px;
+  background: linear-gradient(180deg, #fdfdfd, #e6e8ee);
+  color: #4a4f5c;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  cursor: pointer;
+  transition: background 0.06s ease;
+}
+
+.kbd-key.is-black {
+  height: 62%;
+  z-index: 2;
+  border-color: #0b0d12;
+  border-radius: 0 0 5px 5px;
+  background: linear-gradient(180deg, #2a2f3b, #10131a);
+  color: #aab2c4;
+}
+
+.kbd-key:not(.is-black) {
+  height: 100%;
+  z-index: 1;
+}
+
+.kbd-key.is-down {
+  background: linear-gradient(180deg, var(--accent-2), var(--accent));
+  color: #0b0d12;
+}
+
+.kbd-cap {
+  opacity: 0.55;
+  text-transform: uppercase;
+}
+
+.kbd-note {
+  font-weight: 700;
+  opacity: 0.75;
+}
+
+.kbd-hint {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  text-align: center;
+}
+
+@media (max-width: 720px) {
+  .kbd-keys {
+    height: 150px;
+  }
+
+  .kbd-cap {
+    display: none;
+  }
+}

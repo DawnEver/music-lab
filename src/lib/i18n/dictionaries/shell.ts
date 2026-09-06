@@ -17,7 +17,8 @@ export const shell = {
     navTuning: "调音",
     navTrace: "声图",
     navMetronome: "节拍",
-    navEar: "练耳"
+    navEar: "练耳",
+    navPlay: "键盘"
   },
   en: {
     appTitle: "Music Lab",
@@ -36,6 +37,7 @@ export const shell = {
     navTuning: "Tune",
     navTrace: "Trace",
     navMetronome: "Rhythm",
-    navEar: "Ear"
+    navEar: "Ear",
+    navPlay: "Keys"
   }
 } as const;

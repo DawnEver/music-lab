@@ -7,6 +7,7 @@ import { tuning } from "../src/lib/i18n/dictionaries/tuning.js";
 import { metronome } from "../src/lib/i18n/dictionaries/metronome.js";
 import { trace } from "../src/lib/i18n/dictionaries/trace.js";
 import { ear } from "../src/lib/i18n/dictionaries/ear.js";
+import { keyboard } from "../src/lib/i18n/dictionaries/keyboard.js";
 
 describe("dictionary", () => {
   it("zh and en define the same set of keys", () => {
@@ -40,7 +41,7 @@ describe("dictionary", () => {
   });
 
   it("each dictionary owns its keys, with zh/en parity and no overlap", () => {
-    const parts = { shell, tuning, metronome, trace, ear };
+    const parts = { shell, tuning, metronome, trace, ear, keyboard };
     const seen = new Map<string, string>();
 
     for (const [name, part] of Object.entries(parts)) {

@@ -17,12 +17,18 @@ function fakeContext(now = 10) {
     stopped: number;
     disconnected: boolean;
   }> = [];
-  const gains: Array<{ ramps: Ramp[]; value: number }> = [];
+  const gains: Array<{ ramps: Ramp[]; value: number; cancels: number[] }> = [];
   const sources: Array<{ started: number; stopped: number }> = [];
   const filters: Array<{ type: string; q: number; ramps: Ramp[] }> = [];
 
-  const param = (store: Ramp[], initial = 0) => ({
+  const param = (store: Ramp[], cancels: number[] = [], initial = 0) => ({
     value: initial,
+    cancelScheduledValues(time: number) {
+      cancels.push(time);
+    },
+    cancelAndHoldAtTime(time: number) {
+      cancels.push(time);
+    },
     setValueAtTime(value: number, time: number) {
       store.push({ value, time });
     },
@@ -41,8 +47,9 @@ function fakeContext(now = 10) {
     sampleRate: 48000,
     createGain() {
       const ramps: Ramp[] = [];
-      const entry = { ramps, get value() { return gain.gain.value; } };
-      const gain = { ...node(), gain: param(ramps) };
+      const cancels: number[] = [];
+      const entry = { ramps, cancels, get value() { return gain.gain.value; } };
+      const gain = { ...node(), gain: param(ramps, cancels) };
       gains.push(entry as never);
       return gain;
     },
@@ -65,7 +72,7 @@ function fakeContext(now = 10) {
         get type() {
           return entry.type;
         },
-        frequency: param(at),
+        frequency: param(at, []),
         start(time: number) {
           entry.started = time;
         },
@@ -113,7 +120,7 @@ function fakeContext(now = 10) {
             entry.q = next;
           }
         },
-        frequency: { ...param(ramps), set value(next: number) { ramps.push({ value: next, time: -1 }); } }
+        frequency: { ...param(ramps, []), set value(next: number) { ramps.push({ value: next, time: -1 }); } }
       };
     },
     createBuffer(_channels: number, length: number) {
@@ -299,5 +306,79 @@ describe("filter and velocity", () => {
     const fake = fakeContext(0);
     createVoicePlayer(fake.context, fake.context.createGain()).play(TONE, 1);
     expect(fake.filters).toHaveLength(0);
+  });
+});
+
+describe("held voices", () => {
+  const ORGAN: VoiceSpec = {
+    waveform: "sawtooth",
+    frequency: 220,
+    gain: 0.4,
+    duration: 0.5,
+    attack: 0.01,
+    sustain: 0.8,
+    decay: 0.04,
+    release: 0.12
+  };
+
+  it("keeps sounding until it is released", () => {
+    const fake = fakeContext(0);
+    const held = createVoicePlayer(fake.context, fake.context.createGain()).hold(ORGAN, 1);
+    expect(fake.oscillators[0].started).toBe(1);
+    expect(fake.oscillators[0].stopped).toBe(-1);
+
+    held.release(3);
+    expect(fake.oscillators[0].stopped).toBeCloseTo(3 + 0.12 + 0.02, 6);
+  });
+
+  it("ramps down over the release, from where the note actually was", () => {
+    const fake = fakeContext(0);
+    createVoicePlayer(fake.context, fake.context.createGain()).hold(ORGAN, 1).release(3);
+    const envelope = fake.gains[2] as unknown as { ramps: Ramp[]; cancels: number[] };
+    expect(envelope.cancels).toEqual([3]);
+    const last = envelope.ramps[envelope.ramps.length - 1];
+    expect(last.time).toBeCloseTo(3.12, 6);
+    expect(last.value).toBeLessThan(0.001);
+  });
+
+  it("lets a plucked voice die on its own with nobody releasing it", () => {
+    const fake = fakeContext(0);
+    const pluck: VoiceSpec = { ...ORGAN, sustain: undefined, duration: 2 };
+    createVoicePlayer(fake.context, fake.context.createGain()).hold(pluck, 1);
+    expect(fake.oscillators[0].stopped).toBeCloseTo(3.02, 6);
+  });
+
+  it("damps a plucked voice early when the finger comes off", () => {
+    const fake = fakeContext(0);
+    const pluck: VoiceSpec = { ...ORGAN, sustain: undefined, duration: 2 };
+    createVoicePlayer(fake.context, fake.context.createGain()).hold(pluck, 1).release(1.5);
+    expect(fake.oscillators[0].stopped).toBeCloseTo(1.5 + 0.12 + 0.02, 6);
+  });
+
+  it("never extends a note that is already ending", () => {
+    const fake = fakeContext(0);
+    const pluck: VoiceSpec = { ...ORGAN, sustain: undefined, duration: 0.2 };
+    const held = createVoicePlayer(fake.context, fake.context.createGain()).hold(pluck, 1);
+    const natural = fake.oscillators[0].stopped;
+    held.release(5);
+    expect(fake.oscillators[0].stopped).toBe(natural);
+  });
+
+  it("gives each partial its own trim so the harmonic balance holds", () => {
+    const fake = fakeContext(0);
+    createVoicePlayer(fake.context, fake.context.createGain()).hold(
+      { ...ORGAN, partials: [0.5, 0, 0.25] },
+      1
+    );
+    // Fundamental plus the two audible partials; the silent one is skipped.
+    expect(fake.oscillators).toHaveLength(3);
+    expect(fake.oscillators.map((entry) => entry.frequency.at[0].value)).toEqual([220, 440, 880]);
+  });
+
+  it("scales a held note by velocity too", () => {
+    const fake = fakeContext(0);
+    createVoicePlayer(fake.context, fake.context.createGain()).hold(ORGAN, 1, 0.5);
+    const envelope = fake.gains[2] as unknown as { ramps: Ramp[] };
+    expect(envelope.ramps[1].value).toBeCloseTo(0.4 * 0.5, 6);
   });
 });

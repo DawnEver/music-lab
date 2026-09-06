@@ -46,7 +46,8 @@ export const TOOLS: ToolRoute[] = [
   { name: "tune", path: "/tune", labelKey: "navTuning", icon: "♪" },
   { name: "trace", path: "/trace", labelKey: "navTrace", icon: "▚" },
   { name: "rhythm", path: "/rhythm", labelKey: "navMetronome", icon: "▮▯" },
-  { name: "ear", path: "/ear", labelKey: "navEar", icon: "◉" }
+  { name: "ear", path: "/ear", labelKey: "navEar", icon: "◉" },
+  { name: "play", path: "/play", labelKey: "navPlay", icon: "▤" }
 ];
 
 const routes: RouteRecordRaw[] = [
@@ -69,6 +70,11 @@ const routes: RouteRecordRaw[] = [
     path: "/ear",
     name: "ear",
     component: () => import("../features/ear/EarView.vue")
+  },
+  {
+    path: "/play",
+    name: "play",
+    component: () => import("../features/keyboard/KeyboardView.vue")
   },
   { path: "/", redirect: "/tune" },
   { path: "/tuning", redirect: "/tune" },

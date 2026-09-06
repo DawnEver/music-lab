@@ -23,8 +23,10 @@ const BASE_URL = process.env.SMOKE_URL ?? `http://localhost:${PORT}`;
 async function startDevServer() {
   if (process.env.SMOKE_URL) return () => {};
 
+  // npx is a .cmd on Windows, which spawn will not find without a shell.
   const server = spawn("npx", ["vite", "--port", PORT, "--strictPort"], {
-    stdio: ["ignore", "pipe", "pipe"]
+    stdio: ["ignore", "pipe", "pipe"],
+    shell: process.platform === "win32"
   });
   const stop = () => {
     if (!server.killed) server.kill("SIGTERM");
@@ -357,6 +359,63 @@ async function walkTrace(page, label, { live = false } = {}) {
   await gotoTool(page, "tune");
 }
 
+/** The keyboard: geometry only a browser can answer, plus it must sound. */
+async function walkKeyboard(page, label) {
+  await gotoTool(page, "play");
+  await page.waitForSelector(".kbd-key", { timeout: 8000 });
+
+  const keys = await page.locator(".kbd-key").count();
+  if (keys !== 32) throw new Error(`${label}: expected 32 keys, got ${keys}`);
+
+  // Black keys must sit above the white ones and inside the keyboard.
+  const board = await page.locator(".kbd-keys").boundingBox();
+  const black = await page.locator(".kbd-key.is-black").first().boundingBox();
+  const white = await page.locator(".kbd-key:not(.is-black)").first().boundingBox();
+  if (!board || !black || !white) throw new Error(`${label}: missing keyboard geometry`);
+  if (!(black.width < white.width)) {
+    throw new Error(`${label}: a black key should be narrower than a white one`);
+  }
+  if (!(black.height < white.height)) {
+    throw new Error(`${label}: a black key should be shorter than a white one`);
+  }
+  const last = await page.locator(".kbd-key").last().boundingBox();
+  if (last.x + last.width > board.x + board.width + 1) {
+    throw new Error(`${label}: the keyboard runs past its own width`);
+  }
+
+  // Pressing a key lights it and, when released, lets it go.
+  await page.locator(".kbd-key").first().dispatchEvent("pointerdown");
+  await page.waitForSelector(".kbd-key.is-down", { timeout: 4000 });
+  await page.locator(".kbd-key").first().dispatchEvent("pointerup");
+  await page.waitForFunction(() => document.querySelectorAll(".kbd-key.is-down").length === 0, {
+    timeout: 4000
+  });
+
+  // The computer keyboard plays it too, and auto-repeat is one note.
+  await page.keyboard.down("z");
+  await page.waitForSelector(".kbd-key.is-down", { timeout: 4000 });
+  const down = await page.locator(".kbd-key.is-down").count();
+  if (down !== 1) throw new Error(`${label}: one key held should light one key, got ${down}`);
+  await page.keyboard.up("z");
+
+  // Octave shift moves the labels, and nothing hangs.
+  const before = await page.locator(".kbd-octave-value").innerText();
+  await page.locator(".kbd-octave-btn").last().click();
+  const after = await page.locator(".kbd-octave-value").innerText();
+  if (before === after) throw new Error(`${label}: octave shift did nothing`);
+  if ((await page.locator(".kbd-key.is-down").count()) !== 0) {
+    throw new Error(`${label}: shifting octaves must not leave notes hanging`);
+  }
+
+  // A keyboard has no use for a microphone.
+  if ((await page.locator(".audio-source").count()) !== 0) {
+    throw new Error(`${label}: the keyboard should not ask for a microphone`);
+  }
+
+  await assertNoHOverflow(page, `${label} keyboard`);
+  console.log(`✓ ${label}: keyboard plays, shifts octave and fits its width`);
+}
+
 /** Ear training: the whole loop is hear -> answer -> verdict -> next. */
 async function walkEar(page, label, { fullRep = false } = {}) {
   await gotoTool(page, "ear");
@@ -637,10 +696,10 @@ try {
   console.log("✓ desktop: tuner stretches horizontally (needle | panel side by side)");
 
   // Tool-level navigation: one shell, several music tools.
-  if ((await desktop.locator(".tool-nav-link").count()) !== 4) {
-    throw new Error("desktop: expected tune + scope + rhythm + ear nav links");
+  if ((await desktop.locator(".tool-nav-link").count()) !== 5) {
+    throw new Error("desktop: expected tune + scope + rhythm + ear + play nav links");
   }
-  console.log("✓ desktop: shell exposes all four tools");
+  console.log("✓ desktop: shell exposes all five tools");
 
   // The header carries the build version next to the title.
   const versionText = await desktop.locator(".brand-version").innerText();
@@ -676,6 +735,7 @@ try {
   await walkTrace(desktop, "desktop", { live: true });
   await walkEar(desktop, "desktop", { fullRep: true });
   await walkMetronome(desktop, "desktop", { expectSingleScreen: true });
+  await walkKeyboard(desktop, "desktop");
 
   // ---- Mobile ----
   const mobile = await browser.newPage({ viewport: { width: 375, height: 667 } });
@@ -695,6 +755,7 @@ try {
   await walkTrace(mobile, "mobile");
   await walkEar(mobile, "mobile");
   await walkMetronome(mobile, "mobile");
+  await walkKeyboard(mobile, "mobile");
 
   await mobile.close();
   await desktop.close();

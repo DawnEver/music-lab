@@ -26,6 +26,12 @@ export interface Timbre {
   /** Relative gains of harmonics 2..n. */
   partials?: number[];
   attack?: number;
+  /**
+   * Seconds the note rings on its own when nothing ends it. For a pluck
+   * this is the whole decay; for a sustaining timbre it only bounds the
+   * filter sweep.
+   */
+  ring?: number;
   /** Present for sustaining timbres (organ, bowed); absent means a pluck. */
   sustain?: number;
   decay?: number;
@@ -54,6 +60,9 @@ export const DEFAULT_TIMBRE_ID: TimbreId = "singable";
 export function getTimbre(id: string): Timbre {
   return TIMBRES.find((entry) => entry.id === id) ?? TIMBRES[0];
 }
+
+/** How long a note of this timbre rings when nothing stops it. */
+export const DEFAULT_RING_SECONDS = 3;
 
 /** Bind a timbre to one pitch and one length. */
 export function timbreSpec(

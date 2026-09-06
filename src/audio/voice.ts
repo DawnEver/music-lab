@@ -58,6 +58,12 @@ export interface VoiceSpec {
   filter?: VoiceFilter;
 }
 
+/** A note that is still sounding, waiting for the finger to come off. */
+export interface HeldVoice {
+  /** Damp the note at an absolute audio time (default: now). */
+  release(time?: number): void;
+}
+
 export interface VoicePlayer {
   /**
    * Sound a spec at an absolute `AudioContext.currentTime`. Velocity 0..1
@@ -65,6 +71,13 @@ export interface VoicePlayer {
    * hitting harder opens the filter, as it does on the instrument.
    */
   play(spec: VoiceSpec, time: number, velocity?: number): void;
+  /**
+   * Start a note and keep it sounding until it is released. A sustaining
+   * timbre holds its level; a plucked one decays on its own and release
+   * only damps what is left, which is what taking a finger off a piano
+   * key actually does.
+   */
+  hold(spec: VoiceSpec, time: number, velocity?: number): HeldVoice;
   setVolume(value: number): void;
   dispose(): void;
 }
@@ -178,6 +191,25 @@ export function createVoicePlayer(
     };
   }
 
+  /** The envelope of a note with no known end. */
+  function heldEnvelope(spec: VoiceSpec, at: number, gain: number): GainNode {
+    const node = context.createGain();
+    const attack = Math.max(0.001, spec.attack ?? 0.001);
+    const peak = Math.max(gain, 2 * SILENT);
+
+    node.gain.setValueAtTime(SILENT, at);
+    node.gain.exponentialRampToValueAtTime(peak, at + attack);
+    if (spec.sustain === undefined) {
+      // No sustain: the note decays by itself, as a struck string does.
+      node.gain.exponentialRampToValueAtTime(SILENT, at + voiceSeconds(spec));
+    } else {
+      const level = Math.max(peak * clamp(spec.sustain, 0, 1), 2 * SILENT);
+      node.gain.exponentialRampToValueAtTime(level, at + attack + (spec.decay ?? 0.02));
+    }
+    node.connect(out);
+    return node;
+  }
+
   return {
     play(spec: VoiceSpec, time: number, velocity = 1) {
       const at = Math.max(time, context.currentTime);
@@ -210,6 +242,78 @@ export function createVoicePlayer(
         if (relative <= 0) return;
         tone(spec, at, spec.frequency * (index + 2), spec.gain * level * relative, level);
       });
+    },
+    hold(spec: VoiceSpec, time: number, velocity = 1): HeldVoice {
+      const at = Math.max(time, context.currentTime);
+      const level = clamp(velocity, 0, 1);
+      const release = Math.max(0.005, spec.release ?? 0.08);
+      const natural = at + voiceSeconds(spec);
+
+      // One envelope for the whole note; each partial rides a plain gain
+      // under it, so the relative harmonic balance is fixed for the note.
+      const node = heldEnvelope(spec, at, spec.gain * level);
+      const shaper = filter(spec, at, level);
+      if (shaper) shaper.connect(node);
+      const input = shaper ?? node;
+
+      const parts: AudioNode[] = [];
+      const oscillators: OscillatorNode[] = [];
+      const addTone = (harmonic: number, relative: number) => {
+        const oscillator = context.createOscillator();
+        oscillator.type = spec.waveform === "noise" ? "sine" : spec.waveform;
+        oscillator.frequency.setValueAtTime(spec.frequency * harmonic, at);
+        if (relative === 1) {
+          oscillator.connect(input);
+        } else {
+          const trim = context.createGain();
+          trim.gain.value = relative;
+          oscillator.connect(trim);
+          trim.connect(input);
+          parts.push(trim);
+        }
+        oscillator.start(at);
+        oscillators.push(oscillator);
+      };
+
+      addTone(1, 1);
+      spec.partials?.forEach((relative, index) => {
+        if (relative > 0) addTone(index + 2, relative);
+      });
+
+      let endsAt = Infinity;
+      const stop = (endAt: number) => {
+        if (endAt >= endsAt) return;
+        endsAt = endAt;
+        let alive = oscillators.length;
+        for (const oscillator of oscillators) {
+          oscillator.stop(endAt + 0.02);
+          oscillator.onended = () => {
+            oscillator.disconnect();
+            alive -= 1;
+            if (alive > 0) return;
+            for (const part of parts) part.disconnect();
+            shaper?.disconnect();
+            node.disconnect();
+          };
+        }
+      };
+
+      // A voice with no sustain ends on its own even if nobody releases it.
+      if (spec.sustain === undefined) stop(natural);
+
+      return {
+        release(releaseAt = context.currentTime) {
+          const from = Math.max(releaseAt, at, context.currentTime);
+          if (from + release >= endsAt) return;
+          const param = node.gain as AudioParam & {
+            cancelAndHoldAtTime?: (time: number) => void;
+          };
+          if (param.cancelAndHoldAtTime) param.cancelAndHoldAtTime(from);
+          else param.cancelScheduledValues(from);
+          param.exponentialRampToValueAtTime(SILENT, from + release);
+          stop(from + release);
+        }
+      };
     },
     setVolume(value: number) {
       out.gain.setTargetAtTime(clamp(value, 0, 1), context.currentTime, 0.01);

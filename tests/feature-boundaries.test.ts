@@ -83,6 +83,7 @@ describe("feature boundaries", () => {
     const featureImports = router.imports.filter((target) => featureOf(target));
     expect(featureImports.sort()).toEqual([
       "features/ear/EarView",
+      "features/keyboard/KeyboardView",
       "features/metronome/MetronomeView",
       "features/trace/TraceView",
       "features/tuning/TuningView"
