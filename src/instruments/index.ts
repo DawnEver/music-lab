@@ -33,6 +33,7 @@ import { dizi } from "./dizi.js";
 import { xiao } from "./xiao.js";
 import { saxophone } from "./saxophone.js";
 import { piano, electricPiano, organ } from "./keyboards.js";
+import { drumKit } from "./drums.js";
 
 export * from "./types.js";
 export * from "./targets.js";
@@ -68,7 +69,9 @@ export const allInstruments: InstrumentDefinition[] = [
   xiao,
   saxophone,
   // other
-  kalimba
+  kalimba,
+  // percussion
+  drumKit
 ];
 
 /** Group order of the instrument picker. */
@@ -77,6 +80,7 @@ export const instrumentCategories: InstrumentCategory[] = [
   "plucked",
   "bowed",
   "winds",
+  "percussion",
   "other"
 ];
 
@@ -113,11 +117,16 @@ export function getInstrument(id: string): InstrumentDefinition | null {
 /** An instrument with something to play on. */
 export type PlayableInstrument = InstrumentDefinition & {
   surface: NonNullable<InstrumentDefinition["surface"]>;
-  timbre: NonNullable<InstrumentDefinition["timbre"]>;
 };
 
+/**
+ * A pitched surface plays one voice for every note; a pad surface has a
+ * voice per piece, so the instrument-level timbre would have nothing to
+ * name. Requiring both of them would be requiring a lie from the kit.
+ */
 export function isPlayable(instrument: InstrumentDefinition): instrument is PlayableInstrument {
-  return instrument.surface !== undefined && instrument.timbre !== undefined;
+  if (!instrument.surface) return false;
+  return instrument.surface.kind === "pads" ? true : instrument.timbre !== undefined;
 }
 
 /** Everything the play tool offers, in picker order. */

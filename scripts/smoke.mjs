@@ -446,13 +446,35 @@ async function walkPlay(page, label) {
   if (lit < 1) throw new Error(`${label}: pressing a fret should light it`);
   await page.locator(".fret-cell").first().dispatchEvent("pointerup");
 
+  // Third surface: the kit has no pitch, so it has pads and no tuning row.
+  await page.locator(".value-chip").first().click();
+  await page.waitForSelector('[data-instrument="drums"]', { timeout: 4000 });
+  await page.locator('[data-instrument="drums"]').click();
+  await page.waitForSelector(".pad-grid", { timeout: 8000 });
+  await page.keyboard.press("Escape");
+  if ((await page.locator(".fret-board").count()) !== 0) {
+    throw new Error(`${label}: a kit should not draw a fretboard`);
+  }
+  const padCount = await page.locator(".pad").count();
+  if (padCount !== 9) throw new Error(`${label}: expected 9 pads, got ${padCount}`);
+
+  // A pad flashes and finishes on its own; there is nothing to hold.
+  await page.locator('[data-piece="snare"]').dispatchEvent("pointerdown");
+  await page.waitForSelector(".pad.is-hit", { timeout: 4000 });
+  await page.waitForFunction(() => document.querySelectorAll(".pad.is-hit").length === 0, {
+    timeout: 4000
+  });
+  await page.keyboard.press("a");
+  await page.waitForSelector('[data-piece="kick"].is-hit', { timeout: 4000 });
+  await assertNoHOverflow(page, `${label} pads`);
+
   // A play tool has no use for a microphone.
   if ((await page.locator(".audio-source").count()) !== 0) {
     throw new Error(`${label}: the play tool should not ask for a microphone`);
   }
 
   await assertNoHOverflow(page, `${label} fretboard`);
-  console.log(`✓ ${label}: keyboard and fretboard both play, and fit their width`);
+  console.log(`✓ ${label}: keys, frets and pads all play, and fit their width`);
 }
 
 /** Ear training: the whole loop is hear -> answer -> verdict -> next. */

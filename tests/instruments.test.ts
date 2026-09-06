@@ -87,11 +87,19 @@ describe("capabilities", () => {
     }
   });
 
-  it("anything with a playing surface names the voice it plays with", () => {
+  it("names a voice per instrument when pitched, per piece when not", () => {
+    const ids = TIMBRES.map((entry) => entry.id);
     for (const instrument of allInstruments) {
-      if (!instrument.surface) continue;
+      const surface = instrument.surface;
+      if (!surface) continue;
+      if (surface.kind === "pads") {
+        // A kit's instrument-level timbre would have nothing to name.
+        expect(instrument.timbre, `${instrument.id} should not claim one voice`).toBeUndefined();
+        expect(surface.pieces.length).toBeGreaterThan(0);
+        continue;
+      }
       expect(instrument.timbre, `${instrument.id} has a surface but no timbre`).toBeTruthy();
-      expect(TIMBRES.map((entry) => entry.id)).toContain(instrument.timbre);
+      expect(ids).toContain(instrument.timbre);
     }
   });
 });
@@ -407,5 +415,43 @@ describe("wind instruments (fingering charts)", () => {
         }
       }
     }
+  });
+});
+
+describe("the drum kit", () => {
+  const kit = getInstrument("drums")!;
+
+  it("has a surface but no tuning — it is what the split was for", () => {
+    expect(kit.surface).toBeTruthy();
+    expect(kit.tuning).toBeUndefined();
+    expect(tunedInstruments.map((entry) => entry.id)).not.toContain("drums");
+  });
+
+  it("names no instrument-level voice, because every piece has its own", () => {
+    expect(kit.timbre).toBeUndefined();
+    const surface = kit.surface!;
+    expect(surface.kind).toBe("pads");
+    if (surface.kind !== "pads") return;
+    for (const piece of surface.pieces) {
+      expect(TIMBRES.map((entry) => entry.id), piece.id).toContain(piece.timbre);
+      expect(piece.tone, piece.id).toBeGreaterThan(20);
+    }
+  });
+
+  it("gives every piece its own pad and its own key", () => {
+    const surface = kit.surface!;
+    if (surface.kind !== "pads") throw new Error("expected pads");
+    const slots = surface.pieces.map((piece) => `${piece.row}:${piece.column}`);
+    expect(new Set(slots).size).toBe(slots.length);
+    const codes = surface.pieces.map((piece) => piece.code);
+    expect(new Set(codes).size).toBe(codes.length);
+  });
+
+  it("chokes the two hi-hats against each other and nothing else", () => {
+    const surface = kit.surface!;
+    if (surface.kind !== "pads") throw new Error("expected pads");
+    const choked = surface.pieces.filter((piece) => piece.choke);
+    expect(choked.map((piece) => piece.id).sort()).toEqual(["hihatClosed", "hihatOpen"]);
+    expect(new Set(choked.map((piece) => piece.choke)).size).toBe(1);
   });
 });

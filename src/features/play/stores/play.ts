@@ -15,6 +15,7 @@ import { computed, reactive, shallowRef } from "vue";
 import { acquireAudio } from "../../../audio/context.js";
 import type { AudioEngineHandle } from "../../../audio/types.js";
 import { createVoicePlayer } from "../../../audio/voice.js";
+import { getTimbre, timbreSpecAt } from "../../../audio/timbre.js";
 import { analysisSettings } from "../../../audio/analysis.js";
 import { storedJson } from "../../../lib/persist.js";
 import {
@@ -55,6 +56,8 @@ export const settings = reactive<PlaySettings>(defaults());
 
 /** Notes currently sounding, so the view can light up what is held. */
 export const sounding = reactive(new Set<number>());
+/** Pads hit in the last instant — a strike has no release to wait for. */
+export const struck = reactive(new Set<string>());
 
 const stored = storedJson<PlaySettings>("play", defaults, (raw, base) => {
   if (!raw || typeof raw !== "object") return base;
@@ -102,7 +105,7 @@ async function ensurePerformer(): Promise<Performer> {
   performer.value = createPerformer({
     player,
     now: () => lease!.context.currentTime,
-    timbreId: instrument.value.timbre,
+    timbreId: instrument.value.timbre ?? "singable",
     tuning: analysisSettings.tuning
   });
   return performer.value;
@@ -117,6 +120,28 @@ export async function noteOn(midi: number, velocity = 0.8): Promise<void> {
   unit.noteOn(midi, velocity);
 }
 
+/** How long a struck pad stays lit; long enough to see, short enough to keep up. */
+const FLASH_MS = 110;
+
+/** Hit a kit piece. There is no note-off: a strike is over when it decays. */
+export async function strike(pieceId: string): Promise<void> {
+  const surface = instrument.value.surface;
+  if (surface.kind !== "pads") return;
+  const piece = surface.pieces.find((entry) => entry.id === pieceId);
+  if (!piece) return;
+
+  struck.add(piece.id);
+  setTimeout(() => struck.delete(piece.id), FLASH_MS);
+
+  const unit = await ensurePerformer();
+  const voice = getTimbre(piece.timbre);
+  unit.strike(
+    timbreSpecAt(voice, piece.tone, voice.ring ?? 0.3),
+    0.9,
+    piece.choke
+  );
+}
+
 export function noteOff(midi: number): void {
   sounding.delete(midi);
   performer.value?.noteOff(midi);
@@ -124,6 +149,7 @@ export function noteOff(midi: number): void {
 
 export function allNotesOff(): void {
   sounding.clear();
+  struck.clear();
   performer.value?.allOff();
 }
 
@@ -132,7 +158,8 @@ export function setInstrument(id: string): void {
   settings.instrumentId = id;
   // The whole surface changes under the fingers; anything down would hang.
   allNotesOff();
-  performer.value?.setTimbre(instrument.value.timbre);
+  const timbre = instrument.value.timbre;
+  if (timbre) performer.value?.setTimbre(timbre);
   persist();
 }
 
@@ -164,6 +191,7 @@ export function releasePlay(): void {
   performer.value?.dispose();
   performer.value = null;
   sounding.clear();
+  struck.clear();
   lease?.release();
   lease = null;
 }

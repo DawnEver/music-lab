@@ -2,7 +2,8 @@ import { describe, expect, it } from "vitest";
 import { mount } from "@vue/test-utils";
 import PianoKeys from "../../src/features/play/components/PianoKeys.vue";
 import FretBoard from "../../src/features/play/components/FretBoard.vue";
-import { getPreset, getTunedInstrument } from "../../src/instruments/index.js";
+import DrumPads from "../../src/features/play/components/DrumPads.vue";
+import { getInstrument, getPreset, getTunedInstrument } from "../../src/instruments/index.js";
 import { setLang } from "../../src/lib/i18n/index.js";
 
 setLang("en");
@@ -145,5 +146,47 @@ describe("FretBoard", () => {
     expect(wrapper.emitted("down")).toBeUndefined();
     await cell.trigger("pointerenter", { buttons: 1 });
     expect(wrapper.emitted("down")?.[0]).toEqual([65]);
+  });
+});
+
+describe("DrumPads", () => {
+  const kit = getInstrument("drums")!;
+  const pieces = kit.surface!.kind === "pads" ? kit.surface!.pieces : [];
+
+  function pads(struck = new Set<string>()) {
+    return mount(DrumPads, { props: { pieces, struck } });
+  }
+
+  it("lays the kit out in rows, metal above drums", () => {
+    const wrapper = pads();
+    const rows = wrapper.findAll(".pad-row");
+    expect(rows).toHaveLength(2);
+    expect(rows[0].findAll(".pad")).toHaveLength(4);
+    expect(rows[1].findAll(".pad")).toHaveLength(5);
+  });
+
+  it("names every pad in the current language, not with raw keys", () => {
+    const names = pads().findAll(".pad-name").map((node) => node.text());
+    expect(names).toContain("Kick");
+    expect(names.some((name) => name.startsWith("kit."))).toBe(false);
+  });
+
+  it("engraves the key that strikes each pad", () => {
+    const wrapper = pads();
+    const kick = wrapper.find('[data-piece="kick"]');
+    expect(kick.find(".pad-cap").text()).toBe("A");
+  });
+
+  it("lights only what was just hit", () => {
+    const wrapper = pads(new Set(["snare"]));
+    const lit = wrapper.findAll(".pad.is-hit");
+    expect(lit).toHaveLength(1);
+    expect(lit[0].attributes("data-piece")).toBe("snare");
+  });
+
+  it("emits the piece that was struck", async () => {
+    const wrapper = pads();
+    await wrapper.find('[data-piece="crash"]').trigger("pointerdown");
+    expect(wrapper.emitted("hit")?.[0]).toEqual(["crash"]);
   });
 });

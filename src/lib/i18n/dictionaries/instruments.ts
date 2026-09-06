@@ -9,6 +9,7 @@ export const instruments = {
     "instrument.category.plucked": "弹拨乐器",
     "instrument.category.bowed": "拉弦乐器",
     "instrument.category.winds": "吹管乐器",
+    "instrument.category.percussion": "打击乐器",
     "instrument.category.other": "其他"
   },
   en: {
@@ -16,6 +17,7 @@ export const instruments = {
     "instrument.category.plucked": "Plucked",
     "instrument.category.bowed": "Bowed",
     "instrument.category.winds": "Winds",
+    "instrument.category.percussion": "Percussion",
     "instrument.category.other": "Other"
   }
 };

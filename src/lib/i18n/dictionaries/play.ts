@@ -10,7 +10,17 @@ export const play = {
     playOctaveDown: "低八度",
     playOctaveUp: "高八度",
     playKeysHint: "用 Z–M 与 Q–P 两排按键演奏,黑键在上一排;左右方向键换音区",
-    playFretsHint: "点按品位发声,横向拖动可滑音"
+    playFretsHint: "点按品位发声,横向拖动可滑音",
+    playPadsHint: "点按鼓面,或用 Q W E R 与 A S D F G 敲击",
+    "kit.kick": "底鼓",
+    "kit.snare": "军鼓",
+    "kit.hihatClosed": "闭镲",
+    "kit.hihatOpen": "开镲",
+    "kit.tomHigh": "高音嗵鼓",
+    "kit.tomMid": "中音嗵鼓",
+    "kit.tomLow": "低音嗵鼓",
+    "kit.crash": "叮叮镲",
+    "kit.ride": "节奏镲"
   },
   en: {
     playTitle: "Play",
@@ -22,6 +32,16 @@ export const play = {
     playOctaveDown: "Octave down",
     playOctaveUp: "Octave up",
     playKeysHint: "Play with the Z–M and Q–P rows; black keys sit on the row above, arrows shift octave",
-    playFretsHint: "Press a fret to sound it; drag across to slide"
+    playFretsHint: "Press a fret to sound it; drag across to slide",
+    playPadsHint: "Tap a pad, or hit Q W E R and A S D F G",
+    "kit.kick": "Kick",
+    "kit.snare": "Snare",
+    "kit.hihatClosed": "Hi-hat",
+    "kit.hihatOpen": "Open hat",
+    "kit.tomHigh": "High tom",
+    "kit.tomMid": "Mid tom",
+    "kit.tomLow": "Low tom",
+    "kit.crash": "Crash",
+    "kit.ride": "Ride"
   }
 };

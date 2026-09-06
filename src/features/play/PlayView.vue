@@ -12,6 +12,7 @@ import { useI18n } from "../../composables/useI18n.js";
 import ControlSheet, { closeAllSheets } from "../../shared/components/ControlSheet.vue";
 import PianoKeys from "./components/PianoKeys.vue";
 import FretBoard from "./components/FretBoard.vue";
+import DrumPads from "./components/DrumPads.vue";
 import PlayControl from "./components/PlayControl.vue";
 import { keymapSpan, midiForKey } from "./domain/keymap.js";
 import {
@@ -22,6 +23,8 @@ import {
   noteOn,
   preset,
   releasePlay,
+  strike,
+  struck,
   settings,
   shiftOctave,
   sounding
@@ -33,10 +36,17 @@ const span = keymapSpan();
 const lowMidi = computed(() => settings.baseMidi + span.low);
 const highMidi = computed(() => settings.baseMidi + span.high);
 
-const isKeys = computed(() => instrument.value.surface.kind === "keys");
+const surface = computed(() => instrument.value.surface);
+const isKeys = computed(() => surface.value.kind === "keys");
+const pieces = computed(() => (surface.value.kind === "pads" ? surface.value.pieces : []));
 const frets = computed(() =>
   instrument.value.surface.kind === "frets" ? instrument.value.surface.frets : 0
 );
+
+const hint = computed(() => {
+  if (isKeys.value) return t("playKeysHint");
+  return pieces.value.length ? t("playPadsHint") : t("playFretsHint");
+});
 
 const octaveLabel = computed(() => `C${Math.floor(settings.baseMidi / 12) - 1}`);
 const setupValue = computed(() => {
@@ -54,6 +64,15 @@ function onKeydown(event: KeyboardEvent): void {
     if (!isKeys.value) return;
     event.preventDefault();
     shiftOctave(event.code === "ArrowRight" ? 1 : -1);
+    return;
+  }
+
+  if (pieces.value.length) {
+    const piece = pieces.value.find((entry) => entry.code === event.code);
+    if (!piece) return;
+    event.preventDefault();
+    // A strike has no hold: auto-repeat would be a machine-gun roll.
+    if (!event.repeat) void strike(piece.id);
     return;
   }
 
@@ -123,6 +142,12 @@ onBeforeUnmount(() => {
       @down="(midi: number) => noteOn(midi)"
       @up="noteOff"
     />
+    <DrumPads
+      v-else-if="pieces.length"
+      :pieces="pieces"
+      :struck="struck"
+      @hit="strike"
+    />
     <FretBoard
       v-else-if="preset"
       :preset="preset"
@@ -132,7 +157,7 @@ onBeforeUnmount(() => {
       @up="noteOff"
     />
 
-    <p class="kbd-hint">{{ isKeys ? t("playKeysHint") : t("playFretsHint") }}</p>
+    <p class="kbd-hint">{{ hint }}</p>
   </section>
 
   <!-- Outside the card: .card clips, and a sheet must not be clipped. -->

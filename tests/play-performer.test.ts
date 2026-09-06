@@ -133,3 +133,38 @@ describe("performer", () => {
     expect(fake.disposed).toBe(true);
   });
 });
+
+describe("strikes", () => {
+  const HIT: VoiceSpec = { waveform: "noise", frequency: 8200, gain: 0.3, duration: 0.06 };
+
+  it("sounds a piece with no note to release", () => {
+    const { fake, unit } = performer();
+    unit.strike(HIT);
+    expect(fake.notes).toHaveLength(1);
+    expect(unit.sounding()).toEqual([]);
+  });
+
+  it("lets two ungrouped pieces ring together", () => {
+    const { fake, unit } = performer();
+    unit.strike(HIT);
+    unit.strike({ ...HIT, frequency: 5200 });
+    expect(fake.notes.every((note) => note.releasedAt === null)).toBe(true);
+  });
+
+  it("chokes the previous piece in the same group", () => {
+    let clock = 5;
+    const { fake, unit } = performer(() => clock);
+    unit.strike(HIT, 0.9, "hihat");
+    clock = 5.5;
+    unit.strike({ ...HIT, duration: 0.5 }, 0.9, "hihat");
+    expect(fake.notes[0].releasedAt).toBe(5.5);
+    expect(fake.notes[1].releasedAt).toBeNull();
+  });
+
+  it("lets go of a choked piece when everything stops", () => {
+    const { fake, unit } = performer();
+    unit.strike(HIT, 0.9, "hihat");
+    unit.allOff();
+    expect(fake.notes[0].releasedAt).not.toBeNull();
+  });
+});

@@ -40,7 +40,13 @@ export interface PitchBounds {
 }
 
 /** Grouping in the instrument picker, by how the instrument is sounded. */
-export type InstrumentCategory = "keys" | "plucked" | "bowed" | "winds" | "other";
+export type InstrumentCategory =
+  | "keys"
+  | "plucked"
+  | "bowed"
+  | "winds"
+  | "percussion"
+  | "other";
 /**
  * How the targets are presented: a list of rows (one pitch each), a
  * hole x breath grid (harmonica), or a fingering chart (winds, where a
@@ -103,7 +109,42 @@ export interface LayoutVariant {
  */
 export type PlaySurface =
   | { kind: "keys" }
-  | { kind: "frets"; frets: number };
+  | { kind: "frets"; frets: number }
+  | { kind: "pads"; pieces: KitPiece[] };
+
+/** Closed set: the dictionary carries a `kit.<id>` for each. */
+export type KitPieceId =
+  | "kick"
+  | "snare"
+  | "hihatClosed"
+  | "hihatOpen"
+  | "tomHigh"
+  | "tomMid"
+  | "tomLow"
+  | "crash"
+  | "ride";
+
+/**
+ * One thing you hit. It has a voice and a frequency but deliberately no
+ * MIDI note: a drum has a fundamental, not a pitch, and giving it a note
+ * number would put it back among the things that can be out of tune.
+ */
+export interface KitPiece {
+  id: KitPieceId;
+  timbre: TimbreId;
+  /** Fundamental in Hz — for noise voices, the band's corner. */
+  tone: number;
+  /** Grid placement on the pad surface. */
+  row: number;
+  column: number;
+  /** `KeyboardEvent.code` that strikes it. */
+  code: string;
+  /**
+   * Pieces sharing a choke group cut each other off. It is one field, and
+   * it is the only reason a closed hi-hat sounds like a hi-hat.
+   */
+  choke?: string;
+}
 
 /** Everything the tuner needs. Absent means the instrument is not tuned. */
 export interface InstrumentTuning {

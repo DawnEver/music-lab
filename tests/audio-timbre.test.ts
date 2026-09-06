@@ -46,16 +46,24 @@ describe("timbreSpec", () => {
 });
 
 describe("the keyboard family", () => {
-  it("offers a struck, a tine, a sustaining and three plucked voices", () => {
-    expect(TIMBRES.map((entry) => entry.id)).toEqual([
-      "piano",
-      "epiano",
-      "organ",
-      "steel",
-      "nylon",
-      "bass",
-      "singable"
-    ]);
+  it("covers every family an instrument here can belong to", () => {
+    const ids = TIMBRES.map((entry) => entry.id);
+    for (const id of ["piano", "epiano", "organ"]) expect(ids, "keys").toContain(id);
+    for (const id of ["steel", "nylon", "bass"]) expect(ids, "plucked").toContain(id);
+    for (const id of ["kick", "snare", "hihat", "tom", "crash", "ride"]) {
+      expect(ids, "percussion").toContain(id);
+    }
+  });
+
+  it("makes percussion out of noise and pitch drop, not out of notes", () => {
+    // A membrane's pitch falls as it stops moving; hold it and a kick is a
+    // low beep. Metal is noise in a band, which needs no glide at all.
+    expect(getTimbre("kick").glide).toBeLessThan(1);
+    expect(getTimbre("tom").glide).toBeLessThan(1);
+    expect(getTimbre("snare").waveform).toBe("noise");
+    expect(getTimbre("hihat").waveform).toBe("noise");
+    // Closed and open hi-hat are the same metal; only the ring differs.
+    expect(getTimbre("hihatOpen").ring!).toBeGreaterThan(getTimbre("hihat").ring!);
   });
 
   it("makes struck voices decay and the organ hold", () => {

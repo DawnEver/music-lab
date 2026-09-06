@@ -13,7 +13,7 @@
  */
 
 import { getTimbre, timbreSpec, DEFAULT_RING_SECONDS } from "../../../audio/timbre.js";
-import type { HeldVoice, VoicePlayer } from "../../../audio/voice.js";
+import type { HeldVoice, VoicePlayer, VoiceSpec } from "../../../audio/voice.js";
 
 export interface PerformerOptions {
   player: VoicePlayer;
@@ -25,6 +25,12 @@ export interface PerformerOptions {
 
 export interface Performer {
   noteOn(midi: number, velocity?: number): void;
+  /**
+   * Hit something that has no pitch. Pieces sharing a choke group cut each
+   * other off, which is the whole difference between a hi-hat and two
+   * unrelated cymbals.
+   */
+  strike(spec: VoiceSpec, velocity?: number, choke?: string): void;
   noteOff(midi: number): void;
   /** Every note currently down, for the view to light up. */
   sounding(): number[];
@@ -38,6 +44,7 @@ export interface Performer {
 export function createPerformer(options: PerformerOptions): Performer {
   const { player, now } = options;
   const held = new Map<number, HeldVoice>();
+  const choked = new Map<string, HeldVoice>();
   let timbre = getTimbre(options.timbreId ?? "singable");
   let tuning = options.tuning ?? 440;
 
@@ -54,6 +61,14 @@ export function createPerformer(options: PerformerOptions): Performer {
       const spec = timbreSpec(timbre, midi, timbre.ring ?? DEFAULT_RING_SECONDS, tuning);
       held.set(midi, player.hold(spec, now(), velocity));
     },
+    strike(spec: VoiceSpec, velocity = 0.9, choke?: string) {
+      if (choke) {
+        choked.get(choke)?.release(now());
+        choked.set(choke, player.hold(spec, now(), velocity));
+        return;
+      }
+      player.hold(spec, now(), velocity);
+    },
     noteOff(midi: number) {
       stop(midi);
     },
@@ -62,6 +77,8 @@ export function createPerformer(options: PerformerOptions): Performer {
     },
     allOff() {
       for (const midi of [...held.keys()]) stop(midi);
+      for (const voice of choked.values()) voice.release(now());
+      choked.clear();
     },
     setTimbre(id: string) {
       // Notes already down keep the timbre they started with; changing it

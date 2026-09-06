@@ -3245,3 +3245,71 @@
     font-size: 9px;
   }
 }
+
+/* Drum pads — nothing is held, so a pad flashes rather than latching. */
+.pad-grid {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  touch-action: none;
+  user-select: none;
+}
+
+.pad-row {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.pad {
+  flex: 1 1 96px;
+  max-width: 160px;
+  min-height: 76px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--glass);
+  color: var(--text);
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.05s ease, border-color 0.05s ease, transform 0.05s ease;
+}
+
+.pad:hover {
+  border-color: var(--accent-2);
+}
+
+.pad.is-hit {
+  background: linear-gradient(180deg, var(--accent-2), var(--accent));
+  border-color: transparent;
+  color: #0b0d12;
+  transform: scale(0.97);
+}
+
+.pad-name {
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.pad-cap {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  opacity: 0.6;
+}
+
+@media (max-width: 720px) {
+  .pad {
+    flex-basis: 72px;
+    min-height: 60px;
+  }
+
+  .pad-cap {
+    display: none;
+  }
+}
