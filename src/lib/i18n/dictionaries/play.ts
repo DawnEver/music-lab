@@ -1,9 +1,7 @@
 /** The play tool: instrument setup, and how each surface is played. */
 export const play = {
   zh: {
-    playTitle: "演奏",
     playSetupTitle: "乐器",
-    playInstrument: "乐器",
     playTuning: "调弦",
     playVolume: "音量",
     playOctave: "音区",
@@ -24,9 +22,7 @@ export const play = {
     "kit.ride": "节奏镲"
   },
   en: {
-    playTitle: "Play",
     playSetupTitle: "Instrument",
-    playInstrument: "Instrument",
     playTuning: "Tuning",
     playVolume: "Volume",
     playOctave: "Octave",
