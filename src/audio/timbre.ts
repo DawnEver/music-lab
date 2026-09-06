@@ -16,7 +16,7 @@ import { midiToFrequency } from "../lib/music-theory.js";
 import type { VoiceFilter, VoiceSpec, Waveform } from "./voice.js";
 
 /** Closed set: the dictionary carries a `timbre.<id>` for each. */
-export type TimbreId = "singable";
+export type TimbreId = "piano" | "epiano" | "organ" | "singable";
 
 export interface Timbre {
   id: TimbreId;
@@ -44,21 +44,72 @@ export interface Timbre {
   filter?: Omit<VoiceFilter, "frequency"> & { harmonic: number };
 }
 
+/**
+ * The keyboard family, in synthesis only.
+ *
+ * What separates these is not the waveform — it is the envelope and how
+ * the brightness behaves. A struck string is loud, bright and immediately
+ * decaying; a tine is the same gesture with a thinner spectrum; an organ
+ * pipe has no decay at all because the air never stops. So piano and
+ * e-piano have no `sustain` (they are plucks, and the key release only
+ * damps what is left) while the organ holds its level until let go.
+ */
 export const TIMBRES: Timbre[] = [
+  {
+    // Hammer on string: near-instant attack, a long decay, and a spectrum
+    // that dulls as the note dies — the filter envelope is doing that.
+    id: "piano",
+    waveform: "triangle",
+    gain: 0.3,
+    attack: 0.004,
+    ring: 4,
+    release: 0.12,
+    partials: [0.5, 0.28, 0.16, 0.09, 0.05],
+    filter: { type: "lowpass", harmonic: 8, q: 0.7, envelope: 3 }
+  },
+  {
+    // A tine, not a string: a strong upper partial over a weak fundamental
+    // is what makes an electric piano read as bell-like.
+    id: "epiano",
+    waveform: "sine",
+    gain: 0.34,
+    attack: 0.006,
+    ring: 3.2,
+    release: 0.16,
+    partials: [0.12, 0.55, 0.08, 0.22, 0.04],
+    filter: { type: "lowpass", harmonic: 6, q: 0.6, envelope: 2.5 }
+  },
+  {
+    // Drawbars: fixed harmonics that never decay. The gain is low because
+    // six partials at once add up.
+    id: "organ",
+    waveform: "sine",
+    gain: 0.18,
+    attack: 0.012,
+    decay: 0.04,
+    sustain: 0.92,
+    release: 0.07,
+    ring: 1,
+    partials: [0.7, 0.5, 0.6, 0.25, 0.4, 0.2]
+  },
   {
     // The ear trainer's tone: a bare sine is hard to hear an interval in.
     id: "singable",
     waveform: "sine",
     gain: 0.32,
+    ring: 2,
     attack: 0.02,
     partials: [0.34, 0.16, 0.07]
   }
 ];
 
-export const DEFAULT_TIMBRE_ID: TimbreId = "singable";
+export const DEFAULT_TIMBRE_ID: TimbreId = "piano";
 
 export function getTimbre(id: string): Timbre {
-  return TIMBRES.find((entry) => entry.id === id) ?? TIMBRES[0];
+  return (
+    TIMBRES.find((entry) => entry.id === id) ??
+    TIMBRES.find((entry) => entry.id === DEFAULT_TIMBRE_ID)!
+  );
 }
 
 /** How long a note of this timbre rings when nothing stops it. */

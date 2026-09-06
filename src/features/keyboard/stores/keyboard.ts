@@ -11,7 +11,7 @@ import { reactive, shallowRef } from "vue";
 import { acquireAudio } from "../../../audio/context.js";
 import type { AudioEngineHandle } from "../../../audio/types.js";
 import { createVoicePlayer } from "../../../audio/voice.js";
-import { DEFAULT_TIMBRE_ID, type TimbreId } from "../../../audio/timbre.js";
+import { DEFAULT_TIMBRE_ID, TIMBRES, type TimbreId } from "../../../audio/timbre.js";
 import { analysisSettings } from "../../../audio/analysis.js";
 import { storedJson } from "../../../lib/persist.js";
 import {
@@ -44,7 +44,10 @@ const stored = storedJson<KeyboardSettings>("keyboard", defaults, (raw, base) =>
   return {
     // A base note from an older layout may sit outside today's range.
     baseMidi: Math.min(MAX_BASE_MIDI, Math.max(MIN_BASE_MIDI, Math.round(baseMidi / 12) * 12)),
-    timbreId: typeof value.timbreId === "string" ? (value.timbreId as TimbreId) : base.timbreId,
+    // A timbre that no longer exists must not survive as a dead chip.
+    timbreId: TIMBRES.some((entry) => entry.id === value.timbreId)
+      ? (value.timbreId as TimbreId)
+      : base.timbreId,
     volume: typeof value.volume === "number" ? Math.min(1, Math.max(0, value.volume)) : base.volume
   };
 });

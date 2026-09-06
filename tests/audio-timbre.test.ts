@@ -44,3 +44,44 @@ describe("timbreSpec", () => {
     expect(spec.partials).toEqual([0.34, 0.16, 0.07]);
   });
 });
+
+describe("the keyboard family", () => {
+  it("offers a struck, a tine and a sustaining voice", () => {
+    expect(TIMBRES.map((entry) => entry.id)).toEqual(["piano", "epiano", "organ", "singable"]);
+  });
+
+  it("makes struck voices decay and the organ hold", () => {
+    // A pluck has no sustain level: the note dies whether or not you let go.
+    expect(getTimbre("piano").sustain).toBeUndefined();
+    expect(getTimbre("epiano").sustain).toBeUndefined();
+    expect(getTimbre("organ").sustain).toBeGreaterThan(0.5);
+  });
+
+  it("rings longer than it takes to hear the attack", () => {
+    for (const entry of TIMBRES) {
+      expect(entry.ring, entry.id).toBeGreaterThan(entry.attack ?? 0);
+    }
+  });
+
+  it("keeps a filter cutoff above the fundamental at every pitch", () => {
+    for (const entry of TIMBRES) {
+      if (!entry.filter) continue;
+      expect(entry.filter.harmonic, entry.id).toBeGreaterThan(1);
+      // The sweep opens the filter, never closes it below its resting point.
+      expect(entry.filter.envelope ?? 1, entry.id).toBeGreaterThanOrEqual(1);
+    }
+  });
+
+  it("scales the filter with the note, so the bass is not dull", () => {
+    const low = timbreSpec(getTimbre("piano"), 36, 1);
+    const high = timbreSpec(getTimbre("piano"), 84, 1);
+    expect(high.filter!.frequency / low.filter!.frequency).toBeCloseTo(16, 3);
+  });
+
+  it("keeps every voice's total level under one, so nothing clips", () => {
+    for (const entry of TIMBRES) {
+      const total = entry.gain * (1 + (entry.partials ?? []).reduce((sum, p) => sum + p, 0));
+      expect(total, entry.id).toBeLessThanOrEqual(1);
+    }
+  });
+});

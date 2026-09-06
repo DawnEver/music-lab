@@ -9,6 +9,9 @@ export const keyboard = {
     kbdVolume: "音量",
     kbdHint: "用 Z–M 与 Q–P 两排按键演奏,黑键在上一排",
     kbdAllOff: "全部松开",
+    "timbre.piano": "钢琴",
+    "timbre.epiano": "电钢琴",
+    "timbre.organ": "风琴",
     "timbre.singable": "纯音"
   },
   en: {
@@ -20,6 +23,9 @@ export const keyboard = {
     kbdVolume: "Volume",
     kbdHint: "Play with the Z–M and Q–P rows; black keys sit on the row above",
     kbdAllOff: "All notes off",
+    "timbre.piano": "Piano",
+    "timbre.epiano": "Electric piano",
+    "timbre.organ": "Organ",
     "timbre.singable": "Pure tone"
   }
 };

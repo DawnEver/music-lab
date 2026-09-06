@@ -407,6 +407,18 @@ async function walkKeyboard(page, label) {
     throw new Error(`${label}: shifting octaves must not leave notes hanging`);
   }
 
+  // Timbre is set once and then played, so it hides behind its own value.
+  await page.locator('[data-sheet="timbre"] .value-chip, .value-chip').first().click();
+  await page.waitForSelector(".metro-chip", { timeout: 4000 });
+  const timbres = await page.locator(".metro-chip").count();
+  if (timbres !== 4) throw new Error(`${label}: expected 4 timbres, got ${timbres}`);
+  await page.locator(".metro-chip").nth(2).click();
+  const chipValue = await page.locator(".value-chip").first().innerText();
+  if (!/Organ|风琴/.test(chipValue)) {
+    throw new Error(`${label}: the chip should show the chosen timbre, got "${chipValue}"`);
+  }
+  await page.keyboard.press("Escape");
+
   // A keyboard has no use for a microphone.
   if ((await page.locator(".audio-source").count()) !== 0) {
     throw new Error(`${label}: the keyboard should not ask for a microphone`);
