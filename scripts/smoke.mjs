@@ -391,6 +391,19 @@ async function assertStageFillsWidth(page, label, selector, floor = 0.9) {
   }
 }
 
+/** Every tool must be reachable: a nav that overflows hides one. */
+async function assertNavFits(page, label) {
+  const over = await page.evaluate(() => {
+    const nav = document.querySelector(".tool-nav");
+    const links = [...document.querySelectorAll(".tool-nav-link")];
+    if (!nav || !links.length) return null;
+    const right = Math.max(...links.map((l) => l.getBoundingClientRect().right));
+    return Math.round(right - Math.min(window.innerWidth, nav.getBoundingClientRect().right));
+  }, null);
+  if (over === null) throw new Error(`${label}: no tool nav`);
+  if (over > 1) throw new Error(`${label}: the tool nav overflows by ${over}px, hiding a tool`);
+}
+
 /** No vertical page scroll — a tool with one focus must not scroll. */
 async function assertNoVOverflow(page, label) {
   const over = await page.evaluate(
@@ -426,9 +439,10 @@ async function walkPlay(page, label, { wide = false } = {}) {
   if (keys !== 32) throw new Error(`${label}: expected 32 keys, got ${keys}`);
   await assertStageFillsWidth(page, `${label} keys`, ".play-stage");
   await assertNoVOverflow(page, `${label} keys`);
+  await assertNavFits(page, label);
 
   // Black keys must be narrower and shorter, and stay inside the board.
-  const board = await page.locator(".kbd-keys").boundingBox();
+  const board = await page.locator(".kbd-board").boundingBox();
   const black = await page.locator(".kbd-key.is-black").first().boundingBox();
   const white = await page.locator(".kbd-key:not(.is-black)").first().boundingBox();
   if (!board || !black || !white) throw new Error(`${label}: missing keyboard geometry`);
@@ -438,6 +452,15 @@ async function walkPlay(page, label, { wide = false } = {}) {
   const last = await page.locator(".kbd-key").last().boundingBox();
   if (last.x + last.width > board.x + board.width + 1) {
     throw new Error(`${label}: the keyboard runs past its own width`);
+  }
+
+  // A key is sized by the hand, not by the window: never wider than a real
+  // white key (23.5mm) and never narrower than a fingertip (9mm). 96dpi
+  // makes those 88.8px and 34.0px.
+  if (white.width < 33.5 || white.width > 89.5) {
+    throw new Error(
+      `${label}: a white key is ${Math.round(white.width)}px, outside the 34–89px it may be`
+    );
   }
 
   // Pressing a key lights it, and releasing lets it go.

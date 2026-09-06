@@ -76,24 +76,27 @@ function onEnter(event: PointerEvent, midi: number): void {
 </script>
 
 <template>
-  <div class="kbd-keys" :style="{ '--kbd-white': layout.whiteCount }">
-    <button
-      v-for="key in layout.keys"
-      :key="key.midi"
-      type="button"
-      class="kbd-key"
-      :class="{ 'is-black': key.black, 'is-down': sounding.has(key.midi) }"
-      :style="{ left: leftOf(key.offset, key.black), width: widthOf(key.black) }"
-      :aria-label="noteName(key.midi)"
-      :aria-pressed="sounding.has(key.midi)"
-      @pointerdown.prevent="onDown($event, key.midi)"
-      @pointerenter="onEnter($event, key.midi)"
-      @pointerup="emit('up', key.midi)"
-      @pointerleave="emit('up', key.midi)"
-      @pointercancel="emit('up', key.midi)"
-    >
-      <span v-if="keyCap(key.midi)" class="kbd-cap">{{ keyCap(key.midi) }}</span>
-      <span v-if="label(key.midi)" class="kbd-note">{{ label(key.midi) }}</span>
-    </button>
+  <!-- The scroll viewport; the board inside it is the keyboard's own size. -->
+  <div class="kbd-keys">
+    <div class="kbd-board" :style="{ '--kbd-white': layout.whiteCount }">
+      <button
+        v-for="key in layout.keys"
+        :key="key.midi"
+        type="button"
+        class="kbd-key"
+        :class="{ 'is-black': key.black, 'is-down': sounding.has(key.midi) }"
+        :style="{ left: leftOf(key.offset, key.black), width: widthOf(key.black) }"
+        :aria-label="noteName(key.midi)"
+        :aria-pressed="sounding.has(key.midi)"
+        @pointerdown.prevent="onDown($event, key.midi)"
+        @pointerenter="onEnter($event, key.midi)"
+        @pointerup="emit('up', key.midi)"
+        @pointerleave="emit('up', key.midi)"
+        @pointercancel="emit('up', key.midi)"
+      >
+        <span v-if="keyCap(key.midi)" class="kbd-cap">{{ keyCap(key.midi) }}</span>
+        <span v-if="label(key.midi)" class="kbd-note">{{ label(key.midi) }}</span>
+      </button>
+    </div>
   </div>
 </template>

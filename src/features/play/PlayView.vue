@@ -7,7 +7,7 @@
  * timbre control to contradict its name — and the octave shift is on
  * screen only where it is part of the loop, which is the keyed surface.
  */
-import { computed, onBeforeUnmount, onMounted } from "vue";
+import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 import { useI18n } from "../../composables/useI18n.js";
 import ControlSheet, { closeAllSheets } from "../../shared/components/ControlSheet.vue";
 import PianoKeys from "./components/PianoKeys.vue";
@@ -48,8 +48,19 @@ const frets = computed(() =>
   instrument.value.surface.kind === "frets" ? instrument.value.surface.frets : 0
 );
 
+/**
+ * A phone has no Z–M row to play, and its keyboard scrolls instead. The
+ * advice differs, so the copy has to.
+ */
+const narrow = ref(false);
+let media: MediaQueryList | null = null;
+
+function onMedia(event: MediaQueryListEvent | MediaQueryList): void {
+  narrow.value = event.matches;
+}
+
 const hint = computed(() => {
-  if (isKeys.value) return t("playKeysHint");
+  if (isKeys.value) return narrow.value ? t("playKeysHintTouch") : t("playKeysHint");
   if (pieces.value.length) return t("playPadsHint");
   return wind.value ? t("playHolesHint") : t("playFretsHint");
 });
@@ -103,6 +114,9 @@ function onBlur(): void {
 
 onMounted(() => {
   hydratePlay(window.innerWidth);
+  media = window.matchMedia("(max-width: 720px)");
+  onMedia(media);
+  media.addEventListener("change", onMedia);
   window.addEventListener("keydown", onKeydown);
   window.addEventListener("keyup", onKeyup);
   window.addEventListener("blur", onBlur);
@@ -112,6 +126,8 @@ onBeforeUnmount(() => {
   window.removeEventListener("keydown", onKeydown);
   window.removeEventListener("keyup", onKeyup);
   window.removeEventListener("blur", onBlur);
+  media?.removeEventListener("change", onMedia);
+  media = null;
   closeAllSheets();
   releasePlay();
 });

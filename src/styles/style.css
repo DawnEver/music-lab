@@ -1780,20 +1780,25 @@
 }
 
 /*
- * Five tools do not fit a phone in one line, and a nav that runs off the
- * edge hides a whole tool. Wrapping keeps every destination reachable —
- * a scroll strip would need an affordance nothing else here has.
+ * Five tools did not fit a phone, and a nav that runs off the edge hides a
+ * whole tool. Dropping the icons buys back the width: they are decoration,
+ * and the label is what anyone reads. Wrapping to a second row would cost
+ * 40px of height on every page — on a phone that is the difference between
+ * an instrument fitting the screen and not.
  */
 @media (max-width: 560px) {
   .tool-nav {
     display: flex;
-    flex-wrap: wrap;
-    justify-content: center;
-    border-radius: var(--radius-xl);
+    gap: 2px;
+    padding: 3px;
   }
 
   .tool-nav-link {
-    padding: 0 11px;
+    padding: 0 9px;
+  }
+
+  .tool-nav-icon {
+    display: none;
   }
 }
 
@@ -3149,13 +3154,54 @@
 }
 
 .kbd-keys {
-  position: relative;
   width: 100%;
   /* Keys get taller as the stage gets wider: a 100px-wide key on a 190px
      board is the wrong shape for the hand that plays it. */
   height: clamp(150px, 22vh, 260px);
-  touch-action: none;
+  display: flex;
+  overflow-x: auto;
+  touch-action: pan-x;
   user-select: none;
+}
+
+/*
+ * A sideways strip hides its scrollbar: the bar would eat 15px of height
+ * from a surface that is already the tightest thing on a phone, and these
+ * strips have their own affordance — the octave buttons, and keys that
+ * visibly continue past the edge. Vertical scrollbars stay visible,
+ * because a neck running off the bottom has no other cue.
+ */
+.kbd-keys,
+.fret-board.is-horizontal,
+.hole-chart {
+  scrollbar-width: none;
+}
+
+.kbd-keys::-webkit-scrollbar,
+.fret-board.is-horizontal::-webkit-scrollbar,
+.hole-chart::-webkit-scrollbar {
+  display: none;
+}
+
+/*
+ * A key has a size, and both ends of it come from the hand rather than
+ * from the window.
+ *
+ * A white key on a real piano is 23.5 mm, so nothing is gained by drawing
+ * one wider — past that the keyboard stops growing and centres itself. A
+ * fingertip needs about 9 mm, so below that the keyboard stops shrinking
+ * and scrolls instead, which is what the octave buttons are for anyway.
+ * Between the two it simply fills the room it has.
+ *
+ * `margin-inline: auto` rather than `justify-content: center`: a centred
+ * flex item that overflows gets its left edge clipped out of reach.
+ */
+.kbd-board {
+  position: relative;
+  flex: 0 0 auto;
+  height: 100%;
+  margin-inline: auto;
+  width: clamp(calc(var(--kbd-white) * 9mm), 100%, calc(var(--kbd-white) * 23.5mm));
 }
 
 .kbd-key {
@@ -3215,7 +3261,10 @@
 
 @media (max-width: 720px) {
   .kbd-keys {
-    height: 150px;
+    /* Shorter on a phone: the room has to be shared with a hint, the
+       instrument chip and the footer, and the keys are already at their
+       narrowest here. */
+    height: 132px;
   }
 
   .fret-note {
@@ -3360,8 +3409,8 @@
    */
   .fret-board.is-vertical {
     /* The room a phone actually has: viewport minus the nav, the hint, the
-       instrument chip and the footer, all of which are fixed height here.
-       Smoke measures the result, so this number cannot quietly drift. */
+       instrument chip and the footer, all fixed height here. Smoke
+       measures the result, so this number cannot quietly drift. */
     max-height: calc(100vh - 440px);
     min-height: 150px;
     overflow-y: auto;
