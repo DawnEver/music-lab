@@ -185,6 +185,32 @@ describe("voice player", () => {
     expect(fake.oscillators).toHaveLength(0);
   });
 
+  /*
+   * A held noise voice is how every drum in the kit is played: `strike()`
+   * goes through `hold()` so that a choked pair can cut each other off. If
+   * `hold()` only knows about oscillators, a snare is a sine at 1900Hz.
+   */
+  it("holds a noise voice through a buffer source, not an oscillator", () => {
+    const fake = fakeContext(0);
+    createVoicePlayer(fake.context, fake.context.createGain()).hold(
+      { waveform: "noise", frequency: 7200, gain: 0.3, duration: 0.06 },
+      1
+    );
+    expect(fake.sources).toHaveLength(1);
+    expect(fake.oscillators).toHaveLength(0);
+  });
+
+  it("releases a held noise voice like any other", () => {
+    const fake = fakeContext(0);
+    const voice = createVoicePlayer(fake.context, fake.context.createGain()).hold(
+      { waveform: "noise", frequency: 7200, gain: 0.3, duration: 0.3 },
+      1
+    );
+    // Releasing ends it far sooner than the note's own 0.3s ring would.
+    voice.release(1);
+    expect(fake.sources[0].stopped).toBeLessThan(1.3);
+  });
+
   it("glides when asked, and holds pitch when not", () => {
     const fake = fakeContext(0);
     const player = createVoicePlayer(fake.context, fake.context.createGain());

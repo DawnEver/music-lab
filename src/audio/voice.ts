@@ -104,6 +104,15 @@ function noiseBuffer(context: BaseAudioContext): AudioBuffer {
   return buffer;
 }
 
+/**
+ * A timbre's waveform as an oscillator sees it. A noise voice is a buffer,
+ * never an oscillator, so it is handled before this is ever reached — the
+ * mapping is total only so that no caller has to lie about the union.
+ */
+export function oscillatorType(waveform: Waveform): OscillatorType {
+  return waveform === "noise" ? "sine" : waveform;
+}
+
 /** Total sounding time: never shorter than the attack it has to fit. */
 export function voiceSeconds(spec: VoiceSpec): number {
   const attack = Math.max(0.001, spec.attack ?? 0.001);
@@ -120,11 +129,16 @@ export function createVoicePlayer(
   out.gain.value = volume;
   out.connect(destination);
 
+  /** The one noise buffer, built on first use and shared by every voice. */
+  function noiseLayer(): AudioBuffer {
+    if (!noise) noise = noiseBuffer(context);
+    return noise;
+  }
+
   /** A looping noise band an octave above the note, for breath. */
   function breathSource(spec: VoiceSpec, at: number, destination: AudioNode) {
-    if (!noise) noise = noiseBuffer(context);
     const source = context.createBufferSource();
-    source.buffer = noise;
+    source.buffer = noiseLayer();
     source.loop = true;
     const band = context.createBiquadFilter();
     band.type = "highpass";
@@ -191,7 +205,7 @@ export function createVoicePlayer(
     const node = envelope(spec, at, gain);
     const shaper = filter(spec, at, velocity);
     const oscillator = context.createOscillator();
-    oscillator.type = spec.waveform === "noise" ? "sine" : spec.waveform;
+    oscillator.type = oscillatorType(spec.waveform);
     oscillator.frequency.setValueAtTime(frequency, at);
     if (spec.glide && spec.glide !== 1) {
       oscillator.frequency.exponentialRampToValueAtTime(frequency * spec.glide, at + total);
@@ -237,11 +251,10 @@ export function createVoicePlayer(
       if (level <= 0) return;
 
       if (spec.waveform === "noise") {
-        if (!noise) noise = noiseBuffer(context);
         const total = voiceSeconds(spec);
         const node = envelope(spec, at, spec.gain * level);
         const source = context.createBufferSource();
-        source.buffer = noise;
+        source.buffer = noiseLayer();
         const shaper = context.createBiquadFilter();
         shaper.type = "highpass";
         shaper.frequency.value = spec.frequency;
@@ -290,27 +303,49 @@ export function createVoicePlayer(
 
       const parts: AudioNode[] = [];
       const sources: AudioScheduledSourceNode[] = [];
-      const addTone = (harmonic: number, relative: number) => {
-        const oscillator = context.createOscillator();
-        oscillator.type = spec.waveform === "noise" ? "sine" : spec.waveform;
-        oscillator.frequency.setValueAtTime(spec.frequency * harmonic, at);
+      /** Wire a source into the voice at its relative gain. */
+      const mix = (from: AudioNode, relative: number): void => {
         if (relative === 1) {
-          oscillator.connect(input);
-        } else {
-          const trim = context.createGain();
-          trim.gain.value = relative;
-          oscillator.connect(trim);
-          trim.connect(input);
-          parts.push(trim);
+          from.connect(input);
+          return;
         }
-        oscillator.start(at);
-        sources.push(oscillator);
+        const trim = context.createGain();
+        trim.gain.value = relative;
+        from.connect(trim);
+        trim.connect(input);
+        parts.push(trim);
       };
 
-      addTone(1, 1);
-      spec.partials?.forEach((relative, index) => {
-        if (relative > 0) addTone(index + 2, relative);
-      });
+      if (spec.waveform === "noise") {
+        // A held noise voice — every drum in the kit is one, because a
+        // choke group needs something to cut off. There are no harmonics
+        // to add here: the band is the whole sound.
+        const band = context.createBiquadFilter();
+        band.type = "highpass";
+        band.frequency.value = spec.frequency;
+        const source = context.createBufferSource();
+        source.buffer = noiseLayer();
+        source.loop = true;
+        source.connect(band);
+        mix(band, 1);
+        source.start(at);
+        parts.push(band);
+        sources.push(source);
+      } else {
+        const addTone = (harmonic: number, relative: number) => {
+          const oscillator = context.createOscillator();
+          oscillator.type = oscillatorType(spec.waveform);
+          oscillator.frequency.setValueAtTime(spec.frequency * harmonic, at);
+          mix(oscillator, relative);
+          oscillator.start(at);
+          sources.push(oscillator);
+        };
+
+        addTone(1, 1);
+        spec.partials?.forEach((relative, index) => {
+          if (relative > 0) addTone(index + 2, relative);
+        });
+      }
 
       if (spec.breath && spec.breath > 0) {
         const trim = context.createGain();
