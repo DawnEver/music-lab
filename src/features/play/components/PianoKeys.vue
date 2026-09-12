@@ -14,12 +14,14 @@ import { computed } from "vue";
 import { keyboardLayout } from "../domain/layout.js";
 import { keysForMidi } from "../domain/keymap.js";
 import { NOTE_NAMES } from "../../../lib/music-theory.js";
+import type { Orientation } from "../stores/play.js";
 
 const props = defineProps<{
   lowMidi: number;
   highMidi: number;
   baseMidi: number;
   sounding: Set<number>;
+  orientation: Orientation;
 }>();
 
 const emit = defineEmits<{
@@ -28,18 +30,23 @@ const emit = defineEmits<{
 }>();
 
 const layout = computed(() => keyboardLayout(props.lowMidi, props.highMidi));
-/** One white key, as a fraction of the whole width. */
+/** One white key, as a fraction of the run the keys occupy. */
 const unit = computed(() => 100 / layout.value.whiteCount);
 
 /** Black keys are 60% of a white key, centred on the boundary they cross. */
 const BLACK_WIDTH = 0.6;
 
-function leftOf(offset: number, black: boolean): string {
-  return `${(offset + (black ? 0.5 - BLACK_WIDTH / 2 : 0)) * unit.value}%`;
-}
-
-function widthOf(black: boolean): string {
-  return `${(black ? BLACK_WIDTH : 1) * unit.value}%`;
+/**
+ * The same geometry on either axis. Across, a key's extent is `left` and
+ * `width`; down, it is `top` and `height`. Nothing else about the board
+ * changes, which is why this is a style object and not a second board.
+ */
+function place(offset: number, black: boolean): Record<string, string> {
+  const start = `${(offset + (black ? 0.5 - BLACK_WIDTH / 2 : 0)) * unit.value}%`;
+  const size = `${(black ? BLACK_WIDTH : 1) * unit.value}%`;
+  return props.orientation === "vertical"
+    ? { top: start, height: size }
+    : { left: start, width: size };
 }
 
 /** Only C is labelled: any more and the keys become a table of text. */
@@ -78,14 +85,18 @@ function onEnter(event: PointerEvent, midi: number): void {
 <template>
   <!-- The scroll viewport; the board inside it is the keyboard's own size. -->
   <div class="kbd-keys">
-    <div class="kbd-board" :style="{ '--kbd-white': layout.whiteCount }">
+    <div
+      class="kbd-board"
+      :class="`is-${orientation}`"
+      :style="{ '--kbd-white': layout.whiteCount }"
+    >
       <button
         v-for="key in layout.keys"
         :key="key.midi"
         type="button"
         class="kbd-key"
         :class="{ 'is-black': key.black, 'is-down': sounding.has(key.midi) }"
-        :style="{ left: leftOf(key.offset, key.black), width: widthOf(key.black) }"
+        :style="place(key.offset, key.black)"
         :aria-label="noteName(key.midi)"
         :aria-pressed="sounding.has(key.midi)"
         @pointerdown.prevent="onDown($event, key.midi)"

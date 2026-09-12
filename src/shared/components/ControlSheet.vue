@@ -39,8 +39,23 @@ const { t } = useI18n();
 const anchor = ref<HTMLElement | null>(null);
 const open = computed(() => openSheet.value === props.name);
 
+/**
+ * Which way the popover opens. It always opens toward the room it has:
+ * a chip near the floor of the page has a sheet's worth of space above
+ * it, and a chip in a bar at the top has that space below instead. The
+ * decision is made where the chip actually is, so moving a control to
+ * another part of the page cannot leave its editor off-screen.
+ */
+const below = ref(false);
+
 function toggle(): void {
-  openSheet.value = open.value ? "" : props.name;
+  if (open.value) {
+    openSheet.value = "";
+    return;
+  }
+  const box = anchor.value?.getBoundingClientRect();
+  below.value = box ? box.top < window.innerHeight / 2 : false;
+  openSheet.value = props.name;
 }
 
 function close(): void {
@@ -95,7 +110,7 @@ onBeforeUnmount(() => {
     <div
       v-if="open"
       class="sheet"
-      :class="`is-${align ?? 'start'}`"
+      :class="[`is-${align ?? 'start'}`, { 'is-below': below }]"
       role="dialog"
       :aria-label="label"
     >

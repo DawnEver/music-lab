@@ -16,6 +16,7 @@ function keyboard(props: Partial<Record<string, unknown>> = {}) {
       highMidi: 48 + 31,
       baseMidi: 48,
       sounding: new Set<number>(),
+      orientation: "horizontal",
       ...props
     }
   });
@@ -37,6 +38,29 @@ describe("PianoKeys", () => {
       expect(left).toBeGreaterThanOrEqual(0);
       expect(left + width).toBeLessThanOrEqual(100.001);
     }
+  });
+
+  it("turns the same keyboard down the page, on the other axis", () => {
+    const wrapper = keyboard({ orientation: "vertical" });
+    expect(wrapper.find(".kbd-board").classes()).toContain("is-vertical");
+    for (const key of wrapper.findAll(".kbd-key")) {
+      const style = key.attributes("style") ?? "";
+      // Down, a key's extent is top/height. Nothing may still be on the
+      // horizontal axis, or the board would be drawn two ways at once.
+      expect(style).not.toMatch(/left:/);
+      expect(style).not.toMatch(/width:/);
+      const top = Number(/top:\s*([\d.]+)%/.exec(style)?.[1]);
+      const height = Number(/height:\s*([\d.]+)%/.exec(style)?.[1]);
+      expect(top).toBeGreaterThanOrEqual(0);
+      expect(top + height).toBeLessThanOrEqual(100.001);
+    }
+  });
+
+  it("keeps every note when it turns, and the same black/white split", () => {
+    const across = keyboard();
+    const down = keyboard({ orientation: "vertical" });
+    expect(down.findAll(".kbd-key")).toHaveLength(across.findAll(".kbd-key").length);
+    expect(down.findAll(".kbd-key.is-black")).toHaveLength(13);
   });
 
   it("stacks the black keys above the white ones", () => {
@@ -203,8 +227,8 @@ describe("DrumPads", () => {
   const kit = getInstrument("drums")!;
   const pieces = kit.surface!.kind === "pads" ? kit.surface!.pieces : [];
 
-  function pads(struck = new Set<string>()) {
-    return mount(DrumPads, { props: { pieces, struck } });
+  function pads(struck = new Set<string>(), orientation: "horizontal" | "vertical" = "horizontal") {
+    return mount(DrumPads, { props: { pieces, struck, orientation } });
   }
 
   it("lays the kit out in rows, metal above drums", () => {
@@ -213,6 +237,20 @@ describe("DrumPads", () => {
     expect(rows).toHaveLength(2);
     expect(rows[0].findAll(".pad")).toHaveLength(4);
     expect(rows[1].findAll(".pad")).toHaveLength(5);
+  });
+
+  it("turns the kit onto its other axis without losing a piece", () => {
+    const across = pads();
+    const down = pads(new Set<string>(), "vertical");
+    expect(down.get(".pad-grid").classes()).toContain("is-vertical");
+    const count = (wrapper: ReturnType<typeof pads>) =>
+      wrapper.findAll(".pad-row").reduce((total, row) => total + row.findAll(".pad").length, 0);
+    expect(count(down)).toBe(count(across));
+    // Down, a line is a column of the kit: five of them, not two.
+    expect(down.findAll(".pad-row")).toHaveLength(5);
+    expect(down.findAll(".pad-row")[0].findAll(".pad").map((pad) => pad.attributes("data-piece"))).toEqual(
+      ["crash", "kick"]
+    );
   });
 
   it("names every pad in the current language, not with raw keys", () => {
@@ -244,12 +282,13 @@ describe("DrumPads", () => {
 describe("HoleChart", () => {
   const dizi = getTunedInstrument("dizi")!;
 
-  function chart(sounding = new Set<number>()) {
+  function chart(sounding = new Set<number>(), orientation: "horizontal" | "vertical" = "horizontal") {
     return mount(HoleChart, {
       props: {
         preset: getPreset(dizi, dizi.tuning.defaultPresetId),
         wind: dizi.tuning.wind!,
-        sounding
+        sounding,
+        orientation
       }
     });
   }
@@ -259,6 +298,17 @@ describe("HoleChart", () => {
     const cards = wrapper.findAll(".hole-card");
     expect(cards).toHaveLength(getPreset(dizi, dizi.tuning.defaultPresetId).notes.length);
     expect(cards[0].findAll(".hole-dot")).toHaveLength(6);
+  });
+
+  it("runs the scale down the page instead of across it", () => {
+    const across = chart();
+    const down = chart(new Set<number>(), "vertical");
+    expect(down.get(".hole-chart").classes()).toContain("is-vertical");
+    // One ascending line either way: the order is the exercise, and
+    // folding it into rows would destroy the only order it has.
+    const order = (wrapper: ReturnType<typeof chart>) =>
+      wrapper.findAll(".hole-card").map((card) => card.attributes("aria-label"));
+    expect(order(down)).toEqual(order(across));
   });
 
   it("fills a closed hole and leaves an open one empty", () => {

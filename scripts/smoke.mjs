@@ -404,6 +404,93 @@ async function assertStageFillsWidth(page, label, selector, floor = 0.9) {
   }
 }
 
+/**
+ * The instrument owns the whole page, not just its width.
+ *
+ * A card insets its content by a padding and rounds its corners, and both
+ * come straight out of the surface a hand is aiming at. So `/play` has no
+ * card: the stage runs from the bar to the bottom of the page and the
+ * instrument fills it. "It looks about right" is exactly the judgement
+ * this replaces.
+ */
+async function assertStageOwnsTheRest(page, label, selector) {
+  const gap = await page.evaluate((sel) => {
+    const stage = document.querySelector(sel);
+    const main = document.querySelector("main");
+    if (!stage || !main) return null;
+    return Math.round(main.getBoundingClientRect().bottom - stage.getBoundingClientRect().bottom);
+  }, selector);
+  if (gap === null) throw new Error(`${label}: no stage for ${selector}`);
+  if (Math.abs(gap) > 2) {
+    throw new Error(`${label}: ${selector} stops ${gap}px from the bottom of the page`);
+  }
+}
+
+/** What you play on is chosen above it, not below it. */
+async function assertBarAboveStage(page, label) {
+  const order = await page.evaluate(() => {
+    const bar = document.querySelector(".play-bar");
+    const stage = document.querySelector(".play-stage");
+    if (!bar || !stage) return null;
+    return {
+      bar: Math.round(bar.getBoundingClientRect().bottom),
+      stage: Math.round(stage.getBoundingClientRect().top),
+      chips: document.querySelectorAll(".play-bar .value-chip").length
+    };
+  });
+  if (!order) throw new Error(`${label}: the play tool has no bar`);
+  if (order.chips !== 1) {
+    throw new Error(`${label}: expected the instrument picker in the bar, got ${order.chips}`);
+  }
+  if (order.bar > order.stage + 2) {
+    throw new Error(`${label}: the picker sits ${order.bar - order.stage}px below the instrument`);
+  }
+}
+
+/** Turn the instrument. Every surface has both, so the control is always there. */
+async function turnTo(page, label, orientation) {
+  const chip = page.locator(`.play-bar [data-orientation="${orientation}"]`);
+  if ((await chip.count()) !== 1) {
+    throw new Error(`${label}: no ${orientation} chip for this surface`);
+  }
+  await chip.click();
+}
+
+async function assertTurned(page, label, selector, orientation) {
+  if ((await page.locator(`${selector}.is-${orientation}`).count()) !== 1) {
+    throw new Error(`${label}: ${selector} did not turn to ${orientation}`);
+  }
+}
+
+/**
+ * A white key is bounded by the hand at both ends — 23.5mm is a real
+ * piano's white key and 9mm is a fingertip — so the same 34–89px applies
+ * whichever axis the keyboard runs along. Anything outside it is a key
+ * nobody could play.
+ *
+ * Which axis that is comes from the board itself. The default orientation
+ * differs by viewport, so asking the caller to say which way it thinks the
+ * keyboard is pointing is how this assertion ends up measuring the length
+ * of a key instead of its width.
+ */
+async function assertKeyIsHandSized(page, label) {
+  const measured = await page.evaluate(() => {
+    const board = document.querySelector(".kbd-board");
+    const key = document.querySelector(".kbd-key:not(.is-black)");
+    if (!board || !key) return null;
+    const box = key.getBoundingClientRect();
+    const vertical = board.classList.contains("is-vertical");
+    return { vertical, size: vertical ? box.height : box.width };
+  });
+  if (!measured) throw new Error(`${label}: missing keyboard geometry`);
+  if (measured.size < 33.5 || measured.size > 89.5) {
+    throw new Error(
+      `${label}: a white key is ${Math.round(measured.size)}px across on a ` +
+        `${measured.vertical ? "vertical" : "horizontal"} board, outside the 34–89px it may be`
+    );
+  }
+}
+
 /** Every tool must be reachable: a nav that overflows hides one. */
 async function assertNavFits(page, label) {
   const over = await page.evaluate(() => {
@@ -450,7 +537,9 @@ async function walkPlay(page, label, { wide = false } = {}) {
 
   const keys = await page.locator(".kbd-key").count();
   if (keys !== 32) throw new Error(`${label}: expected 32 keys, got ${keys}`);
-  await assertStageFillsWidth(page, `${label} keys`, ".play-stage");
+  await assertBarAboveStage(page, label);
+  await assertStageFillsWidth(page, `${label} keys`, ".play-stage", 0.99);
+  await assertStageOwnsTheRest(page, `${label} keys`, ".play-stage");
   await assertNoVOverflow(page, `${label} keys`);
   await assertNavFits(page, label);
 
@@ -466,15 +555,11 @@ async function walkPlay(page, label, { wide = false } = {}) {
   if (last.x + last.width > board.x + board.width + 1) {
     throw new Error(`${label}: the keyboard runs past its own width`);
   }
-
-  // A key is sized by the hand, not by the window: never wider than a real
-  // white key (23.5mm) and never narrower than a fingertip (9mm). 96dpi
-  // makes those 88.8px and 34.0px.
-  if (white.width < 33.5 || white.width > 89.5) {
-    throw new Error(
-      `${label}: a white key is ${Math.round(white.width)}px, outside the 34–89px it may be`
-    );
-  }
+  // The default orientation follows the viewport, so ask the board which
+  // way it is pointing rather than assuming.
+  const expected = wide ? "horizontal" : "vertical";
+  await assertTurned(page, label, ".kbd-board", expected);
+  await assertKeyIsHandSized(page, `${label} keys`);
 
   // Pressing a key lights it, and releasing lets it go.
   await page.locator(".kbd-key").first().dispatchEvent("pointerdown");
@@ -502,9 +587,22 @@ async function walkPlay(page, label, { wide = false } = {}) {
   }
   await assertNoHOverflow(page, `${label} keyboard`);
 
+  // A keyboard turns too: on the other axis a key's long side is the
+  // vertical one, and it is still a key the hand can find.
+  const flippedKeys = expected === "horizontal" ? "vertical" : "horizontal";
+  await turnTo(page, label, flippedKeys);
+  await assertTurned(page, label, ".kbd-board", flippedKeys);
+  if ((await page.locator(".kbd-key").count()) !== keys) {
+    throw new Error(`${label}: turning the keyboard changed how many notes exist`);
+  }
+  await assertKeyIsHandSized(page, `${label} keys turned`);
+  await assertStageOwnsTheRest(page, `${label} keys turned`, ".play-stage");
+  await assertNoVOverflow(page, `${label} keys turned`);
+  await turnTo(page, label, expected);
+
   // The instrument decides the surface: switching to a guitar draws a
   // fretboard, and its own tunings come with it.
-  await page.locator(".value-chip").first().click();
+  await page.locator(".play-bar .value-chip").click();
   await page.waitForSelector('[data-instrument="guitar"]', { timeout: 4000 });
   await page.locator('[data-instrument="guitar"]').click();
   await page.waitForSelector(".fret-board", { timeout: 8000 });
@@ -520,10 +618,7 @@ async function walkPlay(page, label, { wide = false } = {}) {
   // The neck runs across on a laptop and down on a phone, because sixteen
   // frets across 390px are not hittable. A first visit takes the viewport's
   // advice; after that it is the player's choice.
-  const expected = wide ? "horizontal" : "vertical";
-  if (!(await page.locator(`.fret-board.is-${expected}`).count())) {
-    throw new Error(`${label}: expected the neck to default to ${expected}`);
-  }
+  await assertTurned(page, label, ".fret-board", expected);
   // Across: a heading row plus one row per string. Down: a heading row plus
   // one row per fret, open included.
   const rows = await page.locator(".fret-row").count();
@@ -531,7 +626,8 @@ async function walkPlay(page, label, { wide = false } = {}) {
   if (rows !== expectedRows) {
     throw new Error(`${label}: expected ${expectedRows} ${expected} rows, got ${rows}`);
   }
-  await assertStageFillsWidth(page, `${label} frets`, ".play-stage");
+  await assertStageFillsWidth(page, `${label} frets`, ".play-stage", 0.99);
+  await assertStageOwnsTheRest(page, `${label} frets`, ".play-stage");
   await assertNoVOverflow(page, `${label} frets`);
   // A fret carries its note name; an anonymous box is not a fretboard.
   const firstCell = await page.locator(".fret-cell").first().innerText();
@@ -540,20 +636,18 @@ async function walkPlay(page, label, { wide = false } = {}) {
   }
 
   // Turning the neck transposes the same notes rather than losing any.
-  // The sheet stays open from here to the end of the setup checks.
   const cellsBefore = await page.locator(".fret-cell").count();
   const flipped = expected === "horizontal" ? "vertical" : "horizontal";
-  await page.locator(".value-chip").first().click();
-  await page.waitForSelector(`[data-orientation="${flipped}"]`, { timeout: 4000 });
-  await page.locator(`[data-orientation="${flipped}"]`).click();
-  await page.waitForSelector(`.fret-board.is-${flipped}`, { timeout: 4000 });
+  await turnTo(page, label, flipped);
+  await assertTurned(page, label, ".fret-board", flipped);
   if ((await page.locator(".fret-cell").count()) !== cellsBefore) {
     throw new Error(`${label}: turning the neck changed how many notes exist`);
   }
-  await page.locator(`[data-orientation="${expected}"]`).click();
-  await page.waitForSelector(`.fret-board.is-${expected}`, { timeout: 4000 });
+  await turnTo(page, label, expected);
+  await assertTurned(page, label, ".fret-board", expected);
 
   // The tuning row appears only because a guitar has alternate tunings.
+  await page.locator(".play-bar .value-chip").click();
   const tunings = await page.locator("[data-preset]").count();
   if (tunings < 2) throw new Error(`${label}: expected the guitar's tunings, got ${tunings}`);
   // Standard tuning bottoms out on E2, so a D2 anywhere on the board is
@@ -574,7 +668,7 @@ async function walkPlay(page, label, { wide = false } = {}) {
   await page.locator(".fret-cell").first().dispatchEvent("pointerup");
 
   // Third surface: the kit has no pitch, so it has pads and no tuning row.
-  await page.locator(".value-chip").first().click();
+  await page.locator(".play-bar .value-chip").click();
   await page.waitForSelector('[data-instrument="drums"]', { timeout: 4000 });
   await page.locator('[data-instrument="drums"]').click();
   await page.waitForSelector(".pad-grid", { timeout: 8000 });
@@ -584,7 +678,8 @@ async function walkPlay(page, label, { wide = false } = {}) {
   }
   const padCount = await page.locator(".pad").count();
   if (padCount !== 9) throw new Error(`${label}: expected 9 pads, got ${padCount}`);
-  await assertStageFillsWidth(page, `${label} pads`, ".play-stage");
+  await assertStageFillsWidth(page, `${label} pads`, ".play-stage", 0.99);
+  await assertStageOwnsTheRest(page, `${label} pads`, ".play-stage");
   await assertNoVOverflow(page, `${label} pads`);
 
   // A pad flashes and finishes on its own; there is nothing to hold.
@@ -597,9 +692,27 @@ async function walkPlay(page, label, { wide = false } = {}) {
   await page.waitForSelector('[data-piece="kick"].is-hit', { timeout: 4000 });
   await assertNoHOverflow(page, `${label} pads`);
 
+  // The kit turns onto its other axis, and every piece comes with it.
+  await turnTo(page, label, "vertical");
+  await assertTurned(page, label, ".pad-grid", "vertical");
+  if ((await page.locator(".pad").count()) !== padCount) {
+    throw new Error(`${label}: turning the kit changed how many pieces exist`);
+  }
+  // Turning a kit gives a line of columns, not a list. When the grid and
+  // its lines both run down the page the lines stack on top of each other,
+  // and the count of rows is still right — this is the only way to see it.
+  const lineXs = await page.locator(".pad-row").evaluateAll((rows) =>
+    rows.map((row) => Math.round(row.getBoundingClientRect().x))
+  );
+  if (new Set(lineXs).size !== lineXs.length) {
+    throw new Error(`${label}: the turned kit stacked its lines instead of turning them`);
+  }
+  await assertNoHOverflow(page, `${label} pads down`);
+  await turnTo(page, label, "horizontal");
+
   // Fourth surface: a wind is played through the same chart the tuner
   // draws, and it is held rather than struck.
-  await page.locator(".value-chip").first().click();
+  await page.locator(".play-bar .value-chip").click();
   await page.waitForSelector('[data-instrument="dizi"]', { timeout: 4000 });
   await page.locator('[data-instrument="dizi"]').click();
   await page.waitForSelector(".hole-chart", { timeout: 8000 });
@@ -611,10 +724,26 @@ async function walkPlay(page, label, { wide = false } = {}) {
   if (cards !== 14) throw new Error(`${label}: expected two octaves of notes, got ${cards}`);
   const dots = await page.locator(".hole-card").first().locator(".hole-dot").count();
   if (dots !== 6) throw new Error(`${label}: a dizi has six holes, got ${dots}`);
-  await assertStageFillsWidth(page, `${label} holes`, ".play-stage");
+  await assertStageFillsWidth(page, `${label} holes`, ".play-stage", 0.99);
+  await assertStageOwnsTheRest(page, `${label} holes`, ".play-stage");
   await assertNoVOverflow(page, `${label} holes`);
   // A scale is one ascending line; folded into rows it stops being one.
   if (wide) await assertSingleRow(page, `${label} dizi`, ".hole-card");
+
+  // The scale runs down the page instead of across it, in the same order.
+  const scaleBefore = await page.locator(".hole-card").evaluateAll((nodes) =>
+    nodes.map((node) => node.getAttribute("aria-label"))
+  );
+  await turnTo(page, label, "vertical");
+  await assertTurned(page, label, ".hole-chart", "vertical");
+  const scaleTurned = await page.locator(".hole-card").evaluateAll((nodes) =>
+    nodes.map((node) => node.getAttribute("aria-label"))
+  );
+  if (JSON.stringify(scaleTurned) !== JSON.stringify(scaleBefore)) {
+    throw new Error(`${label}: turning the wind chart reordered the scale`);
+  }
+  await turnTo(page, label, "horizontal");
+
   await page.locator(".hole-card").first().dispatchEvent("pointerdown");
   await page.waitForSelector(".hole-card.is-down", { timeout: 4000 });
   await page.locator(".hole-card").first().dispatchEvent("pointerup");
@@ -629,7 +758,7 @@ async function walkPlay(page, label, { wide = false } = {}) {
   }
 
   await assertNoHOverflow(page, `${label} fretboard`);
-  console.log(`✓ ${label}: keys, frets, pads and holes all play, and fit their width`);
+  console.log(`✓ ${label}: keys, frets, pads and holes all play, turn, and fill the page`);
 }
 
 /** Ear training: the whole loop is hear -> answer -> verdict -> next. */

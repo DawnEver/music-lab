@@ -2,10 +2,18 @@
 /**
  * Play a note.
  *
- * One tool, one focus: the instrument's own surface, which never scrolls.
+ * One tool, one focus: the instrument's own surface, which never scrolls
+ * and never shares the room with anything else. It is not a card — a card
+ * insets its content by a padding and rounds its corners, and both of
+ * those are taken straight out of the instrument. The stage is the page
+ * between the nav and the footer, and the instrument fills it in both
+ * directions.
+ *
  * The instrument decides what is drawn and what is heard, so there is no
- * timbre control to contradict its name — and the octave shift is on
- * screen only where it is part of the loop, which is the keyed surface.
+ * timbre control to contradict its name. What is set up before playing —
+ * which instrument, which way it runs, which octave the computer keyboard
+ * sits at — lives in the bar above the stage, where a control is still in
+ * the loop rather than behind a menu.
  */
 import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 import { useI18n } from "../../composables/useI18n.js";
@@ -25,11 +33,13 @@ import {
   noteOn,
   preset,
   releasePlay,
-  strike,
-  struck,
+  setOrientation,
   settings,
   shiftOctave,
-  sounding
+  strike,
+  struck,
+  sounding,
+  type Orientation
 } from "./stores/play.js";
 
 const { t, lang } = useI18n();
@@ -47,6 +57,12 @@ const wind = computed(() =>
 const frets = computed(() =>
   instrument.value.surface.kind === "frets" ? instrument.value.surface.frets : 0
 );
+
+/** Every surface turns; the two options are the same two for all of them. */
+const ORIENTATIONS: Array<{ id: Orientation; key: "playHorizontal" | "playVertical" }> = [
+  { id: "horizontal", key: "playHorizontal" },
+  { id: "vertical", key: "playVertical" }
+];
 
 /**
  * A phone has no Z–M row to play, and its keyboard scrolls instead. The
@@ -134,7 +150,28 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <section class="card play-stage" data-tool="play">
+  <!-- Above the stage, outside any card: .card clips, and a sheet must not
+       be clipped. -->
+  <div class="play-bar">
+    <ControlSheet name="setup" :label="t('playSetupTitle')" :value="setupValue">
+      <PlayControl />
+    </ControlSheet>
+
+    <div class="orient-chips" role="group" :aria-label="t('playOrientation')">
+      <button
+        v-for="entry in ORIENTATIONS"
+        :key="entry.id"
+        type="button"
+        class="orient-chip"
+        :class="{ 'is-active': settings.orientation === entry.id }"
+        :data-orientation="entry.id"
+        :aria-pressed="settings.orientation === entry.id"
+        @click="setOrientation(entry.id)"
+      >
+        {{ t(entry.key) }}
+      </button>
+    </div>
+
     <div v-if="isKeys" class="kbd-octave">
       <button
         type="button"
@@ -155,12 +192,17 @@ onBeforeUnmount(() => {
       </button>
     </div>
 
+    <p class="play-hint">{{ hint }}</p>
+  </div>
+
+  <section class="play-stage" data-tool="play">
     <PianoKeys
       v-if="isKeys"
       :low-midi="lowMidi"
       :high-midi="highMidi"
       :base-midi="settings.baseMidi"
       :sounding="sounding"
+      :orientation="settings.orientation"
       @down="(midi: number) => noteOn(midi)"
       @up="noteOff"
     />
@@ -168,6 +210,7 @@ onBeforeUnmount(() => {
       v-else-if="pieces.length"
       :pieces="pieces"
       :struck="struck"
+      :orientation="settings.orientation"
       @hit="strike"
     />
     <HoleChart
@@ -175,6 +218,7 @@ onBeforeUnmount(() => {
       :preset="preset"
       :wind="wind"
       :sounding="sounding"
+      :orientation="settings.orientation"
       @down="(midi: number) => noteOn(midi)"
       @up="noteOff"
     />
@@ -183,18 +227,9 @@ onBeforeUnmount(() => {
       :preset="preset"
       :frets="frets"
       :sounding="sounding"
-      :orientation="settings.fretOrientation"
+      :orientation="settings.orientation"
       @down="(midi: number) => noteOn(midi)"
       @up="noteOff"
     />
-
-    <p class="kbd-hint">{{ hint }}</p>
   </section>
-
-  <!-- Outside the card: .card clips, and a sheet must not be clipped. -->
-  <div class="metro-chip-row">
-    <ControlSheet name="setup" :label="t('playSetupTitle')" :value="setupValue">
-      <PlayControl />
-    </ControlSheet>
-  </div>
 </template>

@@ -12,13 +12,14 @@ import { computed } from "vue";
 import { useI18n } from "../../../composables/useI18n.js";
 import { MARKER_FRETS, OCTAVE_FRETS, fretRows } from "../domain/fretboard.js";
 import type { TuningPreset } from "../../../instruments/index.js";
+import type { Orientation } from "../stores/play.js";
 import { NOTE_NAMES } from "../../../lib/music-theory.js";
 
 const props = defineProps<{
   preset: TuningPreset;
   frets: number;
   sounding: Set<number>;
-  orientation: "horizontal" | "vertical";
+  orientation: Orientation;
 }>();
 
 const emit = defineEmits<{

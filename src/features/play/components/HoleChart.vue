@@ -10,12 +10,14 @@
 import { computed } from "vue";
 import { useI18n } from "../../../composables/useI18n.js";
 import type { TuningPreset, WindLayout } from "../../../instruments/index.js";
+import type { Orientation } from "../stores/play.js";
 import { NOTE_NAMES } from "../../../lib/music-theory.js";
 
 const props = defineProps<{
   preset: TuningPreset;
   wind: WindLayout;
   sounding: Set<number>;
+  orientation: Orientation;
 }>();
 
 const emit = defineEmits<{
@@ -41,7 +43,11 @@ function noteName(midi: number): string {
 </script>
 
 <template>
-  <div class="hole-chart" :style="{ '--count': notes.length }">
+  <div
+    class="hole-chart"
+    :class="`is-${orientation}`"
+    :style="{ '--count': notes.length }"
+  >
     <button
       v-for="note in notes"
       :key="note.midi"

@@ -34,16 +34,18 @@ import { createPerformer, type Performer } from "../engine/performer.js";
 
 export const DEFAULT_INSTRUMENT = "piano";
 
-export type FretOrientation = "horizontal" | "vertical";
+export type Orientation = "horizontal" | "vertical";
 
 export interface PlaySettings {
   instrumentId: string;
   /**
-   * Which way the neck runs. A phone cannot hold sixteen frets across, so
-   * the first visit picks by viewport; after that it is the player's
-   * choice and nothing overrides it.
+   * Which way the instrument runs. Every surface has both: a neck across
+   * or down, keys in a row or a column, a chart read left to right or top
+   * to bottom. A phone cannot hold sixteen frets across, so the first
+   * visit picks by viewport; after that it is the player's choice and
+   * nothing overrides it.
    */
-  fretOrientation: FretOrientation;
+  orientation: Orientation;
   /** Where the computer keyboard sits, for keyed instruments. */
   baseMidi: number;
   /** Chosen tuning per fretted instrument; the tuner's choice is its own. */
@@ -54,7 +56,7 @@ export interface PlaySettings {
 function defaults(): PlaySettings {
   return {
     instrumentId: DEFAULT_INSTRUMENT,
-    fretOrientation: "horizontal",
+    orientation: "horizontal",
     baseMidi: DEFAULT_BASE_MIDI,
     presets: {},
     volume: 0.8
@@ -68,14 +70,23 @@ export const sounding = reactive(new Set<number>());
 /** Pads hit in the last instant — a strike has no release to wait for. */
 export const struck = reactive(new Set<string>());
 
+/** Anything that is not the one word "vertical" is the default. */
+function readOrientation(value: unknown, fallback: Orientation): Orientation {
+  if (value === "vertical") return "vertical";
+  if (value === "horizontal") return "horizontal";
+  return fallback;
+}
+
 const stored = storedJson<PlaySettings>("play", defaults, (raw, base) => {
   if (!raw || typeof raw !== "object") return base;
-  const value = raw as Partial<PlaySettings>;
+  const value = raw as Partial<PlaySettings> & { fretOrientation?: unknown };
   const baseMidi = typeof value.baseMidi === "number" ? value.baseMidi : base.baseMidi;
   return {
     // An instrument that no longer exists must not survive as a dead pick.
     instrumentId: getPlayableInstrument(String(value.instrumentId)) ? value.instrumentId! : base.instrumentId,
-    fretOrientation: value.fretOrientation === "vertical" ? "vertical" : base.fretOrientation,
+    // `fretOrientation` is what the setting was called while only a neck
+    // had one. Read it, then it is gone.
+    orientation: readOrientation(value.orientation ?? value.fretOrientation, base.orientation),
     baseMidi: Math.min(MAX_BASE_MIDI, Math.max(MIN_BASE_MIDI, Math.round(baseMidi / 12) * 12)),
     presets: value.presets && typeof value.presets === "object" ? { ...value.presets } : base.presets,
     volume: typeof value.volume === "number" ? Math.min(1, Math.max(0, value.volume)) : base.volume
@@ -108,7 +119,7 @@ export function hydratePlay(viewportWidth?: number): void {
   Object.assign(settings, wasStored);
   // Only a first visit takes the viewport's advice.
   if (viewportWidth !== undefined && !hasStoredChoice()) {
-    settings.fretOrientation = viewportWidth < NARROW_SCREEN_PX ? "vertical" : "horizontal";
+    settings.orientation = viewportWidth < NARROW_SCREEN_PX ? "vertical" : "horizontal";
   }
 }
 
@@ -197,8 +208,12 @@ export function setPreset(id: string): void {
   persist();
 }
 
-export function setFretOrientation(value: FretOrientation): void {
-  settings.fretOrientation = value;
+export function setOrientation(value: Orientation): void {
+  if (settings.orientation === value) return;
+  settings.orientation = value;
+  // The surface is rearranged under the fingers, so anything down would
+  // hang: the key the player is holding is not where they left it.
+  allNotesOff();
   persist();
 }
 

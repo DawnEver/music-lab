@@ -355,10 +355,12 @@
     }
 
     /* One tool owns the leftover height: an instrument is played, not read,
-       so it sits in the middle of the room rather than under the nav with
-       the page empty below. Everything else stays top-aligned. */
+       so it takes the whole room rather than sitting under the nav with the
+       page empty below. Its bar is a fixed row above the stage; everything
+       left over is the instrument's. Every other tool stays top-aligned. */
     .dashboard:has(.play-stage) {
       align-content: stretch;
+      grid-template-rows: auto minmax(0, 1fr);
     }
 
     .card {
@@ -1198,8 +1200,15 @@
         display: none;
       }
 
+      /*
+       * The gaps between stacked blocks are chrome, and on a 667px phone
+       * five of them at 12px cost 60px — which is what a tool that does
+       * not fit is short of. The trace is the one that says so out loud:
+       * its canvas is already at the 200px floor its own rule sets, so
+       * there is nowhere else for the room to come from.
+       */
       .dashboard {
-        gap: 12px;
+        gap: 8px;
       }
 
       /* Beside the brand, not under the nav. */
@@ -2252,6 +2261,12 @@
   backdrop-filter: blur(24px);
 }
 
+/* Opening downward, for a chip that has the top of the page above it. */
+.sheet.is-below {
+  top: calc(100% + 10px);
+  bottom: auto;
+}
+
 .sheet.is-start {
   left: 0;
 }
@@ -3058,6 +3073,12 @@
  * the reader is left with "audio is never…".
  */
 @media (max-width: 720px) {
+  /* The control's own three rows sit closer together on a phone: the
+     spacing between them is chrome, and it is the last of it there is. */
+  .audio-source {
+    gap: 6px;
+  }
+
   .audio-detail {
     flex-basis: 100%;
     white-space: normal;
@@ -3249,13 +3270,20 @@
 
 .kbd-keys {
   width: 100%;
-  /* Keys get taller as the stage gets wider: a 100px-wide key on a 190px
-     board is the wrong shape for the hand that plays it. */
-  height: clamp(150px, 22vh, 260px);
+  /* The stage hands this element its height; the floor is only there for
+     a viewport too short to give the keys anything usable. */
+  min-height: clamp(110px, 16vh, 190px);
   display: flex;
   overflow-x: auto;
   touch-action: pan-x;
   user-select: none;
+}
+
+/* Turned down, the run that overflows is the vertical one. */
+.kbd-keys:has(.kbd-board.is-vertical) {
+  overflow-x: hidden;
+  overflow-y: auto;
+  touch-action: pan-y;
 }
 
 /*
@@ -3293,22 +3321,30 @@
 .kbd-board {
   position: relative;
   flex: 0 0 auto;
+  /* `margin: auto` rather than a centring keyword: a centred flex item
+     that overflows gets its leading edge clipped out of reach. */
+  margin: auto;
+}
+
+/* Across: the run is the width, and the keys stand on the board's floor. */
+.kbd-board.is-horizontal {
   height: 100%;
-  margin-inline: auto;
   width: clamp(calc(var(--kbd-white) * 9mm), 100%, calc(var(--kbd-white) * 23.5mm));
+}
+
+/* Down: the same board on the other axis — the run is the height. */
+.kbd-board.is-vertical {
+  width: 100%;
+  height: clamp(calc(var(--kbd-white) * 9mm), 100%, calc(var(--kbd-white) * 23.5mm));
 }
 
 .kbd-key {
   position: absolute;
-  top: 0;
-  padding: 0 0 8px;
   display: flex;
-  flex-direction: column;
   justify-content: flex-end;
   align-items: center;
   gap: 3px;
   border: 1px solid var(--line);
-  border-radius: 0 0 6px 6px;
   background: linear-gradient(180deg, #fdfdfd, #e6e8ee);
   color: #4a4f5c;
   font-family: var(--font-mono);
@@ -3317,17 +3353,47 @@
   transition: background 0.06s ease;
 }
 
-.kbd-key.is-black {
+/* The name sits at the end of the key away from the hinge. */
+.kbd-board.is-horizontal .kbd-key {
+  top: 0;
+  padding: 0 0 8px;
+  flex-direction: column;
+  border-radius: 0 0 6px 6px;
+}
+
+.kbd-board.is-horizontal .kbd-key.is-black {
   height: 62%;
+  border-radius: 0 0 5px 5px;
+}
+
+.kbd-board.is-horizontal .kbd-key:not(.is-black) {
+  height: 100%;
+}
+
+.kbd-board.is-vertical .kbd-key {
+  left: 0;
+  padding: 0 8px 0 0;
+  flex-direction: row;
+  border-radius: 0 6px 6px 0;
+}
+
+.kbd-board.is-vertical .kbd-key.is-black {
+  width: 62%;
+  border-radius: 0 5px 5px 0;
+}
+
+.kbd-board.is-vertical .kbd-key:not(.is-black) {
+  width: 100%;
+}
+
+.kbd-key.is-black {
   z-index: 2;
   border-color: #0b0d12;
-  border-radius: 0 0 5px 5px;
   background: linear-gradient(180deg, #2a2f3b, #10131a);
   color: #aab2c4;
 }
 
 .kbd-key:not(.is-black) {
-  height: 100%;
   z-index: 1;
 }
 
@@ -3354,13 +3420,6 @@
 }
 
 @media (max-width: 720px) {
-  .kbd-keys {
-    /* Shorter on a phone: the room has to be shared with a hint, the
-       instrument chip and the footer, and the keys are already at their
-       narrowest here. */
-    height: 132px;
-  }
-
   .fret-note {
     opacity: 0.6;
   }
@@ -3385,11 +3444,20 @@
   touch-action: none;
 }
 
+/* Every line takes an equal share of the board's height — frets or
+   strings, evenly spaced, which is the only spacing a neck has. */
 .fret-row {
   display: grid;
+  flex: 1 1 0;
   grid-template-columns: 30px repeat(var(--cols), minmax(0, 1fr));
   gap: 3px;
   align-items: stretch;
+  min-height: 0;
+}
+
+/* The heading row is a scale, not one of the instrument's lines. */
+.fret-headings {
+  flex: 0 0 auto;
 }
 
 .fret-label,
@@ -3501,12 +3569,11 @@
    * itself still does not scroll. `touch-action` has to allow exactly that
    * one direction, or the drag that slides between notes eats the scroll.
    */
+  /* The board's room is whatever the stage has left, not a pixel budget
+     guessed from the chrome's height — the chrome changes and the guess
+     does not. Rows keep a hittable minimum, so a neck too long for the
+     screen scrolls rather than shrinking into nothing. */
   .fret-board.is-vertical {
-    /* The room a phone actually has: viewport minus the nav, the hint, the
-       instrument chip and the footer, all fixed height here. Smoke
-       measures the result, so this number cannot quietly drift. */
-    max-height: calc(100vh - 440px);
-    min-height: 150px;
     overflow-y: auto;
     touch-action: pan-y;
   }
@@ -3530,16 +3597,100 @@
   }
 }
 
+/*
+ * What you play on, chosen before you play: the instrument, the way it
+ * runs, the octave the computer keyboard sits at. It sits above the stage
+ * rather than below it — the old chip row was under the instrument, which
+ * is the far end of the page from where the eye starts.
+ */
+.play-bar {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  margin-bottom: 12px;
+  position: relative;
+  /* Above every surface: a black key carries z-index 2 of its own, and a
+     tie would hand the sheet's clicks to the instrument underneath it. */
+  z-index: 5;
+}
+
+/* The hint is advice, not a control: it takes what is left and gives way
+   first, because the instrument's room is not negotiable. */
+.play-hint {
+  flex: 1 1 180px;
+  min-width: 0;
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  text-align: right;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/*
+ * Every surface turns, so the control belongs to the tool and not to one
+ * of its shapes: two options, both visible, no state-in-a-label.
+ */
+.orient-chips {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 4px;
+  padding: 3px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--glass);
+}
+
+.orient-chip {
+  min-height: 30px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 999px;
+  background: none;
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.12s ease, color 0.12s ease;
+}
+
+.orient-chip:hover {
+  color: var(--text);
+}
+
+.orient-chip.is-active {
+  color: var(--text);
+  background: color-mix(in srgb, var(--accent) 24%, transparent);
+}
+
+/*
+ * The instrument is the page.
+ *
+ * Not a `.card`: a card insets its content by a padding and rounds its
+ * corners, and both come straight out of the surface the hand is aiming
+ * at. The stage spans every dashboard column and every pixel of height
+ * the bar left behind, and whatever surface is inside it fills both by
+ * construction — a new surface needs no layout CSS of its own.
+ */
 .play-stage {
-  /* An instrument is the whole tool: it spans every dashboard column,
-     the way every other stage does. */
   grid-column: 1 / -1;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  justify-content: center;
+  align-items: stretch;
+  justify-content: stretch;
+  min-width: 0;
   min-height: 0;
-  gap: 14px;
+}
+
+.play-stage > * {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
 }
 
 /* Drum pads — nothing is held, so a pad flashes rather than latching. */
@@ -3552,17 +3703,33 @@
   user-select: none;
 }
 
+/* Turned down, the kit's rows are its columns: the lines still run across
+   the page, and the pieces within each line now run down it. Leaving the
+   grid itself a column stacks the columns too, which is the kit folded
+   into a list — the shape a kit must never lose. */
+.pad-grid.is-vertical {
+  flex-direction: row;
+}
+
+.pad-grid.is-vertical .pad-row {
+  flex-direction: column;
+  flex-wrap: nowrap;
+}
+
+/* A row takes its share of the kit's height: pads grow with the room. */
 .pad-row {
   display: flex;
+  flex: 1 1 0;
   gap: 10px;
   justify-content: center;
   flex-wrap: wrap;
+  min-height: 0;
 }
 
 .pad {
   flex: 1 1 96px;
   max-width: 220px;
-  min-height: 76px;
+  min-height: 60px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -3575,6 +3742,13 @@
   font-family: inherit;
   cursor: pointer;
   transition: background 0.05s ease, border-color 0.05s ease, transform 0.05s ease;
+}
+
+/* Turned down, a pad's long side is the vertical one and nothing caps it:
+   the two pieces of a line share the whole height between them. */
+.pad-grid.is-vertical .pad {
+  max-width: none;
+  max-height: none;
 }
 
 .pad:hover {
@@ -3612,33 +3786,55 @@
 
 /* Wind chart — the same diagram the tuner draws, but here it is played:
    press a fingering and the note sounds until the finger lifts. */
+/*
+ * A wind chart is a scale: one ascending line, never folded into rows,
+ * which destroys the only order it has. Across, that line runs left to
+ * right and the notes fill the width; down, it runs top to bottom and
+ * they fill the height. Both are the same flex line.
+ */
 .hole-chart {
   width: 100%;
+  display: flex;
+  align-items: stretch;
+  gap: 6px;
   touch-action: none;
   user-select: none;
 }
 
+.hole-chart.is-vertical {
+  flex-direction: column;
+}
+
 @media (max-width: 720px) {
-  /* A wind chart is a scale: one ascending line, scrolled — never folded
-     into rows, which destroys the only order it has. */
-  .hole-chart {
-    display: flex;
+  .hole-chart.is-horizontal {
     flex-wrap: nowrap;
     overflow-x: auto;
     touch-action: pan-x;
   }
 
-  .hole-card {
+  .hole-chart.is-vertical {
+    overflow-y: auto;
+    touch-action: pan-y;
+  }
+
+  /* A phone cannot show the whole scale at once, so a card keeps a size
+     the thumb can hit and the line scrolls instead. */
+  .hole-chart.is-horizontal .hole-card {
     flex: 0 0 auto;
     min-width: 72px;
+  }
+
+  .hole-chart.is-vertical .hole-card {
+    flex: 0 0 auto;
+    min-height: 72px;
   }
 }
 
 .hole-card {
   display: flex;
-  min-width: 0;
   flex-direction: column;
   align-items: center;
+  justify-content: center;
   gap: 6px;
   min-width: 62px;
   padding: 8px 10px;
@@ -3651,6 +3847,38 @@
   transition: border-color 0.08s ease, background 0.08s ease;
 }
 
+/*
+ * Along the line, every note takes an equal share of the room — and the
+ * card uses it: a dizi is a tube with six holes down it, so the note sits
+ * at the top and the holes spread down the length. Stacked in the middle
+ * of a tall card they would read as a widget that had been stretched,
+ * which is what filling the page looks like when nothing fills it.
+ */
+.hole-chart.is-horizontal .hole-card {
+  flex: 1 1 0;
+  min-width: 0;
+  justify-content: flex-start;
+}
+
+.hole-chart.is-horizontal .hole-holes {
+  flex: 1 1 auto;
+  justify-content: space-evenly;
+}
+
+/* Across it, the fingering reads sideways: the note first, the holes
+   after it, the way the line itself now runs. */
+.hole-chart.is-vertical .hole-card {
+  flex: 1 1 0;
+  min-height: 0;
+  flex-direction: row-reverse;
+}
+
+.hole-chart.is-vertical .hole-holes {
+  flex-direction: row;
+  flex: 1 1 auto;
+  justify-content: center;
+}
+
 .hole-card:hover {
   border-color: var(--accent-2);
 }
@@ -3659,6 +3887,11 @@
   background: linear-gradient(180deg, var(--accent-2), var(--accent));
   border-color: transparent;
   color: #0b0d12;
+}
+
+.hole-head,
+.hole-key {
+  flex: 0 0 auto;
 }
 
 .hole-head {
@@ -3682,6 +3915,7 @@
 .hole-holes {
   display: flex;
   flex-direction: column;
+  justify-content: center;
   gap: 3px;
 }
 
