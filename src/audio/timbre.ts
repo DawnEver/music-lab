@@ -13,6 +13,7 @@
  */
 
 import { midiToFrequency } from "../lib/music-theory.js";
+import type { VoiceModel } from "./render.js";
 import type { VoiceFilter, VoiceSpec, Waveform } from "./voice.js";
 
 /** Closed set: the dictionary carries a `timbre.<id>` for each. */
@@ -66,6 +67,17 @@ export interface Timbre {
    * the bass and shrill on top.
    */
   filter?: Omit<VoiceFilter, "frequency"> & { harmonic: number };
+  /**
+   * How this voice is made, when it is made physically rather than built
+   * from an oscillator. A timbre has one or the other, never both: the
+   * model already says what the waveform, the envelope and the filter are,
+   * and carrying both would leave two answers to the same question.
+   *
+   * The models are the reason a plucked note stops sounding like a
+   * waveform being played. `singable` deliberately has none — the ear
+   * trainer wants a clean tone to hear an interval in, not a guitar.
+   */
+  model?: VoiceModel;
 }
 
 /**
@@ -89,7 +101,30 @@ export const TIMBRES: Timbre[] = [
     ring: 4,
     release: 0.12,
     partials: [0.5, 0.28, 0.16, 0.09, 0.05],
-    filter: { type: "lowpass", harmonic: 8, q: 0.7, envelope: 3 }
+    filter: { type: "lowpass", harmonic: 8, q: 0.7, envelope: 3 },
+    model: {
+      kind: "string",
+      ring: 3.6,
+      ringTilt: 0.32,
+      damping: 0.3,
+      dampingTilt: 0.22,
+      // A piano's strings are stiff, and the bass ones are the stiffest:
+      // their partials are audibly sharp of whole multiples, which is why
+      // a piano's low octaves sound rich rather than muddy.
+      stiffness: 0.5,
+      // The hammer strikes near the end of the string, which is what keeps
+      // the fundamental strong and the very high partials out of it.
+      pluckPosition: 0.12,
+      brightness: 0.9,
+      attack: 0.004,
+      body: [
+        { hz: 110, q: 1.1, db: 5 },
+        { hz: 260, q: 1.4, db: 3.5 },
+        { hz: 1300, q: 1, db: 2 },
+        { hz: 3000, q: 0.9, db: 1.5 }
+      ],
+      gain: 0.85
+    }
   },
   {
     // A tine, not a string: a strong upper partial over a weak fundamental
@@ -101,7 +136,19 @@ export const TIMBRES: Timbre[] = [
     ring: 3.2,
     release: 0.16,
     partials: [0.12, 0.55, 0.08, 0.22, 0.04],
-    filter: { type: "lowpass", harmonic: 6, q: 0.6, envelope: 2.5 }
+    filter: { type: "lowpass", harmonic: 6, q: 0.6, envelope: 2.5 },
+    // A tine over a tonebar: two bars, not a string. The bell-like upper
+    // partials are inharmonic, and they are the whole character — take
+    // them away and this is a sine with an envelope on it.
+    model: {
+      kind: "modal",
+      ratios: [1, 2, 4.2, 6.8, 9.6],
+      ring: [3.2, 2.2, 1.4, 0.9, 0.5],
+      levels: [1, 0.28, 0.45, 0.22, 0.1],
+      ringTilt: 0.2,
+      noise: { level: 0.1, hz: 3200, q: 0.9, ring: 0.02 },
+      gain: 0.5
+    }
   },
   {
     // Drawbars: fixed harmonics that never decay. The gain is low because
@@ -126,7 +173,23 @@ export const TIMBRES: Timbre[] = [
     ring: 3,
     release: 0.09,
     partials: [0.42, 0.3, 0.2, 0.12, 0.07, 0.04],
-    filter: { type: "lowpass", harmonic: 7, q: 0.9, envelope: 4 }
+    filter: { type: "lowpass", harmonic: 7, q: 0.9, envelope: 4 },
+    model: {
+      kind: "string",
+      ring: 3.2,
+      ringTilt: 0.3,
+      damping: 0.4,
+      dampingTilt: 0.18,
+      stiffness: 0.32,
+      pluckPosition: 0.18,
+      brightness: 0.78,
+      body: [
+        { hz: 105, q: 1.3, db: 6 },
+        { hz: 210, q: 1.6, db: 4 },
+        { hz: 2600, q: 0.9, db: 3 }
+      ],
+      gain: 0.8
+    }
   },
   {
     // Nylon and silk: the same gesture with the highs already gone, which
@@ -138,7 +201,25 @@ export const TIMBRES: Timbre[] = [
     ring: 2.6,
     release: 0.1,
     partials: [0.42, 0.18, 0.09, 0.04],
-    filter: { type: "lowpass", harmonic: 4, q: 0.7, envelope: 2.5 }
+    filter: { type: "lowpass", harmonic: 4, q: 0.7, envelope: 2.5 },
+    model: {
+      kind: "string",
+      ring: 2.6,
+      ringTilt: 0.28,
+      damping: 0.52,
+      dampingTilt: 0.15,
+      stiffness: 0.22,
+      // Plucked further from the bridge than a pick would: a fingertip
+      // takes the edge off the top before the string ever moves.
+      pluckPosition: 0.3,
+      brightness: 0.52,
+      body: [
+        { hz: 125, q: 1.2, db: 4 },
+        { hz: 420, q: 1.4, db: 3 },
+        { hz: 2000, q: 0.8, db: 1.5 }
+      ],
+      gain: 0.8
+    }
   },
   {
     // A bass string is nearly a fundamental: the partials that survive are
@@ -150,7 +231,22 @@ export const TIMBRES: Timbre[] = [
     ring: 5,
     release: 0.14,
     partials: [0.45, 0.14, 0.05],
-    filter: { type: "lowpass", harmonic: 5, q: 0.8, envelope: 3 }
+    filter: { type: "lowpass", harmonic: 5, q: 0.8, envelope: 3 },
+    model: {
+      kind: "string",
+      ring: 4.6,
+      ringTilt: 0.22,
+      damping: 0.3,
+      dampingTilt: 0.2,
+      stiffness: 0.36,
+      pluckPosition: 0.22,
+      brightness: 0.62,
+      body: [
+        { hz: 70, q: 1.1, db: 5 },
+        { hz: 155, q: 1.4, db: 3 }
+      ],
+      gain: 0.9
+    }
   },
   {
     // A membrane: one low sine that drops in pitch as it dies. The drop is
@@ -161,7 +257,18 @@ export const TIMBRES: Timbre[] = [
     attack: 0.002,
     glide: 0.45,
     ring: 0.42,
-    release: 0.05
+    release: 0.05,
+    model: {
+      kind: "drum",
+      tone: 55,
+      modes: [
+        { hz: 55, ring: 0.42 },
+        { hz: 110, ring: 0.24, level: 0.35 }
+      ],
+      glide: 0.5,
+      noises: [{ hz: 2400, q: 0.7, ring: 0.015, level: 0.3, highpass: true }],
+      gain: 0.95
+    }
   },
   {
     // Noise across a drumhead. The band, not the envelope, is what
@@ -171,7 +278,23 @@ export const TIMBRES: Timbre[] = [
     gain: 0.5,
     attack: 0.001,
     ring: 0.2,
-    release: 0.04
+    release: 0.04,
+    // Two bands, because a snare is two things: the head, which is a drum,
+    // and the wires, which are metal lying on it. One band cannot be both,
+    // and a snare missing either is a tom or a hiss.
+    model: {
+      kind: "drum",
+      tone: 1900,
+      modes: [
+        { hz: 190, ring: 0.13 },
+        { hz: 275, ring: 0.1, level: 0.7 }
+      ],
+      noises: [
+        { hz: 1800, q: 0.6, ring: 0.19, level: 0.85 },
+        { hz: 5200, q: 0.6, ring: 0.12, level: 0.45, highpass: true }
+      ],
+      gain: 0.75
+    }
   },
   {
     id: "hihat",
@@ -179,7 +302,14 @@ export const TIMBRES: Timbre[] = [
     gain: 0.32,
     attack: 0.001,
     ring: 0.06,
-    release: 0.02
+    release: 0.02,
+    model: {
+      kind: "drum",
+      tone: 8200,
+      modes: [],
+      noises: [{ hz: 8200, q: 0.5, ring: 0.055, level: 1, highpass: true }],
+      gain: 0.5
+    }
   },
   {
     // The same metal, undamped: only the ring differs.
@@ -188,7 +318,15 @@ export const TIMBRES: Timbre[] = [
     gain: 0.3,
     attack: 0.001,
     ring: 0.5,
-    release: 0.08
+    release: 0.08,
+    // The same metal, undamped: only the ring differs.
+    model: {
+      kind: "drum",
+      tone: 8200,
+      modes: [],
+      noises: [{ hz: 8200, q: 0.4, ring: 0.45, level: 1, highpass: true }],
+      gain: 0.5
+    }
   },
   {
     // A tuned membrane: less pitch drop than a kick, more body.
@@ -199,7 +337,22 @@ export const TIMBRES: Timbre[] = [
     glide: 0.7,
     ring: 0.55,
     release: 0.06,
-    partials: [0.2]
+    partials: [0.2],
+    // Three modes, because a tom head is tuned and its overtones are not
+    // the harmonic series either. Everything scales with the piece's own
+    // pitch, so the three toms of the kit are one model at three sizes.
+    model: {
+      kind: "drum",
+      tone: 98,
+      modes: [
+        { hz: 98, ring: 0.5 },
+        { hz: 147, ring: 0.3, level: 0.4 },
+        { hz: 196, ring: 0.2, level: 0.2 }
+      ],
+      glide: 0.75,
+      noises: [{ hz: 1200, q: 0.7, ring: 0.02, level: 0.25, highpass: true }],
+      gain: 0.9
+    }
   },
   {
     id: "crash",
@@ -207,7 +360,17 @@ export const TIMBRES: Timbre[] = [
     gain: 0.26,
     attack: 0.002,
     ring: 1.8,
-    release: 0.3
+    release: 0.3,
+    model: {
+      kind: "drum",
+      tone: 5200,
+      modes: [{ hz: 390, ring: 1.6, level: 0.25 }],
+      noises: [
+        { hz: 5200, q: 0.35, ring: 1.9, level: 1, highpass: true },
+        { hz: 9500, q: 0.5, ring: 1.2, level: 0.5, highpass: true }
+      ],
+      gain: 0.4
+    }
   },
   {
     id: "ride",
@@ -215,7 +378,17 @@ export const TIMBRES: Timbre[] = [
     gain: 0.22,
     attack: 0.002,
     ring: 1.1,
-    release: 0.2
+    release: 0.2,
+    model: {
+      kind: "drum",
+      tone: 6400,
+      modes: [
+        { hz: 520, ring: 1, level: 0.3 },
+        { hz: 880, ring: 0.7, level: 0.2 }
+      ],
+      noises: [{ hz: 6400, q: 0.5, ring: 1.1, level: 1, highpass: true }],
+      gain: 0.45
+    }
   },
   {
     // A blown edge: mostly fundamental, held, and audibly breathy. The

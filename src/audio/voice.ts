@@ -83,6 +83,14 @@ export interface VoicePlayer {
    * key actually does.
    */
   hold(spec: VoiceSpec, time: number, velocity?: number): HeldVoice;
+  /**
+   * Play a note that has already been rendered — a physical model, or a
+   * recording. There is nothing left to synthesise, only to start and to
+   * stop, so it takes the samples and the velocity and returns the same
+   * `HeldVoice` a synthesised note does: whoever is holding it should not
+   * have to know which of the two it is.
+   */
+  playBuffer(buffer: AudioBuffer, time: number, velocity?: number, release?: number): HeldVoice;
   setVolume(value: number): void;
   dispose(): void;
 }
@@ -388,6 +396,47 @@ export function createVoicePlayer(
           else param.cancelScheduledValues(from);
           param.exponentialRampToValueAtTime(SILENT, from + release);
           stop(from + release);
+        }
+      };
+    },
+    playBuffer(buffer: AudioBuffer, time: number, velocity = 1, release = 0.12): HeldVoice {
+      const at = Math.max(time, context.currentTime);
+      const level = clamp(velocity, 0, 1);
+      const endsAt = at + buffer.duration;
+
+      const node = context.createGain();
+      node.gain.setValueAtTime(Math.max(level, SILENT), at);
+      node.connect(out);
+
+      const source = context.createBufferSource();
+      source.buffer = buffer;
+      source.connect(node);
+      source.start(at);
+      source.stop(endsAt + 0.02);
+      source.onended = () => {
+        source.disconnect();
+        node.disconnect();
+      };
+
+      let stopped = false;
+      return {
+        release(releaseAt = context.currentTime) {
+          if (stopped) return;
+          stopped = true;
+          const from = Math.max(releaseAt, at, context.currentTime);
+          if (from >= endsAt) return;
+          const stopAt = Math.min(from + Math.max(release, 0.005), endsAt);
+          const param = node.gain as AudioParam & {
+            cancelAndHoldAtTime?: (time: number) => void;
+          };
+          if (param.cancelAndHoldAtTime) param.cancelAndHoldAtTime(from);
+          else param.cancelScheduledValues(from);
+          param.exponentialRampToValueAtTime(SILENT, stopAt);
+          try {
+            source.stop(stopAt + 0.02);
+          } catch (_) {
+            // Already scheduled past that point; the envelope is enough.
+          }
         }
       };
     },

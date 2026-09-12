@@ -10,6 +10,7 @@ function fakePlayer() {
     velocity: number;
     releasedAt: number | null;
   }> = [];
+  const buffers: AudioBuffer[] = [];
   let volume = -1;
   let disposed = false;
 
@@ -17,6 +18,21 @@ function fakePlayer() {
     play() {},
     hold(spec, at, velocity = 1) {
       const entry = { spec, at, velocity, releasedAt: null as number | null };
+      notes.push(entry);
+      return {
+        release(time = 0) {
+          entry.releasedAt = time;
+        }
+      };
+    },
+    playBuffer(buffer, at, velocity = 1) {
+      const entry = {
+        spec: { waveform: "sine", frequency: 0, gain: 1, duration: buffer.duration } as VoiceSpec,
+        at,
+        velocity,
+        releasedAt: null as number | null
+      };
+      buffers.push(buffer);
       notes.push(entry);
       return {
         release(time = 0) {
@@ -35,6 +51,7 @@ function fakePlayer() {
   return {
     player,
     notes,
+    buffers,
     get volume() {
       return volume;
     },
@@ -135,36 +152,91 @@ describe("performer", () => {
 });
 
 describe("strikes", () => {
-  const HIT: VoiceSpec = { waveform: "noise", frequency: 8200, gain: 0.3, duration: 0.06 };
-
   it("sounds a piece with no note to release", () => {
     const { fake, unit } = performer();
-    unit.strike(HIT);
+    unit.strike("hihat", 8200);
     expect(fake.notes).toHaveLength(1);
     expect(unit.sounding()).toEqual([]);
   });
 
   it("lets two ungrouped pieces ring together", () => {
     const { fake, unit } = performer();
-    unit.strike(HIT);
-    unit.strike({ ...HIT, frequency: 5200 });
+    unit.strike("hihat", 8200);
+    unit.strike("crash", 5200);
     expect(fake.notes.every((note) => note.releasedAt === null)).toBe(true);
   });
 
   it("chokes the previous piece in the same group", () => {
     let clock = 5;
     const { fake, unit } = performer(() => clock);
-    unit.strike(HIT, 0.9, "hihat");
+    unit.strike("hihat", 8200, 0.9, "hihat");
     clock = 5.5;
-    unit.strike({ ...HIT, duration: 0.5 }, 0.9, "hihat");
+    unit.strike("hihat", 8200, 0.9, "hihat");
     expect(fake.notes[0].releasedAt).toBe(5.5);
     expect(fake.notes[1].releasedAt).toBeNull();
   });
 
   it("lets go of a choked piece when everything stops", () => {
     const { fake, unit } = performer();
-    unit.strike(HIT, 0.9, "hihat");
+    unit.strike("hihat", 8200, 0.9, "hihat");
     unit.allOff();
     expect(fake.notes[0].releasedAt).not.toBeNull();
+  });
+});
+
+describe("physical models", () => {
+  const MODEL_PLAYER = (fake: ReturnType<typeof fakePlayer>, context: BaseAudioContext) =>
+    createPerformer({
+      player: fake.player,
+      context,
+      now: () => 0,
+      timbreId: "steel"
+    });
+
+  /*
+   * A modelled voice is rendered, not built. Nothing should reach the
+   * oscillator path at all — if it does, the note is a waveform again and
+   * the whole point of the model is gone.
+   */
+  it("plays a rendered buffer for a timbre that has a model", () => {
+    const fake = fakePlayer();
+    const context = {
+      sampleRate: 48000,
+      createBuffer(_channels: number, length: number) {
+        return {
+          duration: length / 48000,
+          getChannelData: () => new Float32Array(length)
+        };
+      }
+    } as unknown as BaseAudioContext;
+    const unit = MODEL_PLAYER(fake, context);
+
+    unit.noteOn(60);
+    expect(fake.buffers).toHaveLength(1);
+    expect(fake.notes[0].spec.waveform).toBe("sine");
+    // A guitar's E2 is 82Hz; the rendered note must be that long enough to
+    // be a note, not a click.
+    expect(fake.notes[0].spec.duration).toBeGreaterThan(1);
+    unit.noteOff(60);
+    expect(fake.notes[0].releasedAt).not.toBeNull();
+  });
+
+  it("hands the same pitch back out of the cache", () => {
+    const fake = fakePlayer();
+    const context = {
+      sampleRate: 48000,
+      createBuffer(_channels: number, length: number) {
+        return {
+          duration: length / 48000,
+          getChannelData: () => new Float32Array(length)
+        };
+      }
+    } as unknown as BaseAudioContext;
+    const unit = MODEL_PLAYER(fake, context);
+    unit.noteOn(60);
+    unit.noteOff(60);
+    unit.noteOn(60);
+    expect(fake.notes[0].spec.duration).toBe(fake.notes[1].spec.duration);
+    expect(fake.notes[1].spec.duration).toBeGreaterThan(1);
   });
 });

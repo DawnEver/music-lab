@@ -15,7 +15,7 @@ import { computed, reactive, shallowRef } from "vue";
 import { acquireAudio } from "../../../audio/context.js";
 import type { AudioEngineHandle } from "../../../audio/types.js";
 import { createVoicePlayer } from "../../../audio/voice.js";
-import { getTimbre, timbreSpecAt } from "../../../audio/timbre.js";
+import { getTimbre } from "../../../audio/timbre.js";
 import { analysisSettings } from "../../../audio/analysis.js";
 import { storedJson } from "../../../lib/persist.js";
 import {
@@ -141,6 +141,7 @@ async function ensurePerformer(): Promise<Performer> {
   const player = createVoicePlayer(lease.context, lease.master, settings.volume);
   performer.value = createPerformer({
     player,
+    context: lease.context,
     now: () => lease!.context.currentTime,
     timbreId: instrument.value.timbre ?? "singable",
     tuning: analysisSettings.tuning
@@ -171,12 +172,7 @@ export async function strike(pieceId: string): Promise<void> {
   setTimeout(() => struck.delete(piece.id), FLASH_MS);
 
   const unit = await ensurePerformer();
-  const voice = getTimbre(piece.timbre);
-  unit.strike(
-    timbreSpecAt(voice, piece.tone, voice.ring ?? 0.3),
-    0.9,
-    piece.choke
-  );
+  unit.strike(piece.timbre, piece.tone, 0.9, piece.choke);
 }
 
 export function noteOff(midi: number): void {

@@ -12,11 +12,19 @@
  * time base or they will never line up.
  */
 
-import { getTimbre, timbreSpec, DEFAULT_RING_SECONDS } from "../../../audio/timbre.js";
-import type { HeldVoice, VoicePlayer, VoiceSpec } from "../../../audio/voice.js";
+import { getTimbre, timbreSpecAt, DEFAULT_RING_SECONDS } from "../../../audio/timbre.js";
+import { renderVoice } from "../../../audio/render.js";
+import { midiToFrequency } from "../../../lib/music-theory.js";
+import type { HeldVoice, VoicePlayer } from "../../../audio/voice.js";
 
 export interface PerformerOptions {
   player: VoicePlayer;
+  /**
+   * Needed only to render a physical model into a buffer. A synthesised
+   * voice is built straight into the graph and does not need one, so a
+   * caller that plays only those can leave it out.
+   */
+  context?: BaseAudioContext;
   /** Audio-clock seconds. */
   now: () => number;
   timbreId?: string;
@@ -29,8 +37,12 @@ export interface Performer {
    * Hit something that has no pitch. Pieces sharing a choke group cut each
    * other off, which is the whole difference between a hi-hat and two
    * unrelated cymbals.
+   *
+   * The piece brings its own voice and its own pitch: a drum's fundamental
+   * is a fact about that drum, and handing the performer a finished spec
+   * would put the decision of how it is made back in the caller.
    */
-  strike(spec: VoiceSpec, velocity?: number, choke?: string): void;
+  strike(timbreId: string, tone: number, velocity?: number, choke?: string): void;
   noteOff(midi: number): void;
   /** Every note currently down, for the view to light up. */
   sounding(): number[];
@@ -42,7 +54,7 @@ export interface Performer {
 }
 
 export function createPerformer(options: PerformerOptions): Performer {
-  const { player, now } = options;
+  const { player, now, context } = options;
   const held = new Map<number, HeldVoice>();
   const choked = new Map<string, HeldVoice>();
   let timbre = getTimbre(options.timbreId ?? "singable");
@@ -53,21 +65,49 @@ export function createPerformer(options: PerformerOptions): Performer {
     held.delete(midi);
   }
 
+  /** A held note: the model's own samples if it has them, a voice if not. */
+  function start(midi: number, velocity: number): HeldVoice {
+    if (timbre.model && context) {
+      const buffer = renderVoice(
+        context,
+        timbre.model,
+        `${timbre.id}:${midi}`,
+        midi,
+        midiToFrequency(midi, tuning)
+      );
+      return player.playBuffer(buffer, now(), velocity, timbre.release);
+    }
+    const spec = timbreSpecAt(timbre, midiToFrequency(midi, tuning), timbre.ring ?? DEFAULT_RING_SECONDS);
+    return player.hold(spec, now(), velocity);
+  }
+
   return {
     noteOn(midi: number, velocity = 0.8) {
       // Retriggering a key that is already down restarts it rather than
       // stacking a second voice on the same pitch.
       stop(midi);
-      const spec = timbreSpec(timbre, midi, timbre.ring ?? DEFAULT_RING_SECONDS, tuning);
-      held.set(midi, player.hold(spec, now(), velocity));
+      held.set(midi, start(midi, velocity));
     },
-    strike(spec: VoiceSpec, velocity = 0.9, choke?: string) {
+    strike(timbreId: string, tone: number, velocity = 0.9, choke?: string) {
+      const voice = getTimbre(timbreId);
+      const startHit = (): HeldVoice => {
+        if (voice.model && context) {
+          const buffer = renderVoice(context, voice.model, `${voice.id}:${tone}`, 60, tone);
+          return player.playBuffer(buffer, now(), velocity, 0.05);
+        }
+        return player.hold(
+          timbreSpecAt(voice, tone, voice.ring ?? DEFAULT_RING_SECONDS),
+          now(),
+          velocity
+        );
+      };
+
       if (choke) {
         choked.get(choke)?.release(now());
-        choked.set(choke, player.hold(spec, now(), velocity));
+        choked.set(choke, startHit());
         return;
       }
-      player.hold(spec, now(), velocity);
+      startHit();
     },
     noteOff(midi: number) {
       stop(midi);
