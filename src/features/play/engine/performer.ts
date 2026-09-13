@@ -47,20 +47,35 @@ export interface PerformerOptions {
   takeSample?: (name: string, midi: number) => SampledNote | null;
 }
 
-/** A recorded note, and how far it has to be resampled to be this one. */
+/**
+ * A recorded note: the samples, how far they have to be resampled to be
+ * this note, and what they have to be multiplied by to sit at the level a
+ * model of the same instrument sits at.
+ *
+ * Written out here rather than imported from the module that fetches
+ * banks, because this schedules sound and that one goes to the network.
+ * The two agree structurally, which is all either of them needs.
+ */
 export interface SampledNote {
   buffer: AudioBuffer;
   offset: number;
+  gain: number;
 }
 
 export type VoiceTier = "synth" | "hybrid" | "samples";
 
 /**
- * How much of a recording is used as an attack. Long enough to carry the
- * hammer, the pick or the stick; short enough that what follows is the
- * model rather than a second recording of the same note.
+ * How much of a recording is used as an attack.
+ *
+ * Short on purpose. A recording and a model of the same instrument are
+ * two different instruments at the level of detail the ear uses, and the
+ * longer they overlap the more the seam between them is audible — a
+ * recorded attack fading into a synthesised sustain is heard as exactly
+ * that unless the handover happens inside the transient, before either
+ * has settled into a tone. The hammer, the pick and the stick all live in
+ * the first tenth of a second.
  */
-export const ATTACK_SECONDS = 0.28;
+export const ATTACK_SECONDS = 0.12;
 
 export interface Performer {
   noteOn(midi: number, velocity?: number): void;
@@ -134,7 +149,7 @@ export function createPerformer(options: PerformerOptions): Performer {
       // Layered over the model rather than instead of it: the recording
       // says what the instrument sounds like at the instant it is struck,
       // and the model says what it does afterwards.
-      player.playBuffer(take.buffer, now(), velocity, {
+      player.playBuffer(take.buffer, now(), velocity * take.gain, {
         rate,
         seconds: ATTACK_SECONDS,
         release: 0.02
@@ -142,7 +157,7 @@ export function createPerformer(options: PerformerOptions): Performer {
       return null;
     }
 
-    return player.playBuffer(take.buffer, now(), velocity, { rate, release: 0.12 });
+    return player.playBuffer(take.buffer, now(), velocity * take.gain, { rate, release: 0.12 });
   }
 
   return {

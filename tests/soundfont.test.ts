@@ -1,5 +1,39 @@
 import { describe, expect, it } from "vitest";
-import { midiFromName } from "../src/audio/soundfont.js";
+import { loudnessGain, midiFromName } from "../src/audio/soundfont.js";
+
+/** A buffer of `seconds`, filled by `sample`. */
+function bufferOf(seconds: number, sample: (index: number) => number) {
+  const rate = 48000;
+  const data = new Float32Array(Math.round(seconds * rate));
+  for (let index = 0; index < data.length; index += 1) data[index] = sample(index);
+  return { sampleRate: rate, length: data.length, getChannelData: () => data } as unknown as AudioBuffer;
+}
+
+/*
+ * A bank is whatever level somebody encoded it at, and a model is
+ * calibrated to a loudness. The hybrid tier plays both at once, so a
+ * fifteen decibel gap between them is not a mixing preference — it is an
+ * attack layer nobody can hear.
+ */
+describe("matching a recording to a model's level", () => {
+  it("brings a quiet recording up and a loud one down", () => {
+    const quiet = loudnessGain(bufferOf(3, (i) => (i % 2 ? 0.008 : -0.008)));
+    const loud = loudnessGain(bufferOf(3, (i) => (i % 2 ? 0.5 : -0.5)));
+    expect(quiet).toBeGreaterThan(1);
+    expect(loud).toBeLessThan(1);
+    // Both land on the same loudness.
+    expect(0.008 * quiet).toBeCloseTo(0.16, 1);
+    expect(0.5 * loud).toBeCloseTo(0.16, 1);
+  });
+
+  it("calls silence what it is rather than scaling it up", () => {
+    // FluidR3's contrabass has a C4 that is three seconds of nothing: the
+    // note is outside the instrument. A gain would make it louder silence;
+    // zero is what tells the caller to use the model instead.
+    expect(loudnessGain(bufferOf(3, () => 0))).toBe(0);
+    expect(loudnessGain(bufferOf(3, () => 1e-6))).toBe(0);
+  });
+});
 
 /*
  * The bank is a file someone else publishes, so the note names in it are

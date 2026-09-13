@@ -21,6 +21,8 @@
  * module. `lib/` never sees any of it.
  */
 
+import { LOUDNESS, LOUDNESS_WINDOW } from "./render.js";
+
 const BANK = "https://gleitz.github.io/midi-js-soundfonts/FluidR3_GM";
 
 /** The name a program is published under, and where it comes from. */
@@ -125,6 +127,38 @@ export interface SampledNote {
   buffer: AudioBuffer;
   /** Semitones between what was asked for and what was recorded. */
   offset: number;
+  /**
+   * What the recording has to be multiplied by to sit at the same level
+   * as a model of the same instrument.
+   *
+   * Without this the two tiers are fifteen decibels apart, because a
+   * model is calibrated to a loudness and a bank is whatever level
+   * somebody encoded it at. That would be merely a mixing question if the
+   * tiers were alternatives — but the hybrid tier plays both at once, and
+   * an attack layer fifteen decibels under the note it is attacking is an
+   * attack layer nobody hears.
+   */
+  gain: number;
+}
+
+/**
+ * Where a recording sits, measured the way a model is.
+ *
+ * Zero means the recording is not a note at all, and a bank does contain
+ * those: FluidR3's contrabass has a C4 that is three seconds of silence,
+ * which is outside the instrument and was never played. Scaling silence
+ * up is still silence, so the caller is told and falls back to the model
+ * — which is the difference between an instrument that sounds like a
+ * double bass and one that sounds like nothing.
+ */
+export function loudnessGain(buffer: AudioBuffer): number {
+  const data = buffer.getChannelData(0);
+  const window = Math.min(data.length, Math.max(1, Math.round(LOUDNESS_WINDOW * buffer.sampleRate)));
+  let sum = 0;
+  for (let index = 0; index < window; index += 1) sum += data[index] * data[index];
+  const rms = Math.sqrt(sum / window);
+  if (rms < 1e-4) return 0;
+  return Math.min(20, Math.max(0.1, LOUDNESS / rms));
 }
 
 export async function sampleFor(
@@ -147,15 +181,28 @@ export async function sampleFor(
   }
   if (nearest === null) return null;
 
-  const cached = bank.decoded.get(nearest);
-  if (cached) return { buffer: cached, offset: nearest - midi };
+  return usable(bank.decoded.get(nearest), nearest - midi) ?? (await decode(context, bank, nearest, midi));
+}
 
+/** The note, if what came back is a note. */
+function usable(buffer: AudioBuffer | undefined, offset: number): SampledNote | null {
+  if (!buffer) return null;
+  const gain = loudnessGain(buffer);
+  return gain > 0 ? { buffer, offset, gain } : null;
+}
+
+async function decode(
+  context: BaseAudioContext,
+  bank: Bank,
+  nearest: number,
+  midi: number
+): Promise<SampledNote | null> {
   const data = bank.encoded.get(nearest);
   if (!data) return null;
   try {
     const buffer = await decodeBase64(context, data);
     bank.decoded.set(nearest, buffer);
-    return { buffer, offset: nearest - midi };
+    return usable(buffer, nearest - midi);
   } catch (_) {
     return null;
   }
@@ -202,8 +249,7 @@ export function sampleNow(name: string, midi: number): SampledNote | null {
     if (nearest === null || Math.abs(candidate - midi) < Math.abs(nearest - midi)) nearest = candidate;
   }
   if (nearest === null) return null;
-  const buffer = bank.decoded.get(nearest);
-  return buffer ? { buffer, offset: nearest - midi } : null;
+  return usable(bank.decoded.get(nearest), nearest - midi);
 }
 
 /** Forget every fetched bank. Used when the context that decoded them goes. */

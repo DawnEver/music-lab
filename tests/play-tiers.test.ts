@@ -7,16 +7,16 @@ import type { VoicePlayer, VoiceSpec } from "../src/audio/voice.js";
 
 /** A player that records what it was asked for, and how. */
 function fakePlayer() {
-  const notes: Array<{ at: number; options: { rate?: number; seconds?: number } }> = [];
+  const notes: Array<{ at: number; velocity: number; options: { rate?: number; seconds?: number } }> = [];
   const player: VoicePlayer = {
     play() {},
-    hold(spec: VoiceSpec, at: number) {
-      notes.push({ at, options: {} });
+    hold(spec: VoiceSpec, at: number, velocity = 1) {
+      notes.push({ at, velocity, options: {} });
       void spec;
       return { release() {} };
     },
-    playBuffer(_buffer, at, _velocity = 1, options = {}) {
-      notes.push({ at, options });
+    playBuffer(_buffer, at, velocity = 1, options = {}) {
+      notes.push({ at, velocity, options });
       return { release() {} };
     },
     setVolume() {},
@@ -26,8 +26,8 @@ function fakePlayer() {
 }
 
 /** A recording of one note, standing in for a bank that was never fetched. */
-function fakeSample(): SampledNote {
-  return { buffer: { duration: 2 } as AudioBuffer, offset: 2 };
+function fakeSample(overrides: Partial<SampledNote> = {}): SampledNote {
+  return { buffer: { duration: 2 } as AudioBuffer, offset: 2, gain: 1, ...overrides };
 }
 
 function performer(
@@ -72,6 +72,23 @@ describe("voice tiers", () => {
     expect(fake.notes[0].options.seconds).toBeUndefined();
   });
 
+  /*
+   * A bank is whatever level somebody encoded it at; a model is calibrated
+   * to a loudness. Played together without matching them, the recorded
+   * attack sits fifteen decibels under the note it is attacking, which is
+   * the same as not being there — and the two tiers end up sounding like
+   * two different instruments at two different volumes.
+   */
+  it("applies the recording's own calibration", () => {
+    const fake = fakePlayer();
+    performer(fake.player, {
+      tier: "samples",
+      sample: "x",
+      takeSample: () => fakeSample({ gain: 6 })
+    }).noteOn(60, 0.5);
+    expect(fake.notes[0].velocity).toBeCloseTo(3, 6);
+  });
+
   it("lays the recording's attack over the model when the tier is hybrid", () => {
     const fake = fakePlayer();
     performer(fake.player, { tier: "hybrid", sample: "x", takeSample: () => fakeSample() }).noteOn(60);
@@ -80,7 +97,9 @@ describe("voice tiers", () => {
     expect(fake.notes).toHaveLength(2);
     const withSeconds = fake.notes.find((note) => note.options.seconds !== undefined);
     expect(withSeconds).toBeDefined();
-    expect(withSeconds!.options.seconds!).toBeLessThan(0.5);
+    // Short: the two are only the same instrument while the transient is
+    // still going on, and the seam is audible the moment it is not.
+    expect(withSeconds!.options.seconds!).toBeLessThan(0.2);
   });
 
   it("falls back to the model when there is no recording", () => {
