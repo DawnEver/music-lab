@@ -361,6 +361,12 @@
     .dashboard:has(.play-stage) {
       align-content: stretch;
       grid-template-rows: auto minmax(0, 1fr);
+      /* And the grid has to be allowed to shrink too. `minmax(0, 1fr)` caps
+         the row, but `min-height: auto` on the grid itself resolves to its
+         own min-content height, so without this the row is never asked to
+         fit — the stack simply grows past the window and the shell clips
+         whatever fell off the bottom, silently. */
+      min-height: 0;
     }
 
     /*
@@ -3468,16 +3474,23 @@
   touch-action: none;
 }
 
-/* A neck longer than the room scrolls along its own axis — at every size,
-   not only on a phone: sixteen frets do not fit a short laptop either. */
-.fret-board.is-vertical {
-  overflow-y: auto;
-  touch-action: pan-y;
-}
-
+/*
+ * A neck longer than the room scrolls, at every size — sixteen frets do
+ * not fit a short laptop either. Which axis that is depends on the
+ * instrument and on the orientation, and it is not always the one the
+ * orientation is named after: a twenty-one string guzheng laid across the
+ * screen has twenty-one *rows*, so what overflows is the height.
+ *
+ * So the board is scrollable on both axes and lets the browser work out
+ * which one the gesture is: an axis it can scroll takes the drag, and the
+ * other axis is left to the instrument. That is what makes a glissando
+ * possible on the axis that does not scroll, which is the only axis where
+ * it could ever have worked.
+ */
+.fret-board.is-vertical,
 .fret-board.is-horizontal {
-  overflow-x: auto;
-  touch-action: pan-x;
+  overflow: auto;
+  touch-action: pan-x pan-y;
 }
 
 /* Every line takes an equal share of the board's height — frets or
@@ -3613,23 +3626,13 @@
    */
   /* The board's room is whatever the stage has left, not a pixel budget
      guessed from the chrome's height — the chrome changes and the guess
-     does not. Rows keep a hittable minimum, so a neck too long for the
-     screen scrolls rather than shrinking into nothing. */
-  .fret-board.is-vertical {
-    overflow-y: auto;
-    touch-action: pan-y;
-  }
-
+     does not. Which axis it scrolls on is not a phone's business: it
+     follows what actually overflows, and that rule is above. */
   .fret-board.is-vertical .fret-headings {
     position: sticky;
     top: 0;
     z-index: 3;
     background: var(--panel);
-  }
-
-  .fret-board.is-horizontal {
-    overflow-x: auto;
-    touch-action: pan-x;
   }
 
   .fret-board.is-horizontal .fret-row {

@@ -86,6 +86,20 @@ const rows = computed(() => {
   }));
 });
 
+/**
+ * Press, and give the pointer back.
+ *
+ * Touch captures the pointer to the element the press landed on, so a
+ * drag over the next tine or the next hole never reaches it. Every
+ * surface that is dragged across has to let go of the capture, or the
+ * drag is a press that happens to move.
+ */
+function onDown(event: PointerEvent, midi: number): void {
+  emit("down", midi);
+  const target = event.currentTarget as HTMLElement;
+  if (target.hasPointerCapture?.(event.pointerId)) target.releasePointerCapture(event.pointerId);
+}
+
 function noteName(midi: number): string {
   return `${NOTE_NAMES[((midi % 12) + 12) % 12]}${Math.floor(midi / 12) - 1}`;
 }
@@ -113,7 +127,7 @@ function letter(midi: number): string {
           :data-note="cell.midi"
           :aria-label="noteName(cell.midi)"
           :aria-pressed="sounding.has(cell.midi)"
-          @pointerdown.prevent="emit('down', cell.midi)"
+          @pointerdown.prevent="onDown($event, cell.midi)"
           @pointerup="emit('up', cell.midi)"
           @pointerleave="emit('up', cell.midi)"
           @pointercancel="emit('up', cell.midi)"

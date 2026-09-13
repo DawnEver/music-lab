@@ -98,6 +98,21 @@ function noteLetter(midi: number): string {
   return NOTE_NAMES[((midi % 12) + 12) % 12];
 }
 
+/**
+ * Press, and give the pointer back.
+ *
+ * Touch captures the pointer to the element the press landed on, so
+ * `pointerenter` never fires anywhere else and a slide across the neck
+ * does nothing but hold the first note. A keyboard has released the
+ * capture since it learned this; the neck never did, and a glissando is
+ * the one gesture a neck has that a keyboard has not.
+ */
+function onDown(event: PointerEvent, midi: number): void {
+  emit("down", midi);
+  const target = event.currentTarget as HTMLElement;
+  if (target.hasPointerCapture?.(event.pointerId)) target.releasePointerCapture(event.pointerId);
+}
+
 function onEnter(event: PointerEvent, midi: number): void {
   if (event.buttons !== 0) emit("down", midi);
 }
@@ -135,7 +150,7 @@ function onEnter(event: PointerEvent, midi: number): void {
         }"
         :aria-label="noteName(cell.midi)"
         :aria-pressed="sounding.has(cell.midi)"
-        @pointerdown.prevent="emit('down', cell.midi)"
+        @pointerdown.prevent="onDown($event, cell.midi)"
         @pointerenter="onEnter($event, cell.midi)"
         @pointerup="emit('up', cell.midi)"
         @pointerleave="emit('up', cell.midi)"

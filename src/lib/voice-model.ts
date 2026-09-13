@@ -340,12 +340,20 @@ export function renderString(spec: StringSpec, random: RandomSource): Float32Arr
   const brightness = clamp(spec.brightness ?? 0.6, 0, 1);
   const burstLength = Math.max(2, Math.ceil(length));
   const burst = new Float32Array(burstLength);
-  // A one-pole lowpass across the burst: a pick is almost none of it, a
-  // thumb most of the way down. The coefficient is the *smoothing*, so it
-  // is the complement of the brightness — writing it the other way round
-  // makes every instrument do the opposite of what its data says, which
-  // is silent until something measures the spectrum.
-  const smoothing = (1 - brightness) * 0.95;
+  /*
+   * A one-pole lowpass across the burst, and the coefficient is the
+   * *smoothing* — so it runs opposite to the brightness. Getting that
+   * backwards makes every instrument do the opposite of what its data
+   * says, which is silent until something measures the spectrum.
+   *
+   * The range is bounded at both ends and neither end is the extreme of
+   * the filter. A coefficient near zero is no filter at all, which is not
+   * a bright pluck but a burst of white noise — the note underneath it is
+   * still there and the ear hears only the click. A coefficient near one
+   * is a thump with no string in it. Between them: about 550Hz for a
+   * thumb and about 6kHz for a pick, which is where real ones live.
+   */
+  const smoothing = 0.93 - brightness * 0.48;
   let dull = 0;
   for (let index = 0; index < burstLength; index += 1) {
     const noise = random() * 2 - 1;

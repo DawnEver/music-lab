@@ -426,6 +426,30 @@ async function assertStageOwnsTheRest(page, label, selector) {
   }
 }
 
+/**
+ * Nothing a tool draws may fall off the bottom of the window.
+ *
+ * `assertNoVOverflow` cannot see this. The shell is exactly one window
+ * tall and hides what does not fit, so a dashboard that grew past it
+ * leaves the page reporting no overflow while the instrument is quietly
+ * cut off — which is how a twenty-one string guzheng spent a release
+ * showing fifteen of its strings with no way to reach the rest.
+ */
+async function assertNothingFallsOff(page, label) {
+  const worst = await page.evaluate(() => {
+    const main = document.querySelector("main");
+    const footer = document.querySelector(".footer");
+    if (!main || !footer) return null;
+    const limit = footer.getBoundingClientRect().top;
+    const stages = [...main.querySelectorAll(".play-stage, .metro-stage, .trace-stage, .ear-stage")];
+    return Math.round(Math.max(0, ...stages.map((s) => s.getBoundingClientRect().bottom - limit)));
+  });
+  if (worst === null) throw new Error(`${label}: no stage to measure`);
+  if (worst > 2) {
+    throw new Error(`${label}: the stage runs ${worst}px past the footer and is clipped`);
+  }
+}
+
 /** What you play on is chosen above it, not below it. */
 async function assertBarAboveStage(page, label) {
   const order = await page.evaluate(() => {
@@ -592,6 +616,7 @@ async function walkPlay(page, label, { wide = false } = {}) {
   const keys = await page.locator(".kbd-key").count();
   if (keys !== 32) throw new Error(`${label}: expected 32 keys, got ${keys}`);
   await assertBarAboveStage(page, label);
+  await assertNothingFallsOff(page, label);
   await assertStageFillsWidth(page, `${label} keys`, ".play-stage", 0.99);
   await assertStageOwnsTheRest(page, `${label} keys`, ".play-stage");
   await assertNoVOverflow(page, `${label} keys`);
@@ -765,6 +790,7 @@ async function walkPlay(page, label, { wide = false } = {}) {
   if ((await page.locator(".fret-cell").count()) === 0) {
     throw new Error(`${label}: a violin should still draw a neck to stop`);
   }
+  await assertNothingFallsOff(page, `${label} stopped`);
   await assertStageOwnsTheRest(page, `${label} stopped`, ".play-stage");
   await assertRowsHoldTheirCells(page, `${label} stopped`, ".fret-row", ".fret-cell");
   await assertNoVOverflow(page, `${label} stopped`);

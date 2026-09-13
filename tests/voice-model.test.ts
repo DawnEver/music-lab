@@ -201,6 +201,38 @@ describe("renderString", () => {
     expect(lifted(200)).toBeGreaterThan(1.5);
   });
 
+  /*
+   * Brightness runs one way, and it is the way the data says.
+   *
+   * The excitation filter's coefficient is the smoothing, so writing it
+   * from the brightness without flipping it makes every instrument do the
+   * opposite of what its data asks — and nothing about the result looks
+   * wrong in a spectrum plot. What it sounds like is either a thump or a
+   * burst of white noise, both of which are still pitched, so a pitch
+   * check cannot see it either.
+   */
+  it("gets brighter the brighter it is told to be, and never turns to hiss", () => {
+    const centroid = (samples: Float32Array) => {
+      let num = 0;
+      let den = 0;
+      for (let hz = 200; hz < 12000; hz += 100) {
+        const value = magnitudeAt(samples, hz, 0, 0.03);
+        num += hz * value;
+        den += value;
+      }
+      return num / Math.max(den, 1e-12);
+    };
+    const dull = centroid(note({ brightness: 0.1, ring: 4 }).samples);
+    const mid = centroid(note({ brightness: 0.5, ring: 4 }).samples);
+    const bright = centroid(note({ brightness: 0.95, ring: 4 }).samples);
+    expect(mid).toBeGreaterThan(dull);
+    expect(bright).toBeGreaterThan(mid);
+    // A pick is bright; it is not the whole spectrum. Past about 7kHz the
+    // excitation has stopped being an instrument and become a click.
+    expect(bright).toBeLessThan(7000);
+    expect(dull).toBeGreaterThan(400);
+  });
+
   it("is the same note twice from the same random source", () => {
     const first = renderString({ ...note().spec }, seeded(11));
     const second = renderString({ ...note().spec }, seeded(11));

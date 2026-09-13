@@ -233,6 +233,20 @@ describe("FretBoard", () => {
     expect(down).toEqual(across);
   });
 
+  it("gives the pointer back on press, so a slide can reach the next cell", async () => {
+    // Touch captures the pointer to the element the press landed on, and a
+    // captured pointer fires no `pointerenter` anywhere else. Without the
+    // release below, a glissando is a press that happens to move.
+    const wrapper = board();
+    const cell = wrapper.findAll(".fret-cell")[0].element as HTMLElement;
+    const released: number[] = [];
+    cell.hasPointerCapture = () => true;
+    cell.releasePointerCapture = (id: number) => released.push(id);
+    await wrapper.findAll(".fret-cell")[0].trigger("pointerdown", { pointerId: 7 });
+    expect(released).toEqual([7]);
+    expect(wrapper.emitted("down")?.[0]).toEqual([64]);
+  });
+
   it("slides under a held pointer only", async () => {
     const wrapper = board();
     const cell = wrapper.findAll(".fret-cell")[1];
