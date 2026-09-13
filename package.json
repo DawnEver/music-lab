@@ -1,7 +1,7 @@
 {
   "name": "music-lab",
-  "version": "2.10.0",
-  "description": "Music Lab — browser-based tuning, a time-frequency scope, a professional metronome, ear training with sight-singing, and a play tool for keys, frets, pads and fingering charts. Vue 3 + Vuetify, fully client-side.",
+  "version": "2.11.0",
+  "description": "Music Lab — browser-based tuning, a time-frequency scope, a professional metronome, ear training with sight-singing, and a play tool whose 26 instruments are physically modelled, sample-attacked or played from a recording. Vue 3 + Vuetify, fully client-side.",
   "type": "module",
   "private": false,
   "license": "MIT",
