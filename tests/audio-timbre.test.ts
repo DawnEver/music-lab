@@ -1,6 +1,22 @@
 import { describe, expect, it } from "vitest";
 import { TIMBRES, getTimbre, timbreSpec, DEFAULT_TIMBRE_ID } from "../src/audio/timbre.js";
+import { renderVoice } from "../src/audio/render.js";
 import { midiToFrequency } from "../src/lib/music-theory.js";
+import { detectPitchYin } from "../src/lib/pitch-detection.js";
+
+/**
+ * A context that can make a buffer and nothing else. The channel has to be
+ * the same array every time it is asked for: a fresh one per call means
+ * whatever the renderer wrote is thrown away on the next read, and every
+ * voice then measures as silence.
+ */
+const audioContext = {
+  sampleRate: 48000,
+  createBuffer: (_channels: number, length: number) => {
+    const channel = new Float32Array(length);
+    return { duration: length / 48000, getChannelData: () => channel };
+  }
+} as unknown as BaseAudioContext;
 
 describe("timbre registry", () => {
   it("has unique ids and a valid default", () => {
@@ -97,6 +113,45 @@ describe("the keyboard family", () => {
       expect(entry.filter.harmonic, entry.id).toBeGreaterThan(1);
       // The sweep opens the filter, never closes it below its resting point.
       expect(entry.filter.envelope ?? 1, entry.id).toBeGreaterThanOrEqual(1);
+    }
+  });
+
+  /*
+   * The bar that caught what nothing else did.
+   *
+   * A model can be perfectly in tune, at the right level, with the right
+   * spectrum, and still be unhearable — too much noise on top of the note
+   * and the app's own detector cannot find it. That is a tuner that cannot
+   * hear the instrument, and it is not visible in a spectrum plot, a level
+   * measurement or a pitch check on a clean render. It caught both the
+   * harmonica and the xiao, which were breathier than the threshold YIN
+   * will accept.
+   */
+  it("gives every modelled voice a note the app's own detector can hear", () => {
+    const hz = midiToFrequency(60, 440);
+    for (const timbre of TIMBRES) {
+      if (!timbre.model || timbre.model.kind === "drum") continue;
+      const data = renderVoice(audioContext, timbre.model, `probe:${timbre.id}`, 60, hz).getChannelData(0);
+
+      // It has to be findable at all. This is the half that caught the
+      // harmonica and the xiao, both of which were audible to a listener
+      // and invisible to a detector.
+      const heard = detectPitchYin(data.subarray(4800, 4800 + 4096), 48000, -120, {
+        minHz: 55,
+        maxHz: 1400
+      });
+      expect(heard.pitch, `${timbre.id} is inaudible to the tuner`).not.toBeNull();
+
+      // And that it is roughly where it was asked to be. The tolerance is
+      // loose on purpose twice over: a tine is *meant* to be inharmonic, so
+      // a detector reading a deliberately stretched spectrum reports the
+      // stretch as mistuning; and a stopped pipe's fundamental is weaker
+      // than its third harmonic, which makes a spectral peak search
+      // unreliable in exactly the case that needs it most. Tuning itself is
+      // pinned per model in `voice-model.test.ts`, to within eight cents
+      // for a string and ten for a wind.
+      const cents = 1200 * Math.log2(heard.pitch!.frequency / hz);
+      expect(Math.abs(cents), `${timbre.id} is ${cents.toFixed(1)} cents out`).toBeLessThan(50);
     }
   });
 
