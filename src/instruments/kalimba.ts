@@ -29,6 +29,7 @@ const TINES: Array<{ midi: number; label: string }> = [
 export const kalimba = {
   id: "kalimba",
   name: { zh: "卡林巴", en: "Kalimba" },
+  sample: "kalimba",
   timbre: "kalimba",
   surface: { kind: "tines" },
   category: "other",

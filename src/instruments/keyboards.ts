@@ -13,7 +13,8 @@ export const piano = {
   name: { zh: "钢琴", en: "Piano" },
   category: "keys",
   surface: { kind: "keys" },
-  timbre: "piano"
+  timbre: "piano",
+  sample: "acoustic_grand_piano"
 } satisfies InstrumentDefinition;
 
 export const electricPiano = {
@@ -21,7 +22,8 @@ export const electricPiano = {
   name: { zh: "电钢琴", en: "Electric piano" },
   category: "keys",
   surface: { kind: "keys" },
-  timbre: "epiano"
+  timbre: "epiano",
+  sample: "electric_piano_1"
 } satisfies InstrumentDefinition;
 
 export const organ = {
@@ -29,5 +31,6 @@ export const organ = {
   name: { zh: "风琴", en: "Organ" },
   category: "keys",
   surface: { kind: "keys" },
-  timbre: "organ"
+  timbre: "organ",
+  sample: "drawbar_organ"
 } satisfies InstrumentDefinition;

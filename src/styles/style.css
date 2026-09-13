@@ -2331,6 +2331,17 @@
   background: none;
 }
 
+/* Said once, where the recordings are chosen, and never in the footer. */
+.tier-credit {
+  margin: 4px 0 0;
+  color: var(--muted-2);
+  font-size: 11px;
+}
+
+.tier-credit a {
+  color: var(--muted);
+}
+
 /* ---- Shared metronome control primitives --------------------------- */
 
 .metro-field {
@@ -3667,7 +3678,8 @@
  * Every surface turns, so the control belongs to the tool and not to one
  * of its shapes: two options, both visible, no state-in-a-label.
  */
-.orient-chips {
+.orient-chips,
+.tier-chips {
   display: flex;
   flex: 0 0 auto;
   gap: 4px;

@@ -63,6 +63,18 @@ export interface VoiceSpec {
   filter?: VoiceFilter;
 }
 
+/**
+ * How a recording is played. `rate` is what lets one recorded note stand
+ * in for the ones between it and the next — a bank sampled in minor thirds
+ * is resampled by at most a semitone and a half. `seconds` bounds it, for
+ * a recording used as an attack rather than as a note.
+ */
+export interface BufferOptions {
+  rate?: number;
+  release?: number;
+  seconds?: number;
+}
+
 /** A note that is still sounding, waiting for the finger to come off. */
 export interface HeldVoice {
   /** Damp the note at an absolute audio time (default: now). */
@@ -90,7 +102,12 @@ export interface VoicePlayer {
    * `HeldVoice` a synthesised note does: whoever is holding it should not
    * have to know which of the two it is.
    */
-  playBuffer(buffer: AudioBuffer, time: number, velocity?: number, release?: number): HeldVoice;
+  playBuffer(
+    buffer: AudioBuffer,
+    time: number,
+    velocity?: number,
+    options?: BufferOptions
+  ): HeldVoice;
   setVolume(value: number): void;
   dispose(): void;
 }
@@ -399,17 +416,27 @@ export function createVoicePlayer(
         }
       };
     },
-    playBuffer(buffer: AudioBuffer, time: number, velocity = 1, release = 0.12): HeldVoice {
+    playBuffer(buffer: AudioBuffer, time: number, velocity = 1, options: BufferOptions = {}): HeldVoice {
       const at = Math.max(time, context.currentTime);
       const level = clamp(velocity, 0, 1);
-      const endsAt = at + buffer.duration;
+      const rate = clamp(options.rate ?? 1, 0.25, 4);
+      const release = options.release ?? 0.12;
+      const endsAt = at + (options.seconds ?? buffer.duration / rate);
 
       const node = context.createGain();
       node.gain.setValueAtTime(Math.max(level, SILENT), at);
+      // A recording used as an attack has to get out of the way of what
+      // follows it, or the two of them are heard as two notes.
+      if (options.seconds !== undefined) {
+        const fadeAt = Math.max(at, endsAt - Math.min(0.08, (endsAt - at) / 4));
+        node.gain.setValueAtTime(Math.max(level, SILENT), fadeAt);
+        node.gain.exponentialRampToValueAtTime(SILENT, endsAt);
+      }
       node.connect(out);
 
       const source = context.createBufferSource();
       source.buffer = buffer;
+      source.playbackRate.value = rate;
       source.connect(node);
       source.start(at);
       source.stop(endsAt + 0.02);

@@ -37,7 +37,22 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ["**/*.{js,css,html,ico,png,woff,woff2}"],
-        navigateFallback: "/index.html"
+        navigateFallback: "/index.html",
+        // The sampled tier fetches its banks from where they are published
+        // rather than from this bundle, and a practice room has no signal.
+        // Everything is cached on first use, so the second visit is offline
+        // like the rest of the app.
+        runtimeCaching: [
+          {
+            urlPattern: /^https:\/\/gleitz\.github\.io\/midi-js-soundfonts\/.*/i,
+            handler: "CacheFirst",
+            options: {
+              cacheName: "soundfonts",
+              expiration: { maxEntries: 24, maxAgeSeconds: 60 * 60 * 24 * 90 },
+              cacheableResponse: { statuses: [0, 200] }
+            }
+          }
+        ]
       }
     })
   ],

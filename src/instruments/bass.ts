@@ -5,6 +5,7 @@ export const bass = {
   id: "bass",
   name: { zh: "贝斯", en: "Bass Guitar" },
   category: "plucked",
+  sample: "electric_bass_finger",
   timbre: "bass",
   surface: { kind: "frets", frets: 15 },
   tuning: {

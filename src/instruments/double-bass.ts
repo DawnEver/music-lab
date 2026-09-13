@@ -8,6 +8,7 @@ import type { InstrumentDefinition } from "./types.js";
 export const doubleBass = {
   id: "double-bass",
   name: { zh: "低音提琴", en: "Double Bass" },
+  sample: "contrabass",
   timbre: "bowed",
   surface: { kind: "stopped", stops: 12 },
   category: "bowed",

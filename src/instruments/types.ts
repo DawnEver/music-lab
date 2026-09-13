@@ -198,4 +198,11 @@ export interface InstrumentDefinition {
   timbre?: TimbreId;
   /** Present when the instrument has a playing surface to draw. */
   surface?: PlaySurface;
+  /**
+   * The name of the recording that stands in for this instrument, when
+   * one does. Absent means the physical model is the only voice it has —
+   * which is not a defect: a GM bank has no pipa and no drum kit, and a
+   * model of the right instrument beats a recording of the wrong one.
+   */
+  sample?: string;
 }

@@ -1,0 +1,217 @@
+/**
+ * Recordings, for when the player would rather hear the instrument than a
+ * model of it.
+ *
+ * The bank is FluidR3_GM, pre-rendered by `gleitz/midi-js-soundfonts` as
+ * one JavaScript file per program: a map of note names to base64 MP3 data
+ * URIs. It is fetched from where it is published rather than vendored into
+ * this repository. That is not laziness — it is CC BY 3.0 material, and a
+ * copy in an MIT repository is a licensing question nobody wants to
+ * answer, while a runtime fetch with attribution answers it by
+ * construction.
+ *
+ * Nothing is decoded until it is needed. The file is 2.6MB and holds
+ * eighty-eight notes; decoding all of them to play one is a second of
+ * silence for the sake of notes nobody asked for. So the text is fetched
+ * once, the notes are kept as they arrived, and a note is decoded the
+ * first time somebody plays it.
+ *
+ * Decoding needs an `AudioContext`, which arrives long after this module
+ * does, so everything here is a function of the context rather than of the
+ * module. `lib/` never sees any of it.
+ */
+
+const BANK = "https://gleitz.github.io/midi-js-soundfonts/FluidR3_GM";
+
+/** The name a program is published under, and where it comes from. */
+export const SOUNDFONT_CREDIT = {
+  name: "FluidR3_GM",
+  url: "https://github.com/gleitz/midi-js-soundfonts"
+};
+
+interface Bank {
+  /** Note names as they arrive, in the file's own spelling (`Bb0`, `Db1`). */
+  encoded: Map<number, string>;
+  /** Decoded notes, by MIDI number. */
+  decoded: Map<number, AudioBuffer>;
+  loading: Promise<void> | null;
+  loaded: boolean;
+}
+
+const banks = new Map<string, Bank>();
+
+const LETTERS: Record<string, number> = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 };
+
+/**
+ * `C4` is 60. The bank spells every black key with a flat — `Bb0`, `Db1` —
+ * and this reads both spellings so a file that ever changes its mind
+ * still loads.
+ */
+export function midiFromName(name: string): number | null {
+  const match = /^([A-G])([b#]?)(-?\d+)$/.exec(name);
+  if (!match) return null;
+  const base = LETTERS[match[1]];
+  if (base === undefined) return null;
+  const accidental = match[2] === "b" ? -1 : match[2] === "#" ? 1 : 0;
+  return (Number(match[3]) + 1) * 12 + base + accidental;
+}
+
+function bankOf(name: string): Bank {
+  let bank = banks.get(name);
+  if (!bank) {
+    bank = { encoded: new Map(), decoded: new Map(), loading: null, loaded: false };
+    banks.set(name, bank);
+  }
+  return bank;
+}
+
+/**
+ * Fetch a program. Resolves when its notes are known, not when they are
+ * decoded — the caller can play as soon as it has one.
+ */
+export function preload(context: BaseAudioContext, name: string): Promise<void> {
+  const bank = bankOf(name);
+  if (bank.loaded) return Promise.resolve();
+  if (bank.loading) return bank.loading;
+
+  bank.loading = (async () => {
+    try {
+      const response = await fetch(`${BANK}/${name}-mp3.js`);
+      if (!response.ok) throw new Error(`soundfont ${name}: ${response.status}`);
+      const source = await response.text();
+      // The file assigns an object literal of `"C4": "data:audio/mp3;base64,…"`.
+      for (const match of source.matchAll(/"([A-G][b#]?-?\d+)":\s*"(data:audio\/[^;]+;base64,[^"]+)"/g)) {
+        const midi = midiFromName(match[1]);
+        if (midi !== null) bank.encoded.set(midi, match[2]);
+      }
+      bank.loaded = bank.encoded.size > 0;
+      if (!bank.loaded) throw new Error(`soundfont ${name}: no notes in the file`);
+    } catch (error) {
+      // A bank that will not load is not an error the player needs to see:
+      // the model still plays, and the tier is a preference rather than a
+      // promise. Forgetting the promise lets a later attempt try again.
+      bank.loading = null;
+      void context;
+      throw error;
+    }
+  })();
+
+  return bank.loading;
+}
+
+/** Whether a program is ready enough to play without waiting. */
+export function isLoaded(name: string): boolean {
+  return bankOf(name).loaded;
+}
+
+function decodeBase64(context: BaseAudioContext, data: string): Promise<AudioBuffer> {
+  const comma = data.indexOf(",");
+  const binary = atob(data.slice(comma + 1));
+  const bytes = new Uint8Array(binary.length);
+  for (let index = 0; index < binary.length; index += 1) bytes[index] = binary.charCodeAt(index);
+  return context.decodeAudioData(bytes.buffer);
+}
+
+/**
+ * A recording of one note, decoded on first use.
+ *
+ * The nearest recorded note is used when the exact one is missing, and the
+ * caller is told how far away it is so it can be played at the right
+ * speed. A piano is sampled in minor thirds, so "the nearest" is a few
+ * semitones, and one note resampled by three semitones is a far smaller
+ * lie than a model is.
+ */
+export interface SampledNote {
+  buffer: AudioBuffer;
+  /** Semitones between what was asked for and what was recorded. */
+  offset: number;
+}
+
+export async function sampleFor(
+  context: BaseAudioContext,
+  name: string,
+  midi: number
+): Promise<SampledNote | null> {
+  const bank = bankOf(name);
+  if (!bank.loaded) {
+    try {
+      await preload(context, name);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  let nearest: number | null = null;
+  for (const candidate of bank.encoded.keys()) {
+    if (nearest === null || Math.abs(candidate - midi) < Math.abs(nearest - midi)) nearest = candidate;
+  }
+  if (nearest === null) return null;
+
+  const cached = bank.decoded.get(nearest);
+  if (cached) return { buffer: cached, offset: nearest - midi };
+
+  const data = bank.encoded.get(nearest);
+  if (!data) return null;
+  try {
+    const buffer = await decodeBase64(context, data);
+    bank.decoded.set(nearest, buffer);
+    return { buffer, offset: nearest - midi };
+  } catch (_) {
+    return null;
+  }
+}
+
+/**
+ * Decode a whole program, in the background.
+ *
+ * Nothing here can wait for a network round trip in the middle of a note,
+ * so the notes are decoded up front and played from memory. Every one of
+ * them: eighty-eight MP3s is under a second of decoding, and decoding the
+ * ones nobody plays costs less than a stutter on the ones they do.
+ */
+export async function prepare(context: BaseAudioContext, name: string): Promise<void> {
+  try {
+    await preload(context, name);
+  } catch (_) {
+    return;
+  }
+  const bank = bankOf(name);
+  for (const midi of [...bank.encoded.keys()]) {
+    if (bank.decoded.has(midi)) continue;
+    const data = bank.encoded.get(midi);
+    if (!data) continue;
+    try {
+      bank.decoded.set(midi, await decodeBase64(context, data));
+    } catch (_) {
+      // One note that will not decode is one note the model covers.
+    }
+  }
+}
+
+/**
+ * The recording for a note, if it has been decoded. Never waits: a note
+ * presses now, and a note that had to be fetched first is a note that
+ * arrived late under the player's finger.
+ */
+export function sampleNow(name: string, midi: number): SampledNote | null {
+  const bank = banks.get(name);
+  if (!bank || bank.decoded.size === 0) return null;
+
+  let nearest: number | null = null;
+  for (const candidate of bank.decoded.keys()) {
+    if (nearest === null || Math.abs(candidate - midi) < Math.abs(nearest - midi)) nearest = candidate;
+  }
+  if (nearest === null) return null;
+  const buffer = bank.decoded.get(nearest);
+  return buffer ? { buffer, offset: nearest - midi } : null;
+}
+
+/** Forget every fetched bank. Used when the context that decoded them goes. */
+export function clearSoundfonts(): void {
+  banks.clear();
+}
+
+/** How many notes of a program are decoded. For tests and diagnostics. */
+export function decodedCount(name: string): number {
+  return bankOf(name).decoded.size;
+}

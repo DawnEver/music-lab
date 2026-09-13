@@ -36,7 +36,9 @@ import {
   preset,
   releasePlay,
   setOrientation,
+  setVoiceTier,
   settings,
+  VOICE_TIERS,
   shiftOctave,
   strike,
   struck,
@@ -215,6 +217,21 @@ onBeforeUnmount(() => {
         @click="shiftOctave(1)"
       >
         +
+      </button>
+    </div>
+
+    <div class="tier-chips" role="group" :aria-label="t('playVoice')">
+      <button
+        v-for="tier in VOICE_TIERS"
+        :key="tier"
+        type="button"
+        class="orient-chip"
+        :class="{ 'is-active': settings.voiceTier === tier }"
+        :data-tier="tier"
+        :aria-pressed="settings.voiceTier === tier"
+        @click="setVoiceTier(tier)"
+      >
+        {{ t(`playVoice_${tier}`) }}
       </button>
     </div>
 

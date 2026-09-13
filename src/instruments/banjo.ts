@@ -9,6 +9,7 @@ export const banjo = {
   id: "banjo",
   name: { zh: "班卓琴", en: "Banjo" },
   category: "plucked",
+  sample: "banjo",
   timbre: "steel",
   surface: { kind: "frets", frets: 17 },
   tuning: {

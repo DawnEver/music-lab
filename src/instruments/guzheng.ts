@@ -23,6 +23,7 @@ function makeGuzhengPreset(id: string, topMidi: number, name: { zh: string; en: 
 export const guzheng = {
   id: "guzheng",
   name: { zh: "古筝", en: "Guzheng" },
+  sample: "koto",
   timbre: "steel",
   surface: { kind: "stopped", stops: 4 },
   category: "plucked",

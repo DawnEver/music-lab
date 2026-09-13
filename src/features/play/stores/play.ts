@@ -16,6 +16,7 @@ import { acquireAudio } from "../../../audio/context.js";
 import type { AudioEngineHandle } from "../../../audio/types.js";
 import { createVoicePlayer } from "../../../audio/voice.js";
 import { getTimbre } from "../../../audio/timbre.js";
+import { prepare, sampleNow } from "../../../audio/soundfont.js";
 import { analysisSettings } from "../../../audio/analysis.js";
 import { storedJson } from "../../../lib/persist.js";
 import {
@@ -31,7 +32,7 @@ import {
   MIN_BASE_MIDI,
   shiftBase
 } from "../domain/keymap.js";
-import { createPerformer, type Performer } from "../engine/performer.js";
+import { createPerformer, type Performer, type VoiceTier } from "../engine/performer.js";
 
 export const DEFAULT_INSTRUMENT = "piano";
 
@@ -55,8 +56,18 @@ export interface PlaySettings {
   baseMidi: number;
   /** Chosen tuning per fretted instrument; the tuner's choice is its own. */
   presets: Record<string, string>;
+  /**
+   * How the instrument is sounded: a physical model of it, that model with
+   * the recording's attack over it, or the recording alone. A preference
+   * rather than a mode — every tier plays every instrument, because one
+   * that has no recording falls back to its model.
+   */
+  voiceTier: VoiceTier;
   volume: number;
 }
+
+/** The order they are offered in, from none of the recording to all of it. */
+export const VOICE_TIERS: VoiceTier[] = ["synth", "hybrid", "samples"];
 
 function defaults(): PlaySettings {
   return {
@@ -64,6 +75,7 @@ function defaults(): PlaySettings {
     orientations: {},
     baseMidi: DEFAULT_BASE_MIDI,
     presets: {},
+    voiceTier: "synth",
     volume: 0.8
   };
 }
@@ -114,6 +126,9 @@ const stored = storedJson<PlaySettings>("play", defaults, (raw, base) => {
     orientations: readOrientations(value.orientations, value.orientation ?? value.fretOrientation),
     baseMidi: Math.min(MAX_BASE_MIDI, Math.max(MIN_BASE_MIDI, Math.round(baseMidi / 12) * 12)),
     presets: value.presets && typeof value.presets === "object" ? { ...value.presets } : base.presets,
+    voiceTier: VOICE_TIERS.includes(value.voiceTier as VoiceTier)
+      ? (value.voiceTier as VoiceTier)
+      : base.voiceTier,
     volume: typeof value.volume === "number" ? Math.min(1, Math.max(0, value.volume)) : base.volume
   };
 });
@@ -180,9 +195,38 @@ async function ensurePerformer(): Promise<Performer> {
     context: lease.context,
     now: () => lease!.context.currentTime,
     timbreId: instrument.value.timbre ?? "singable",
-    tuning: analysisSettings.tuning
+    tuning: analysisSettings.tuning,
+    tier: settings.voiceTier,
+    sample: instrument.value.sample,
+    takeSample: sampleNow
   });
+  void loadRecordings();
   return performer.value;
+}
+
+/**
+ * Fetch and decode this instrument's recording, in the background.
+ *
+ * Nothing waits on it. Until it arrives the model plays, and the tier is
+ * a preference rather than a promise — so a train with no signal, or a
+ * bank that is simply not there, costs the player nothing but the
+ * difference between a model and a recording.
+ */
+async function loadRecordings(): Promise<void> {
+  const name = instrument.value.sample;
+  const current = lease;
+  if (!name || !current) return;
+  await prepare(current.context, name);
+}
+
+/** How the instrument is made, as opposed to what it is. */
+export function setVoiceTier(tier: VoiceTier): void {
+  if (!VOICE_TIERS.includes(tier) || settings.voiceTier === tier) return;
+  settings.voiceTier = tier;
+  allNotesOff();
+  performer.value?.setTier(tier);
+  if (tier !== "synth") void loadRecordings();
+  persist();
 }
 
 export async function noteOn(midi: number, velocity = 0.8): Promise<void> {
@@ -229,6 +273,8 @@ export function setInstrument(id: string): void {
   allNotesOff();
   const timbre = instrument.value.timbre;
   if (timbre) performer.value?.setTimbre(timbre);
+  performer.value?.setSample(instrument.value.sample);
+  void loadRecordings();
   persist();
 }
 

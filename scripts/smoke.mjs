@@ -644,6 +644,29 @@ async function walkPlay(page, label, { wide = false } = {}) {
   }
   await assertNoHOverflow(page, `${label} keyboard`);
 
+  // Three ways to sound the same instrument. Every one of them plays the
+  // instrument in front of the player: a tier is a preference, not a mode,
+  // and a bank that will not load costs the difference between a model and
+  // a recording rather than the note.
+  for (const tier of ["synth", "hybrid", "samples"]) {
+    const chip = page.locator(`.play-bar [data-tier="${tier}"]`);
+    if ((await chip.count()) !== 1) throw new Error(`${label}: no ${tier} tier chip`);
+  }
+  await page.locator('.play-bar [data-tier="synth"]').click();
+  await page.locator(".kbd-key").first().dispatchEvent("pointerdown");
+  await page.waitForSelector(".kbd-key.is-down", { timeout: 4000 });
+  await page.locator(".kbd-key").first().dispatchEvent("pointerup");
+  await page.locator('.play-bar [data-tier="samples"]').click();
+  // The bank arrives in the background, so the note is pressed at once.
+  await page.locator(".kbd-key").nth(2).dispatchEvent("pointerdown");
+  await page.waitForSelector(".kbd-key.is-down", { timeout: 4000 });
+  await page.locator(".kbd-key").nth(2).dispatchEvent("pointerup");
+  await page.waitForFunction(() => document.querySelectorAll(".kbd-key.is-down").length === 0, {
+    timeout: 4000
+  });
+  await page.locator('.play-bar [data-tier="synth"]').click();
+  await assertNoVOverflow(page, `${label} tiers`);
+
   // A keyboard turns too: on the other axis a key's long side is the
   // vertical one, and it is still a key the hand can find.
   const flippedKeys = keyOrientation === "horizontal" ? "vertical" : "horizontal";

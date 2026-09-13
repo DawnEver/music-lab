@@ -22,6 +22,7 @@ import {
   setVolume,
   settings
 } from "../stores/play.js";
+import { SOUNDFONT_CREDIT } from "../../../audio/soundfont.js";
 
 const { t, lang } = useI18n();
 
@@ -94,5 +95,14 @@ const presets = computed(() => {
         @update:model-value="(value: number) => setVolume(value / 100)"
       />
     </div>
+
+    <!-- The recordings are somebody else's work under a licence that
+         asks to be named. It is said here rather than in the colophon
+         because it is about one control on this panel, and a footer line
+         is a line on every page. -->
+    <p v-if="settings.voiceTier !== 'synth'" class="tier-credit">
+      {{ t("playVoiceCredit", { name: SOUNDFONT_CREDIT.name }) }}
+      <a :href="SOUNDFONT_CREDIT.url" rel="noreferrer" target="_blank">{{ t("playVoiceCreditLink") }}</a>
+    </p>
   </div>
 </template>

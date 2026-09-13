@@ -5,6 +5,7 @@ export const guitar = {
   id: "guitar",
   name: { zh: "吉他", en: "Guitar" },
   category: "plucked",
+  sample: "acoustic_guitar_steel",
   timbre: "steel",
   surface: { kind: "frets", frets: 15 },
   tuning: {

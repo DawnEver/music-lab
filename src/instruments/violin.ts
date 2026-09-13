@@ -4,6 +4,7 @@ import type { InstrumentDefinition } from "./types.js";
 export const violin = {
   id: "violin",
   name: { zh: "小提琴", en: "Violin" },
+  sample: "violin",
   timbre: "bowed",
   surface: { kind: "stopped", stops: 12 },
   category: "bowed",
