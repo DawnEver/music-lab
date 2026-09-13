@@ -12,6 +12,9 @@ dist/
 *.log
 npm-debug.log*
 
+# Rendered timbre reports: measurements and WAVs, regenerated on demand
+timbre-report*/
+
 **/.claude/**
 !**/.claude/settings.json
 !**/.claude/agents/
