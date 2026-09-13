@@ -13,16 +13,16 @@ import type { InstrumentDefinition, KitPiece } from "./types.js";
 
 const PIECES: KitPiece[] = [
   // Top row: the metal, where a player's right hand lives.
-  { id: "crash", timbre: "crash", tone: 5200, row: 0, column: 0, code: "KeyQ" },
-  { id: "hihatClosed", timbre: "hihat", tone: 8200, row: 0, column: 1, code: "KeyW", choke: "hihat" },
-  { id: "hihatOpen", timbre: "hihatOpen", tone: 8200, row: 0, column: 2, code: "KeyE", choke: "hihat" },
-  { id: "ride", timbre: "ride", tone: 6400, row: 0, column: 3, code: "KeyR" },
+  { id: "crash", sample: "crash", timbre: "crash", tone: 5200, row: 0, column: 0, code: "KeyQ" },
+  { id: "hihatClosed", sample: "hatClosed", timbre: "hihat", tone: 8200, row: 0, column: 1, code: "KeyW", choke: "hihat" },
+  { id: "hihatOpen", sample: "hatOpen", timbre: "hihatOpen", tone: 8200, row: 0, column: 2, code: "KeyE", choke: "hihat" },
+  { id: "ride", sample: "ride", timbre: "ride", tone: 6400, row: 0, column: 3, code: "KeyR" },
   // Bottom row: the drums, low to high as they sit under the sticks.
-  { id: "kick", timbre: "kick", tone: 55, row: 1, column: 0, code: "KeyA" },
-  { id: "snare", timbre: "snare", tone: 1900, row: 1, column: 1, code: "KeyS" },
-  { id: "tomLow", timbre: "tom", tone: 98, row: 1, column: 2, code: "KeyD" },
-  { id: "tomMid", timbre: "tom", tone: 131, row: 1, column: 3, code: "KeyF" },
-  { id: "tomHigh", timbre: "tom", tone: 175, row: 1, column: 4, code: "KeyG" }
+  { id: "kick", sample: "kick", timbre: "kick", tone: 55, row: 1, column: 0, code: "KeyA" },
+  { id: "snare", sample: "snare", timbre: "snare", tone: 1900, row: 1, column: 1, code: "KeyS" },
+  { id: "tomLow", sample: "tomLow", timbre: "tom", tone: 98, row: 1, column: 2, code: "KeyD" },
+  { id: "tomMid", sample: "tomMid", timbre: "tom", tone: 131, row: 1, column: 3, code: "KeyF" },
+  { id: "tomHigh", sample: "tomHigh", timbre: "tom", tone: 175, row: 1, column: 4, code: "KeyG" }
 ];
 
 export const drumKit = {

@@ -45,6 +45,8 @@ export interface PerformerOptions {
    * else's job — which is also what makes the tiers testable without one.
    */
   takeSample?: (name: string, midi: number) => SampledNote | null;
+  /** The same, for a piece of the kit, which has a file rather than a pitch. */
+  takePercussion?: (name: string) => SampledNote | null;
 }
 
 /**
@@ -88,7 +90,7 @@ export interface Performer {
    * is a fact about that drum, and handing the performer a finished spec
    * would put the decision of how it is made back in the caller.
    */
-  strike(timbreId: string, tone: number, velocity?: number, choke?: string): void;
+  strike(pieceId: string, timbreId: string, tone: number, velocity?: number, choke?: string): void;
   noteOff(midi: number): void;
   /** Every note currently down, for the view to light up. */
   sounding(): number[];
@@ -168,10 +170,29 @@ export function createPerformer(options: PerformerOptions): Performer {
       const already = recorded(midi, velocity);
       held.set(midi, already ?? start(midi, velocity));
     },
-    strike(timbreId: string, tone: number, velocity = 0.9, choke?: string) {
+    strike(pieceId: string, timbreId: string, tone: number, velocity = 0.9, choke?: string) {
       const voice = getTimbre(timbreId);
+
+      /**
+       * The kit's own recording. A drum has no pitch to resample to, so
+       * this is the one path that plays a buffer exactly as recorded.
+       */
+      const recordedHit = (): HeldVoice | null => {
+        if (tier === "synth") return null;
+        const take = options.takePercussion?.(pieceId) ?? null;
+        if (!take) return null;
+        if (tier === "hybrid") {
+          player.playBuffer(take.buffer, now(), velocity * take.gain, {
+            seconds: ATTACK_SECONDS,
+            release: 0.02
+          });
+          return null;
+        }
+        return player.playBuffer(take.buffer, now(), velocity * take.gain, { release: 0.05 });
+      };
+
       const startHit = (): HeldVoice => {
-        const hitting = recorded(60, velocity);
+        const hitting = recordedHit();
         if (hitting) return hitting;
         if (voice.model && context) {
           const buffer = renderVoice(context, voice.model, `${voice.id}:${tone}`, 60, tone);

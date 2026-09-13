@@ -153,6 +153,13 @@ export type KitPieceId =
 export interface KitPiece {
   id: KitPieceId;
   timbre: TimbreId;
+  /**
+   * The recording that stands in for this piece. A General MIDI bank has
+   * no percussion at all — channel ten is a mapping rather than a program
+   * — so the kit's recordings are a set of their own, and each piece
+   * names the file it is.
+   */
+  sample?: string;
   /** Fundamental in Hz — for noise voices, the band's corner. */
   tone: number;
   /** Grid placement on the pad surface. */

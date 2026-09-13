@@ -21,7 +21,7 @@
  * module. `lib/` never sees any of it.
  */
 
-import { LOUDNESS, LOUDNESS_WINDOW } from "./render.js";
+import { LOUDNESS, PEAK_CEILING, LOUDNESS_WINDOW } from "./render.js";
 
 const BANK = "https://gleitz.github.io/midi-js-soundfonts/FluidR3_GM";
 
@@ -155,10 +155,19 @@ export function loudnessGain(buffer: AudioBuffer): number {
   const data = buffer.getChannelData(0);
   const window = Math.min(data.length, Math.max(1, Math.round(LOUDNESS_WINDOW * buffer.sampleRate)));
   let sum = 0;
-  for (let index = 0; index < window; index += 1) sum += data[index] * data[index];
+  let peak = 0;
+  for (let index = 0; index < data.length; index += 1) {
+    const value = data[index];
+    if (index < window) sum += value * value;
+    const size = Math.abs(value);
+    if (size > peak) peak = size;
+  }
   const rms = Math.sqrt(sum / window);
-  if (rms < 1e-4) return 0;
-  return Math.min(20, Math.max(0.1, LOUDNESS / rms));
+  if (rms < 1e-4 || peak <= 0) return 0;
+  // The same two limits a model is brought to: loudness for the level, a
+  // ceiling for the transient. A recording scaled to a loudness alone
+  // would clip its own attack.
+  return Math.min(20, Math.max(0.1, Math.min(LOUDNESS / rms, PEAK_CEILING / peak)));
 }
 
 export async function sampleFor(
@@ -252,9 +261,71 @@ export function sampleNow(name: string, midi: number): SampledNote | null {
   return usable(bank.decoded.get(nearest), nearest - midi);
 }
 
+/*
+ * The drum kit.
+ *
+ * A General MIDI bank has no percussion: its channel ten is a mapping,
+ * not a program, and the pre-rendered collections leave it out entirely —
+ * so the kit needs a set of recordings of its own rather than a name in
+ * the same bank as everything else. Teropa's drumkit is nine files that
+ * happen to be the nine pieces this kit has, which is a coincidence worth
+ * taking.
+ */
+export const DRUMKIT_CREDIT = {
+  name: "@teropa/drumkit",
+  url: "https://github.com/teropa/drumkit"
+};
+
+const DRUMS = "https://cdn.jsdelivr.net/npm/@teropa/drumkit@1.1.0/dist/assets";
+
+const kit = { decoded: new Map<string, AudioBuffer>(), loading: null as Promise<void> | null };
+
+/** Fetch every piece at once. They are 120KB between them. */
+export function preloadPercussion(context: BaseAudioContext): Promise<void> {
+  if (kit.decoded.size > 0) return Promise.resolve();
+  if (kit.loading) return kit.loading;
+
+  kit.loading = (async () => {
+    try {
+      const names = [...new Set(DRUM_PIECES)];
+      await Promise.all(
+        names.map(async (name) => {
+          const response = await fetch(`${DRUMS}/${name}.mp3`);
+          if (!response.ok) return;
+          const buffer = await context.decodeAudioData(await response.arrayBuffer());
+          kit.decoded.set(name, buffer);
+        })
+      );
+    } catch (_) {
+      // A kit that will not load is a kit the model covers.
+    }
+    if (kit.decoded.size === 0) kit.loading = null;
+  })();
+
+  return kit.loading;
+}
+
+/** Which files the kit is made of. Kept here so the loader fetches once. */
+let DRUM_PIECES: string[] = [];
+
+/** Tell the loader which pieces to ask for. Called once, from the data. */
+export function declarePieces(names: string[]): void {
+  DRUM_PIECES = names;
+}
+
+/** A piece, if the kit has arrived. Never waits. */
+export function percussionNow(name: string): SampledNote | null {
+  const buffer = kit.decoded.get(name);
+  if (!buffer) return null;
+  const gain = loudnessGain(buffer);
+  return gain > 0 ? { buffer, offset: 0, gain } : null;
+}
+
 /** Forget every fetched bank. Used when the context that decoded them goes. */
 export function clearSoundfonts(): void {
   banks.clear();
+  kit.decoded.clear();
+  kit.loading = null;
 }
 
 /** How many notes of a program are decoded. For tests and diagnostics. */

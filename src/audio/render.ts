@@ -123,7 +123,7 @@ const WIND_HOLD_SECONDS = 3;
  * it: loud, which is what a transient is, rather than clipped.
  */
 export const LOUDNESS = 0.16;
-const PEAK_CEILING = 0.92;
+export const PEAK_CEILING = 0.92;
 export const LOUDNESS_WINDOW = 0.2;
 
 /**

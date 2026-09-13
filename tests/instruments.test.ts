@@ -449,6 +449,24 @@ describe("the drum kit", () => {
     expect(new Set(codes).size).toBe(codes.length);
   });
 
+  /*
+   * A bank has no percussion — General MIDI's channel ten is a mapping
+   * rather than a program, and the pre-rendered collections leave it out.
+   * So every piece of the kit names a file of its own, or the sampled
+   * tier for a drum kit is the modelled tier with a different label.
+   */
+  it("names a recording for every piece of the kit", () => {
+    const surface = kit.surface!;
+    if (surface.kind !== "pads") throw new Error("expected pads");
+    for (const piece of surface.pieces) {
+      expect(piece.sample, `${piece.id} has no recording`).toBeTruthy();
+    }
+    // Each one a different file: two pieces sharing a file is two pieces
+    // that sound the same.
+    const files = surface.pieces.map((piece) => piece.sample);
+    expect(new Set(files).size).toBe(files.length);
+  });
+
   it("chokes the two hi-hats against each other and nothing else", () => {
     const surface = kit.surface!;
     if (surface.kind !== "pads") throw new Error("expected pads");

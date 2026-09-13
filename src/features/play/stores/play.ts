@@ -16,7 +16,13 @@ import { acquireAudio } from "../../../audio/context.js";
 import type { AudioEngineHandle } from "../../../audio/types.js";
 import { createVoicePlayer } from "../../../audio/voice.js";
 import { getTimbre } from "../../../audio/timbre.js";
-import { prepare, sampleNow } from "../../../audio/soundfont.js";
+import {
+  declarePieces,
+  percussionNow,
+  preloadPercussion,
+  prepare,
+  sampleNow
+} from "../../../audio/soundfont.js";
 import { analysisSettings } from "../../../audio/analysis.js";
 import { storedJson } from "../../../lib/persist.js";
 import {
@@ -209,7 +215,8 @@ async function ensurePerformer(): Promise<Performer> {
     tuning: analysisSettings.tuning,
     tier: settings.voiceTier,
     sample: instrument.value.sample,
-    takeSample: sampleNow
+    takeSample: sampleNow,
+    takePercussion: percussionNow
   });
   void loadRecordings();
   return performer.value;
@@ -224,9 +231,21 @@ async function ensurePerformer(): Promise<Performer> {
  * difference between a model and a recording.
  */
 async function loadRecordings(): Promise<void> {
-  const name = instrument.value.sample;
   const current = lease;
-  if (!name || !current) return;
+  if (!current) return;
+
+  const surface = instrument.value.surface;
+  if (surface.kind === "pads") {
+    // The kit is nine short files rather than one bank, and they are small
+    // enough to fetch as a set: a drum that has to be fetched before it
+    // can be hit is a drum that arrives after the beat.
+    declarePieces(surface.pieces.flatMap((piece) => (piece.sample ? [piece.sample] : [])));
+    await preloadPercussion(current.context);
+    return;
+  }
+
+  const name = instrument.value.sample;
+  if (!name) return;
   await prepare(current.context, name);
 }
 
@@ -263,7 +282,7 @@ export async function strike(pieceId: string): Promise<void> {
   setTimeout(() => struck.delete(piece.id), FLASH_MS);
 
   const unit = await ensurePerformer();
-  unit.strike(piece.timbre, piece.tone, 0.9, piece.choke);
+  unit.strike(piece.id, piece.timbre, piece.tone, 0.9, piece.choke);
 }
 
 export function noteOff(midi: number): void {

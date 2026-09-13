@@ -24,7 +24,7 @@ import {
   settings,
   VOICE_TIERS
 } from "../stores/play.js";
-import { SOUNDFONT_CREDIT } from "../../../audio/soundfont.js";
+import { DRUMKIT_CREDIT, SOUNDFONT_CREDIT } from "../../../audio/soundfont.js";
 
 const { t, lang } = useI18n();
 
@@ -39,6 +39,9 @@ const groups = computed(() =>
     }))
     .filter((group) => group.items.length > 0)
 );
+
+/** A kit's recordings are its own set; a bank has no percussion at all. */
+const isKit = computed(() => instrument.value.surface.kind === "pads");
 
 const presets = computed(() => {
   const current = instrument.value;
@@ -120,8 +123,13 @@ const presets = computed(() => {
          because it is about one control on this panel, and a footer line
          is a line on every page. -->
     <p v-if="settings.voiceTier !== 'synth'" class="tier-credit">
-      {{ t("playVoiceCredit", { name: SOUNDFONT_CREDIT.name }) }}
-      <a :href="SOUNDFONT_CREDIT.url" rel="noreferrer" target="_blank">{{ t("playVoiceCreditLink") }}</a>
+      {{ t("playVoiceCredit", { name: isKit ? DRUMKIT_CREDIT.name : SOUNDFONT_CREDIT.name }) }}
+      <a
+        :href="isKit ? DRUMKIT_CREDIT.url : SOUNDFONT_CREDIT.url"
+        rel="noreferrer"
+        target="_blank"
+        >{{ t("playVoiceCreditLink") }}</a
+      >
     </p>
   </div>
 </template>

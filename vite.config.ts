@@ -51,6 +51,17 @@ export default defineConfig({
               expiration: { maxEntries: 24, maxAgeSeconds: 60 * 60 * 24 * 90 },
               cacheableResponse: { statuses: [0, 200] }
             }
+          },
+          {
+            // The kit's own nine files. A bank has no percussion, so this
+            // is a second source and a second cache entry.
+            urlPattern: /^https:\/\/cdn\.jsdelivr\.net\/npm\/@teropa\/drumkit\/.*/i,
+            handler: "CacheFirst",
+            options: {
+              cacheName: "drumkit",
+              expiration: { maxEntries: 12, maxAgeSeconds: 60 * 60 * 24 * 90 },
+              cacheableResponse: { statuses: [0, 200] }
+            }
           }
         ]
       }

@@ -118,6 +118,46 @@ describe("voice tiers", () => {
     expect(fake.notes[0].options.rate).toBeUndefined();
   });
 
+  /*
+   * A drum has no pitch to resample to, so its recording is the one thing
+   * played exactly as recorded — and it comes from a different set of
+   * files than the melodic banks, because a General MIDI bank has no
+   * percussion at all.
+   */
+  it("hits a pad with its own recording", () => {
+    const fake = fakePlayer();
+    const unit = performer(fake.player, {
+      tier: "samples",
+      takePercussion: (name) => (name === "snare" ? fakeSample({ gain: 3 }) : null)
+    });
+    unit.strike("snare", "snare", 1900, 0.5);
+    expect(fake.notes).toHaveLength(1);
+    expect(fake.notes[0].velocity).toBeCloseTo(1.5, 6);
+    // No pitch to correct, so no playback rate at all.
+    expect(fake.notes[0].options.rate).toBeUndefined();
+  });
+
+  it("falls back to the model for a pad the kit has no file for", () => {
+    const fake = fakePlayer();
+    performer(fake.player, { tier: "samples", takePercussion: () => null }).strike(
+      "kick",
+      "kick",
+      55,
+      0.9
+    );
+    expect(fake.notes).toHaveLength(1);
+    expect(fake.notes[0].options.rate).toBeUndefined();
+    expect(fake.notes[0].options.seconds).toBeUndefined();
+  });
+
+  it("still plays a pad on the synth tier without asking for a file", () => {
+    const fake = fakePlayer();
+    const asked = vi.fn(() => fakeSample());
+    performer(fake.player, { tier: "synth", takePercussion: asked }).strike("kick", "kick", 55);
+    expect(asked).not.toHaveBeenCalled();
+    expect(fake.notes).toHaveLength(1);
+  });
+
   it("changes tier without disturbing a note already down", () => {
     const fake = fakePlayer();
     const unit = performer(fake.player, { tier: "synth", sample: "x", takeSample: () => fakeSample() });
