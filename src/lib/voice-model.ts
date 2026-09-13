@@ -103,6 +103,42 @@ export interface ModalSpec {
 }
 
 /**
+ * A tube with a jet of air across its mouth.
+ *
+ * A wind instrument is not a filter that noise is poured through. The
+ * jet curls into the tube and is deflected by what it finds there, so the
+ * air's own motion steers the airstream that is driving it — which is why
+ * a flute holds a pitch instead of hissing, and why it starts to sound on
+ * its own once the player's embouchure is right. The nonlinearity below
+ * is that feedback, and it is also what keeps the note from running away.
+ */
+export interface WindSpec {
+  frequency: number;
+  sampleRate: number;
+  seconds: number;
+  /** How long the note takes to speak. A wind instrument is slow. */
+  attack: number;
+  /**
+   * A stopped pipe — closed at one end, like a clarinet — reflects with
+   * its phase flipped, so it can only hold odd harmonics and overblows a
+   * twelfth rather than an octave. A flute, open at both ends, holds
+   * every harmonic. It is the difference you hear between the two.
+   */
+  stopped?: boolean;
+  /**
+   * The airstream: how hard it blows, how turbulent it is, and how much of
+   * it is a smooth stream rather than turbulence. A flute is almost all
+   * stream and a reed is not, which is most of why they sound different.
+   */
+  jet: { pressure: number; noise: number; tone?: number; damping?: number };
+  /** The hiss of air that never enters the tube, 0..1. */
+  breath: number;
+  /** The tube's own resonances, which do not transpose. */
+  body?: BodyResonance[];
+  gain?: number;
+}
+
+/**
  * A membrane or a plate hit by a stick: modes that fall in pitch as they
  * die, and bands of noise for the stick and the wires.
  */
@@ -135,6 +171,16 @@ const SILENT = 1e-4;
  * them, and this is how much is bought.
  */
 const STIFFNESS_SECTIONS = 4;
+
+/**
+ * A wind's loop is damped hard — that is what makes it hold one pitch —
+ * so its output is far quieter than a plucked string's for the same
+ * nominal gain. This brings it back up.
+ */
+const WIND_DRIVE = 5.5;
+
+/** What a `breath` of 1 is worth against the note itself. */
+const WIND_BREATH = 0.35;
 
 function clamp(value: number, low: number, high: number): number {
   return Math.min(high, Math.max(low, value));
@@ -430,7 +476,19 @@ export function renderModal(spec: ModalSpec): Float32Array {
 function addNoiseBand(
   out: Float32Array,
   sampleRate: number,
-  noise: { level: number; hz: number; q: number; ring: number; highpass?: boolean },
+  noise: {
+    level: number;
+    hz: number;
+    q: number;
+    ring: number;
+    highpass?: boolean;
+    /**
+     * Held rather than struck. Breath is not a transient: it is there for
+     * as long as the note is, and giving it a decay makes the hiss die
+     * away under a note that is still sounding.
+     */
+    steady?: boolean;
+  },
   random?: RandomSource
 ): void {
   const next = random ?? Math.random;
@@ -452,14 +510,14 @@ function addNoiseBand(
   let y2 = 0;
   let envelope = 1;
   for (let index = 0; index < out.length; index += 1) {
-    if (envelope < SILENT) break;
+    if (!noise.steady && envelope < SILENT) break;
     const x0 = next() * 2 - 1;
     const y0 = (b0 / a0) * x0 + (b1 / a0) * x1 + (b2 / a0) * x2 - (a1 / a0) * y1 - (a2 / a0) * y2;
     x2 = x1;
     x1 = x0;
     y2 = y1;
     y1 = y0;
-    out[index] += y0 * envelope * noise.level;
+    out[index] += y0 * (noise.steady ? 1 : envelope) * noise.level;
     envelope *= step;
   }
 }
@@ -503,4 +561,120 @@ export function renderDrum(spec: DrumSpec, random: RandomSource): Float32Array {
   }
 
   return finish(out, spec.gain ?? 0.9);
+}
+
+
+/**
+ * A blown tube.
+ *
+ * The loop is the air column and the excitation is a jet, and three things
+ * in here are the instrument rather than decoration:
+ *
+ *  - **The mouth saturates.** That is what bounds the note, and it is why
+ *    blowing harder makes a louder note instead of a runaway one. It is
+ *    the same mechanism as the bow's, which is not a coincidence: both are
+ *    a player feeding energy into a resonator that answers back.
+ *  - **The tube's losses grow with frequency.** Radiation and viscothermal
+ *    drag take the top off every trip, and that is what picks the
+ *    fundamental out of all the modes a delay line can hold. Without it
+ *    the tube squeals on whichever high mode wins.
+ *  - **The jet is a stream, not a hiss.** Air arriving at a mouth is a
+ *    moving column that the tube locks to; white noise at the same level
+ *    is just noise, and measuring the result reads as noise too.
+ *
+ * An open tube also radiates no static pressure, so the loop cannot hold
+ * one: a plucked string may sit at an offset, a flute may not.
+ */
+export function renderWind(spec: WindSpec, random: RandomSource): Float32Array {
+  const { frequency, sampleRate } = spec;
+  const total = Math.max(1, Math.round(spec.seconds * sampleRate));
+  const out = new Float32Array(total);
+
+  // A stopped pipe holds half a wavelength, so one trip round the loop is
+  // half a period — and it reflects inverted, which is what removes the
+  // even harmonics and makes it overblow a twelfth rather than an octave.
+  const open = !spec.stopped;
+  const pressure = clamp(spec.jet.pressure, 0, 1);
+  const jetNoise = clamp(spec.jet.noise, 0, 1);
+  // How much of the jet is a smooth stream rather than turbulence. It is
+  // the difference between a flute and a reed: one is almost all stream.
+  const tone = clamp(spec.jet.tone ?? 0.6, 0, 1);
+  const damp = clamp(spec.jet.damping ?? 0.4, 0, 0.95);
+
+  // The tube's own lowpass is part of the round trip, so its phase delay
+  // is part of the period. Leaving it out is the same mistake as leaving
+  // the string's damping filter out: the instrument plays flat, by more
+  // the heavier its losses. Taken at the note rather than at DC, because
+  // the delay a one-pole adds is not the same at every frequency and the
+  // top of the range is where the difference starts to be audible.
+  const omega = (2 * Math.PI * frequency) / sampleRate;
+  const filterPhase =
+    Math.atan2(damp * Math.sin(omega), 1 - damp * Math.cos(omega)) / Math.max(omega, 1e-6);
+  const length = Math.max(
+    2.5,
+    sampleRate / (open ? frequency : frequency * 2) - filterPhase
+  );
+  const size = Math.ceil(length) + 2;
+  const line = new Float32Array(size);
+  const reflection = open ? 1 : -1;
+  const attackSamples = Math.max(1, Math.round(spec.attack * sampleRate));
+
+  let write = 0;
+  let offset = 0;
+  let lp = 0;
+  let jetState = 0;
+
+  for (let index = 0; index < total; index += 1) {
+    const value = readDelay(line, write, length);
+
+    const scrape = random() * 2 - 1;
+    jetState = jetState * tone + scrape * (1 - tone);
+
+    lp = lp * damp + value * (1 - damp);
+    let fed = lp * reflection * 0.999 + jetState * pressure * jetNoise * 0.35;
+    fed = fed / (1 + Math.abs(fed));
+    line[write] = fed;
+    write = (write + 1) % size;
+
+    // The DC blocker is outside the loop's own arithmetic because it is
+    // about what the tube can radiate, not about the arithmetic.
+    offset += (value - offset) * 0.0008;
+    const sounded = value - offset;
+
+    out[index] = index < attackSamples ? sounded * (index / attackSamples) : sounded;
+  }
+
+  // Air that never entered the tube: not part of the loop, and the reason
+  // a flute is a flute rather than a sine with an envelope.
+  if (spec.breath > 0) {
+    addNoiseBand(
+      out,
+      sampleRate,
+      {
+        // Well above the note's lower harmonics, where breath actually
+        // sits — a band down at the fundamental is not air over a note,
+        // it is a pillow over one.
+        // A fraction of the note, not of the buffer: breath at the same
+        // level as the tone is not a breathy flute, it is a flute-shaped
+        // hiss, and it is noisy enough that a pitch detector cannot find
+        // the note in it — which is what "too much" means here.
+        level: spec.breath * WIND_BREATH,
+        // Air noise is broadband and sits well above the note; where
+        // exactly matters less than that it never stops while the note is
+        // sounding.
+        hz: clamp(frequency * 5, 1400, 9000),
+        q: 0.4,
+        ring: spec.seconds,
+        highpass: true,
+        steady: true
+      },
+      random
+    );
+  }
+
+  applyBody(out, sampleRate, spec.body);
+  // Like the bow: a driven model keeps its own level, because the harder
+  // it is blown the louder it must be. The constant is what it takes to
+  // bring a heavily damped loop up to the level the plucked models reach.
+  return finish(out, (spec.gain ?? 0.8) * WIND_DRIVE, true);
 }

@@ -3,6 +3,7 @@ import {
   renderDrum,
   renderModal,
   renderString,
+  renderWind,
   type BodyResonance
 } from "../src/lib/voice-model.js";
 import { detectPitchYin } from "../src/lib/pitch-detection.js";
@@ -296,6 +297,114 @@ describe("renderModal", () => {
     const early = magnitudeAt(samples, 440 * 4, 0, 0.05) / magnitudeAt(samples, 440, 0, 0.05);
     const late = magnitudeAt(samples, 440 * 4, 0.75, 0.9) / magnitudeAt(samples, 440, 0.75, 0.9);
     expect(late).toBeLessThan(early);
+  });
+});
+
+describe("renderWind", () => {
+  const blow = (overrides = {}) =>
+    renderWind(
+      {
+        frequency: 440,
+        sampleRate: SAMPLE_RATE,
+        seconds: 2,
+        attack: 0.05,
+        jet: { pressure: 0.5, noise: 0.5 },
+        breath: 0.08,
+        ...overrides
+      },
+      seeded(13)
+    );
+
+  it("sounds the note it was asked for", () => {
+    for (const frequency of [294, 440, 587]) {
+      expect(Math.abs(centsOff(blow({ frequency }), frequency))).toBeLessThan(10);
+    }
+  });
+
+  /*
+   * A wind instrument is driven, not struck: the air keeps arriving, so
+   * the note settles at a level instead of decaying away from one.
+   */
+  it("holds its level for as long as the air is there", () => {
+    const samples = blow();
+    expect(fallDb(samples, 0.6, 1.8)).toBeLessThan(6);
+  });
+
+  it("takes a moment to speak, and blows louder the harder it is blown", () => {
+    const samples = blow();
+    // It has to catch before it can drive: the first twenty milliseconds
+    // are a fraction of what the note settles to.
+    expect(rms(samples, 0.5, 0.8)).toBeGreaterThan(rms(samples, 0, 0.02) * 2.4);
+    const light = blow({ jet: { pressure: 0.05, noise: 0.5 } });
+    const hard = blow({ jet: { pressure: 1, noise: 0.5 } });
+    // The mouth saturates, so the range is compressed rather than linear —
+    // but a player blowing twenty times as hard must still be audibly
+    // louder, or the instrument has no dynamics.
+    expect(rms(hard, 1, 1.6)).toBeGreaterThan(rms(light, 1, 1.6) * 1.6);
+  });
+
+  /*
+   * The one thing that tells a flute from a clarinet: a pipe closed at one
+   * end reflects with its phase flipped, so every second harmonic cancels
+   * and it can only hold the odd ones. It is why one overblows an octave
+   * and the other a twelfth.
+   */
+  it("keeps only the odd harmonics in a stopped pipe", () => {
+    const open = blow({ stopped: false, frequency: 220 });
+    const stopped = blow({ stopped: true, frequency: 220 });
+    const even = (samples: Float32Array) =>
+      magnitudeAt(samples, 440, 0.4, 1.2) / Math.max(magnitudeAt(samples, 220, 0.4, 1.2), 1e-12);
+    const odd = (samples: Float32Array) =>
+      magnitudeAt(samples, 660, 0.4, 1.2) / Math.max(magnitudeAt(samples, 220, 0.4, 1.2), 1e-12);
+    expect(even(open)).toBeGreaterThan(0.15);
+    expect(even(stopped)).toBeLessThan(even(open) / 4);
+    // ...and the third is still there, so it is not simply a duller note.
+    expect(odd(stopped)).toBeGreaterThan(0.05);
+  });
+
+  it("carries the air that never entered the tube", () => {
+    const dry = blow({ breath: 0 });
+    const breathy = blow({ breath: 0.4 });
+    // Well above the note and above the jet, where only the hiss lives.
+    expect(magnitudeAt(breathy, 9000, 0.4, 0.9)).toBeGreaterThan(
+      magnitudeAt(dry, 9000, 0.4, 0.9) * 2
+    );
+  });
+
+  /*
+   * The tuner has to be able to hear it.
+   *
+   * This is the sharpest thing to assert about a wind model, because it
+   * fails for the one mistake that is easy to make and easy to miss: too
+   * much noise. Breath at the same level as the note is not a breathy
+   * flute, it is a flute-shaped hiss, and it still sounds plausible in a
+   * spectrum plot. It does not sound plausible to the app's own detector,
+   * which is what a player would be looking at while they tuned it.
+   */
+  it("is periodic enough for the app's own pitch detector to hear", () => {
+    for (const frequency of [294, 440, 587]) {
+      const samples = blow({ frequency, breath: 0.1 });
+      const start = Math.floor(samples.length * 0.4);
+      const result = detectPitchYin(
+        samples.subarray(start, start + 4096),
+        SAMPLE_RATE,
+        -120,
+        { minHz: 55, maxHz: 1400 }
+      );
+      expect(result.pitch, String(frequency)).not.toBeNull();
+      const cents = 1200 * Math.log2(result.pitch!.frequency / frequency);
+      expect(Math.abs(cents), String(frequency)).toBeLessThan(12);
+    }
+  });
+
+  it("stays inside the buffer at any pressure", () => {
+    for (const pressure of [0.05, 0.5, 1]) {
+      const samples = blow({ jet: { pressure, noise: 1 } });
+      let peak = 0;
+      for (const value of samples) peak = Math.max(peak, Math.abs(value));
+      expect(Number.isFinite(peak), String(pressure)).toBe(true);
+      expect(peak, String(pressure)).toBeLessThanOrEqual(1.0001);
+    }
   });
 });
 

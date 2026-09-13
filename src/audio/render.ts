@@ -19,10 +19,12 @@ import {
   renderDrum,
   renderModal,
   renderString,
+  renderWind,
   type DrumSpec,
   type ModalSpec,
   type RandomSource,
-  type StringSpec
+  type StringSpec,
+  type WindSpec
 } from "../lib/voice-model.js";
 
 /**
@@ -47,6 +49,7 @@ export type VoiceModel = PitchTilt &
     | ({ kind: "string" } & Omit<StringSpec, "frequency" | "sampleRate" | "seconds">)
     | ({ kind: "modal" } & Omit<ModalSpec, "frequency" | "sampleRate" | "seconds">)
     | ({ kind: "drum" } & Omit<DrumSpec, "sampleRate" | "seconds">)
+    | ({ kind: "wind" } & Omit<WindSpec, "frequency" | "sampleRate" | "seconds">)
   );
 
 /** The model with its two timescales moved to where this note sits. */
@@ -64,6 +67,11 @@ function tuneToPitch(model: VoiceModel, midi: number): VoiceModel {
   }
   if (model.kind === "modal") {
     return { ...model, ring: model.ring.map((value) => value * ring) };
+  }
+  if (model.kind === "wind") {
+    // A wind has no `ring` to tilt: it is driven for as long as it is
+    // blown, and what changes across the range is the tube, not the decay.
+    return model;
   }
   return {
     ...model,
@@ -97,12 +105,18 @@ export const MAX_RENDER_SECONDS = 4;
 /** Notes kept rendered at once. Enough for a keyboard's span, and then some. */
 export const CACHE_LIMIT = 64;
 
+/** How long a blown note is rendered for. Longer than anyone holds one. */
+const WIND_HOLD_SECONDS = 3;
+
 const cache = new Map<string, AudioBuffer>();
 
 /** How long this model should be rendered for: its own life, capped. */
 export function modelSeconds(model: VoiceModel): number {
   if (model.kind === "string") return Math.min(model.ring * 1.4 + 0.3, MAX_RENDER_SECONDS);
   if (model.kind === "modal") return Math.min(Math.max(...model.ring) * 1.2 + 0.2, MAX_RENDER_SECONDS);
+  // A wind is driven, so it has no life of its own to measure: it lasts as
+  // long as the air does, and the player's finger is what ends it.
+  if (model.kind === "wind") return WIND_HOLD_SECONDS;
   const rings = [
     ...model.modes.map((mode) => mode.ring),
     ...(model.noises ?? []).map((band) => band.ring)
@@ -150,6 +164,8 @@ export function renderVoice(
   let samples: Float32Array;
   if (model.kind === "string") {
     samples = renderString({ ...model, frequency, sampleRate, seconds }, noteRandom(seed));
+  } else if (model.kind === "wind") {
+    samples = renderWind({ ...model, frequency, sampleRate, seconds }, noteRandom(seed));
   } else if (model.kind === "modal") {
     samples = renderModal({
       ...model,

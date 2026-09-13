@@ -458,6 +458,23 @@ export const TIMBRES: Timbre[] = [
     id: "flute",
     waveform: "sine",
     gain: 0.3,
+    // An open pipe: a flute is open at both ends, so it holds every
+    // harmonic and overblows the octave. Bamboo adds almost nothing of
+    // its own — what you hear is the air and the edge, which is why the
+    // jet is most of this model.
+    model: {
+      kind: "wind",
+      attack: 0.055,
+      stopped: false,
+      jet: { pressure: 0.5, noise: 0.4, tone: 0.62, damping: 0.4 },
+      breath: 0.1,
+      body: [
+        { hz: 900, q: 1.1, db: 3 },
+        { hz: 2400, q: 1, db: 4 },
+        { hz: 4200, q: 0.9, db: 2 }
+      ],
+      gain: 0.75
+    },
     attack: 0.055,
     decay: 0.06,
     sustain: 0.86,
@@ -472,6 +489,25 @@ export const TIMBRES: Timbre[] = [
     id: "reed",
     waveform: "sawtooth",
     gain: 0.12,
+    // A conical bore, unlike a clarinet's cylinder: closed at the reed but
+    // widening all the way down, so it overblows the octave and holds every
+    // harmonic rather than only the odd ones. The reed itself is a much
+    // rougher jet than a flute's edge — less stream, more turbulence.
+    model: {
+      kind: "wind",
+      attack: 0.03,
+      stopped: false,
+      jet: { pressure: 0.62, noise: 0.5, tone: 0.35, damping: 0.45 },
+      breath: 0.05,
+      body: [
+        { hz: 800, q: 1.6, db: 8 },
+        { hz: 1700, q: 1.5, db: 6 },
+        { hz: 3300, q: 1.2, db: 4 }
+      ],
+      // A reed drives its tube much harder than an edge does; this is what
+      // brings it back to the level of everything beside it.
+      gain: 0.55
+    },
     attack: 0.03,
     decay: 0.05,
     sustain: 0.88,
