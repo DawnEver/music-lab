@@ -749,6 +749,42 @@ async function walkPlay(page, label, { wide = false } = {}) {
     timeout: 4000
   });
 
+  // A sixth: instruments whose notes are cells. A kalimba is a row of
+  // tines in mounted order, a harmonica two rows of ten reeds.
+  await page.locator(".play-bar .value-chip").click();
+  await page.waitForSelector('[data-instrument="kalimba"]', { timeout: 4000 });
+  await page.locator('[data-instrument="kalimba"]').click();
+  await page.waitForSelector(".note-cells", { timeout: 8000 });
+  await page.keyboard.press("Escape");
+  if ((await page.locator(".note-cell").count()) !== 17) {
+    throw new Error(`${label}: a 17-key kalimba has 17 tines`);
+  }
+  await assertSingleRow(page, `${label} kalimba`, ".note-cell");
+  await assertStageOwnsTheRest(page, `${label} kalimba`, ".play-stage");
+  await assertNoVOverflow(page, `${label} kalimba`);
+  await page.locator(".note-cell").first().dispatchEvent("pointerdown");
+  await page.waitForSelector(".note-cell.is-down", { timeout: 4000 });
+  await page.locator(".note-cell").first().dispatchEvent("pointerup");
+
+  await page.locator(".play-bar .value-chip").click();
+  await page.waitForSelector('[data-instrument="harmonica"]', { timeout: 4000 });
+  await page.locator('[data-instrument="harmonica"]').click();
+  await page.waitForSelector(".note-cells.is-reeds", { timeout: 8000 });
+  await page.keyboard.press("Escape");
+  const reedRows = await page.locator(".cells-row").count();
+  if (reedRows !== 2) throw new Error(`${label}: a harmonica is blown and drawn`);
+  if ((await page.locator(".note-cell").count()) !== 20) {
+    throw new Error(`${label}: ten holes with two reeds each`);
+  }
+  await assertStageOwnsTheRest(page, `${label} harmonica`, ".play-stage");
+  await assertNoVOverflow(page, `${label} harmonica`);
+  await page.locator(".note-cell").first().dispatchEvent("pointerdown");
+  await page.waitForSelector(".note-cell.is-down", { timeout: 4000 });
+  await page.locator(".note-cell").first().dispatchEvent("pointerup");
+  await page.waitForFunction(() => document.querySelectorAll(".note-cell.is-down").length === 0, {
+    timeout: 4000
+  });
+
   // Third surface: the kit has no pitch, so it has pads and no tuning row.
   await page.locator(".play-bar .value-chip").click();
   await page.waitForSelector('[data-instrument="drums"]', { timeout: 4000 });

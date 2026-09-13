@@ -22,6 +22,7 @@ import PianoKeys from "./components/PianoKeys.vue";
 import FretBoard from "./components/FretBoard.vue";
 import DrumPads from "./components/DrumPads.vue";
 import HoleChart from "./components/HoleChart.vue";
+import NoteCells from "./components/NoteCells.vue";
 import PlayControl from "./components/PlayControl.vue";
 import { keymapSpan, midiForKey } from "./domain/keymap.js";
 import { isTuned } from "../../instruments/index.js";
@@ -66,6 +67,20 @@ const frets = computed(() => {
 /** A stopped string has no frets, so the board draws none of their marks. */
 const fretted = computed(() => instrument.value.surface.kind === "frets");
 
+/** A row of tines, or holes you blow and draw. */
+const cellSurface = computed(() => {
+  const kind = surface.value.kind;
+  return kind === "tines" || kind === "reeds" ? kind : null;
+});
+
+const holes = computed(() =>
+  surface.value.kind === "reeds" && isTuned(instrument.value)
+    ? instrument.value.tuning.wind?.holeCount ??
+      instrument.value.tuning.reeds?.holeCount ??
+      10
+    : 10
+);
+
 /** Every surface turns; the two options are the same two for all of them. */
 const ORIENTATIONS: Array<{ id: Orientation; key: "playHorizontal" | "playVertical" }> = [
   { id: "horizontal", key: "playHorizontal" },
@@ -87,6 +102,8 @@ const hint = computed(() => {
   if (isKeys.value) return narrow.value ? t("playKeysHintTouch") : t("playKeysHint");
   if (pieces.value.length) return t("playPadsHint");
   if (wind.value) return t("playHolesHint");
+  if (cellSurface.value === "tines") return t("playTinesHint");
+  if (cellSurface.value === "reeds") return t("playReedsHint");
   return fretted.value ? t("playFretsHint") : t("playStopsHint");
 });
 
@@ -226,6 +243,16 @@ onBeforeUnmount(() => {
       v-else-if="wind && preset"
       :preset="preset"
       :wind="wind"
+      :sounding="sounding"
+      :orientation="orientation"
+      @down="(midi: number) => noteOn(midi)"
+      @up="noteOff"
+    />
+    <NoteCells
+      v-else-if="cellSurface && preset"
+      :preset="preset"
+      :surface="cellSurface"
+      :holes="holes"
       :sounding="sounding"
       :orientation="orientation"
       @down="(midi: number) => noteOn(midi)"

@@ -4,6 +4,7 @@ import PianoKeys from "../../src/features/play/components/PianoKeys.vue";
 import FretBoard from "../../src/features/play/components/FretBoard.vue";
 import DrumPads from "../../src/features/play/components/DrumPads.vue";
 import HoleChart from "../../src/features/play/components/HoleChart.vue";
+import NoteCells from "../../src/features/play/components/NoteCells.vue";
 import { getInstrument, getPreset, getTunedInstrument } from "../../src/instruments/index.js";
 import { setLang } from "../../src/lib/i18n/index.js";
 
@@ -295,6 +296,69 @@ describe("DrumPads", () => {
     const wrapper = pads();
     await wrapper.find('[data-piece="crash"]').trigger("pointerdown");
     expect(wrapper.emitted("hit")?.[0]).toEqual(["crash"]);
+  });
+});
+
+describe("NoteCells", () => {
+  const cells = (
+    preset: ReturnType<typeof getPreset>,
+    surface: "tines" | "reeds",
+    sounding = new Set<number>(),
+    holes = 10
+  ) =>
+    mount(NoteCells, {
+      props: { preset, surface, holes, sounding, orientation: "horizontal" }
+    });
+
+  /*
+   * A kalimba's tines are mounted in the order they are played, and that
+   * order is not pitch order: the lowest tine is the middle one and the
+   * scale alternates outward. Sorting them would be sorting a kalimba
+   * into a different instrument.
+   */
+  it("keeps a kalimba's tines in the order they are mounted", () => {
+    const kalimba = getTunedInstrument("kalimba")!;
+    const preset = getPreset(kalimba, kalimba.tuning.defaultPresetId);
+    const wrapper = cells(preset, "tines");
+    const notes = wrapper.findAll(".note-cell").map((cell) => Number(cell.attributes("data-note")));
+    expect(notes).toEqual(preset.notes);
+    // The centre tine is the lowest of the seventeen.
+    expect(notes[Math.floor(notes.length / 2)]).toBe(Math.min(...notes));
+    expect(wrapper.findAll(".cells-row")).toHaveLength(1);
+  });
+
+  it("draws a harmonica as ten holes, blown above and drawn below", () => {
+    const harmonica = getTunedInstrument("harmonica")!;
+    const preset = getPreset(harmonica, harmonica.tuning.defaultPresetId);
+    const wrapper = cells(preset, "reeds");
+    const rows = wrapper.findAll(".cells-row");
+    expect(rows).toHaveLength(2);
+    expect(rows[0].findAll(".note-cell")).toHaveLength(10);
+    expect(rows[1].findAll(".note-cell")).toHaveLength(10);
+    // The preset holds ten blow notes then ten draw ones, and hole 1 blows
+    // the root.
+    const sound = (index: number) =>
+      wrapper.findAll(".note-cell").map((cell) => Number(cell.attributes("data-note")))[index];
+    expect(sound(0)).toBe(preset.notes[0]);
+    expect(sound(10)).toBe(preset.notes[10]);
+    // A Richter layout puts one note in two places — 2 draw and 3 blow are
+    // the same reed an octave apart on the staff — so nineteen distinct
+    // notes across twenty reeds is the instrument, not a mistake.
+    expect(new Set(preset.notes).size).toBe(19);
+  });
+
+  it("names each cell by the note it sounds and holds while pressed", async () => {
+    const harmonica = getTunedInstrument("harmonica")!;
+    const preset = getPreset(harmonica, harmonica.tuning.defaultPresetId);
+    // Note the two places the layout duplicates: lighting one lights both.
+    const wrapper = cells(preset, "reeds", new Set([preset.notes[2]]));
+    const lit = wrapper.findAll(".note-cell.is-down");
+    expect(lit).toHaveLength(2);
+    expect(lit[0].attributes("aria-label")).toBe("G4");
+    await wrapper.find(".note-cell").trigger("pointerdown");
+    await wrapper.find(".note-cell").trigger("pointerup");
+    expect(wrapper.emitted("down")?.[0]).toEqual([preset.notes[0]]);
+    expect(wrapper.emitted("up")?.[0]).toEqual([preset.notes[0]]);
   });
 });
 

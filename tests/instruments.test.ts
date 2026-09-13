@@ -503,6 +503,39 @@ describe("playable winds", () => {
     }
   });
 
+  /*
+   * The one that would have caught the complaint.
+   *
+   * "Every instrument" was true of eighteen of them: the bowed family and
+   * the two zithers had no surface and no voice, so they were in the tuner
+   * and absent from the play tool. Nothing failed; they simply were not
+   * there, and a player found out by looking.
+   */
+  it("offers every instrument it knows about, in the play tool", () => {
+    const unplayable = allInstruments.filter((instrument) => !isPlayable(instrument));
+    expect(unplayable.map((instrument) => instrument.id)).toEqual([]);
+    // And each one has a way to be heard: the kit names a voice per piece,
+    // everything else names one for itself.
+    const voiceless = allInstruments.filter(
+      (instrument) => isPlayable(instrument) && instrument.surface!.kind !== "pads" && !instrument.timbre
+    );
+    expect(voiceless.map((instrument) => instrument.id)).toEqual([]);
+  });
+
+  it("plays a kalimba and a harmonica, whose layouts are their own", () => {
+    const kalimba = getInstrument("kalimba")!;
+    expect(isPlayable(kalimba)).toBe(true);
+    expect(kalimba.surface!.kind).toBe("tines");
+    // The tines are the tuning: seventeen of them, in mounted order.
+    expect(kalimba.tuning!.presets[0].notes).toHaveLength(17);
+
+    const harmonica = getInstrument("harmonica")!;
+    expect(isPlayable(harmonica)).toBe(true);
+    expect(harmonica.surface!.kind).toBe("reeds");
+    // Ten holes, two reeds each.
+    expect(harmonica.tuning!.presets[0].notes).toHaveLength(20);
+  });
+
   it("gives a bowed string a voice that holds rather than decays", () => {
     for (const id of ["violin", "cello", "erhu", "zhonghu"]) {
       const voice = TIMBRES.find((entry) => entry.id === getInstrument(id)!.timbre)!;

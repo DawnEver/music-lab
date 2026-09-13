@@ -35,7 +35,9 @@ export type TimbreId =
   | "flute"
   | "reed"
   | "bowed"
-  | "huqin";
+  | "huqin"
+  | "kalimba"
+  | "harmonica";
 
 export interface Timbre {
   id: TimbreId;
@@ -93,6 +95,50 @@ export interface Timbre {
  * damps what is left) while the organ holds its level until let go.
  */
 export const TIMBRES: Timbre[] = [
+  {
+    // A tine is a bar, not a string, so its partials are inharmonic — the
+    // 1 : 6.27 : 17.5 of a bar clamped at one end, which is why a kalimba
+    // sounds like a music box and a guitar does not.
+    id: "kalimba",
+    waveform: "sine",
+    gain: 0.5,
+    attack: 0.002,
+    ring: 1.6,
+    model: {
+      kind: "modal",
+      ratios: [1, 6.27, 17.5],
+      ring: [1.6, 0.35, 0.12],
+      levels: [1, 0.16, 0.05],
+      // A thumb, not a hammer: the click of the nail is most of the attack.
+      noise: { level: 0.16, hz: 3400, q: 1, ring: 0.012 },
+      ringTilt: 0.12,
+      body: [{ hz: 250, q: 1.2, db: 4 }],
+      gain: 0.5
+    }
+  },
+  {
+    // A free reed: closed at the reed end, so like a clarinet it holds the
+    // odd harmonics and overblows a twelfth. The buzz is the reed itself,
+    // which is why the jet is more turbulence than stream.
+    id: "harmonica",
+    waveform: "sawtooth",
+    gain: 0.5,
+    attack: 0.02,
+    ring: 1.2,
+    model: {
+      kind: "wind",
+      attack: 0.02,
+      stopped: true,
+      jet: { pressure: 0.55, noise: 0.55, tone: 0.3, damping: 0.42 },
+      breath: 0.06,
+      body: [
+        { hz: 700, q: 1.4, db: 6 },
+        { hz: 1800, q: 1.3, db: 5 },
+        { hz: 3600, q: 1.1, db: 3 }
+      ],
+      gain: 0.6
+    }
+  },
   {
     // A bowed string: the same loop as a pluck, with the excitation left
     // on. What makes it read as a violin rather than a sawtooth is the

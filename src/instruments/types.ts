@@ -117,6 +117,19 @@ export type PlaySurface =
    * decoration that lies about the instrument.
    */
   | { kind: "stopped"; stops: number }
+  /**
+   * A row of tines, in the order they are mounted — which for a kalimba
+   * is not pitch order. The lowest tine is the middle one and the scale
+   * alternates outward, so the layout is the instrument and sorting it
+   * would be sorting a kalimba into something else.
+   */
+  | { kind: "tines" }
+  /**
+   * Holes you blow and draw. A harmonica's two reeds per hole are a
+   * different note each, and which one sounds is which way the air goes —
+   * so the breath is an axis of the surface, not a property of a cell.
+   */
+  | { kind: "reeds" }
   | { kind: "pads"; pieces: KitPiece[] }
   | { kind: "holes" };
 

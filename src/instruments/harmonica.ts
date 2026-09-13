@@ -85,6 +85,8 @@ function makeKeyPreset(key: { id: string; rootMidi: number }): TuningPreset {
 export const harmonica = {
   id: "harmonica",
   name: { zh: "布鲁斯口琴", en: "Blues Harmonica" },
+  timbre: "harmonica",
+  surface: { kind: "reeds" },
   category: "winds",
   tuning: {
     layout: "grid",

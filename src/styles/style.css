@@ -3816,6 +3816,119 @@
   }
 }
 
+/*
+ * Cells: a row of tines, or holes you blow and draw. The instrument keeps
+ * its own order and its own shape — a kalimba's tines run out from the
+ * middle, a harmonica is two rows of ten — so the column count comes from
+ * the data and one line stays one line.
+ */
+.note-cells {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.cells-row {
+  flex: 1 1 0;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.cells-row-label {
+  flex: 0 0 auto;
+  min-width: 2.5em;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.cells-line {
+  flex: 1 1 auto;
+  min-width: 0;
+  align-self: stretch;
+  display: grid;
+  grid-template-columns: repeat(var(--count), minmax(0, 1fr));
+  gap: 6px;
+}
+
+.note-cell {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 6px 4px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--glass);
+  color: var(--text);
+  font-family: inherit;
+  cursor: pointer;
+  transition: border-color 0.06s ease, background 0.06s ease;
+}
+
+.note-cell:hover {
+  border-color: var(--accent-2);
+}
+
+.note-cell.is-down {
+  background: linear-gradient(180deg, var(--accent-2), var(--accent));
+  border-color: transparent;
+  color: #0b0d12;
+}
+
+/* The engraved mark is what is on the instrument; the letter is what it
+   sounds. A tine carries a number, a hole a number and a direction. */
+.cell-mark {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  opacity: 0.8;
+}
+
+.cell-note {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  opacity: 0.6;
+}
+
+/* Turned down, the line runs down the page instead. */
+.note-cells.is-vertical .cells-row {
+  flex-direction: row;
+}
+
+.note-cells.is-vertical .cells-line {
+  grid-template-columns: 1fr;
+  grid-template-rows: repeat(var(--count), minmax(0, 1fr));
+}
+
+@media (max-width: 720px) {
+  .note-cells {
+    overflow: auto;
+    touch-action: pan-x pan-y;
+  }
+
+  .cells-line {
+    grid-auto-flow: column;
+  }
+
+  .note-cells.is-horizontal .cells-line {
+    grid-auto-columns: 62px;
+    grid-template-columns: none;
+    width: max-content;
+  }
+
+  .note-cells.is-vertical .cells-line {
+    grid-auto-rows: 62px;
+    grid-template-rows: none;
+    height: max-content;
+  }
+}
+
 /* Wind chart — the same diagram the tuner draws, but here it is played:
    press a fingering and the note sounds until the finger lifts. */
 /*
