@@ -363,6 +363,19 @@
       grid-template-rows: auto minmax(0, 1fr);
     }
 
+    /*
+     * `min-height: 100vh` is a floor, not a size: give a tool content
+     * taller than the window and the whole stack grows with it, so the
+     * stage can never be the thing that gives. A played instrument wants
+     * exactly one screen — it scrolls inside itself, along its own axis —
+     * so on this route the shell is the window's height and no more.
+     */
+    .shell:has(.play-stage) {
+      height: 100vh;
+      height: 100dvh;
+      overflow: hidden;
+    }
+
     .card {
       position: relative;
       overflow: hidden;
@@ -2251,7 +2264,8 @@
   bottom: calc(100% + 10px);
   z-index: 30;
   width: min(420px, calc(100vw - 32px));
-  max-height: min(60vh, 520px);
+  /* Never taller than the room it opened toward. */
+  max-height: min(60vh, 520px, var(--sheet-room, 60vh));
   overflow: auto;
   padding: 16px;
   border: 1px solid var(--line-strong);
@@ -3444,6 +3458,18 @@
   touch-action: none;
 }
 
+/* A neck longer than the room scrolls along its own axis — at every size,
+   not only on a phone: sixteen frets do not fit a short laptop either. */
+.fret-board.is-vertical {
+  overflow-y: auto;
+  touch-action: pan-y;
+}
+
+.fret-board.is-horizontal {
+  overflow-x: auto;
+  touch-action: pan-x;
+}
+
 /* Every line takes an equal share of the board's height — frets or
    strings, evenly spaced, which is the only spacing a neck has. */
 .fret-row {
@@ -3452,7 +3478,13 @@
   grid-template-columns: 30px repeat(var(--cols), minmax(0, 1fr));
   gap: 3px;
   align-items: stretch;
-  min-height: 0;
+  /*
+   * No `min-height: 0` here. A row may not be squeezed below the cells
+   * inside it: at `min-height: 0` a seventeen-row neck shrinks every row
+   * to 20px while its cells keep their own 30px floor, and the cells then
+   * spill ten pixels into the row below — a neck overlapping itself, with
+   * the scroll container none the wiser because nothing overflowed it.
+   */
 }
 
 /* The heading row is a scale, not one of the instrument's lines. */
@@ -3805,31 +3837,6 @@
   flex-direction: column;
 }
 
-@media (max-width: 720px) {
-  .hole-chart.is-horizontal {
-    flex-wrap: nowrap;
-    overflow-x: auto;
-    touch-action: pan-x;
-  }
-
-  .hole-chart.is-vertical {
-    overflow-y: auto;
-    touch-action: pan-y;
-  }
-
-  /* A phone cannot show the whole scale at once, so a card keeps a size
-     the thumb can hit and the line scrolls instead. */
-  .hole-chart.is-horizontal .hole-card {
-    flex: 0 0 auto;
-    min-width: 72px;
-  }
-
-  .hole-chart.is-vertical .hole-card {
-    flex: 0 0 auto;
-    min-height: 72px;
-  }
-}
-
 .hole-card {
   display: flex;
   flex-direction: column;
@@ -3865,18 +3872,49 @@
   justify-content: space-evenly;
 }
 
-/* Across it, the fingering reads sideways: the note first, the holes
-   after it, the way the line itself now runs. */
+/* Down it, the line runs across each card instead: the note first, the
+   holes after it, packed together. `row-reverse` would put the note at the
+   trailing edge, which on a full-width card is the far side of the page
+   from the fingering it names. */
 .hole-chart.is-vertical .hole-card {
   flex: 1 1 0;
   min-height: 0;
-  flex-direction: row-reverse;
+  flex-direction: row;
+  justify-content: flex-start;
 }
 
 .hole-chart.is-vertical .hole-holes {
   flex-direction: row;
   flex: 1 1 auto;
   justify-content: center;
+}
+
+/*
+ * A phone cannot show the whole scale at once, so a card keeps a size the
+ * thumb can hit and the line scrolls instead. This has to come after the
+ * rules above: it is the same selector, and the last one wins.
+ */
+@media (max-width: 720px) {
+  .hole-chart.is-horizontal {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    touch-action: pan-x;
+  }
+
+  .hole-chart.is-vertical {
+    overflow-y: auto;
+    touch-action: pan-y;
+  }
+
+  .hole-chart.is-horizontal .hole-card {
+    flex: 0 0 auto;
+    min-width: 72px;
+  }
+
+  .hole-chart.is-vertical .hole-card {
+    flex: 0 0 auto;
+    min-height: 72px;
+  }
 }
 
 .hole-card:hover {

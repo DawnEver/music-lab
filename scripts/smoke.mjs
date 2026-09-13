@@ -491,6 +491,60 @@ async function assertKeyIsHandSized(page, label) {
   }
 }
 
+/**
+ * A card on a scale must stay a thing a thumb can hit.
+ *
+ * The phone rules that keep a wind chart's cards at 72px share a selector
+ * with the rules that let them share the width, so the pair has to be in
+ * the right order in the stylesheet — and when they were not, every dizi
+ * card collapsed to 22px and the line stopped scrolling, while the count
+ * of cards was still exactly right. Size is the only thing that sees it.
+ */
+async function assertTapTargets(page, label, selector, across, floor = 62) {
+  const boxes = await page.evaluate(
+    (sel) => [...document.querySelectorAll(sel)].map((el) => {
+      const box = el.getBoundingClientRect();
+      return { w: Math.round(box.width), h: Math.round(box.height) };
+    }),
+    selector
+  );
+  if (!boxes.length) throw new Error(`${label}: no ${selector}`);
+  const sizes = boxes.map((box) => (across === "vertical" ? box.h : box.w));
+  const smallest = Math.min(...sizes);
+  if (smallest < floor) {
+    throw new Error(
+      `${label}: the smallest of ${boxes.length} ${selector} is ${smallest}px across, ` +
+        `below the ${floor}px a thumb needs`
+    );
+  }
+}
+
+/**
+ * A neck may not overlap itself.
+ *
+ * Rows share the board's height, so a row with no floor of its own gets
+ * squeezed under the cells inside it and they spill into the row below.
+ * The board still reports no overflow, because nothing overflowed *it*.
+ */
+async function assertRowsHoldTheirCells(page, label, rowSelector, cellSelector) {
+  const worst = await page.evaluate(
+    ([rowSel, cellSel]) => {
+      let over = 0;
+      for (const row of document.querySelectorAll(rowSel)) {
+        const bottom = row.getBoundingClientRect().bottom;
+        for (const cell of row.querySelectorAll(cellSel)) {
+          over = Math.max(over, cell.getBoundingClientRect().bottom - bottom);
+        }
+      }
+      return Math.round(over);
+    },
+    [rowSelector, cellSelector]
+  );
+  if (worst > 1) {
+    throw new Error(`${label}: ${cellSelector} spills ${worst}px past its row`);
+  }
+}
+
 /** Every tool must be reachable: a nav that overflows hides one. */
 async function assertNavFits(page, label) {
   const over = await page.evaluate(() => {
@@ -629,6 +683,7 @@ async function walkPlay(page, label, { wide = false } = {}) {
   await assertStageFillsWidth(page, `${label} frets`, ".play-stage", 0.99);
   await assertStageOwnsTheRest(page, `${label} frets`, ".play-stage");
   await assertNoVOverflow(page, `${label} frets`);
+  await assertRowsHoldTheirCells(page, `${label} frets`, ".fret-row", ".fret-cell");
   // A fret carries its note name; an anonymous box is not a fretboard.
   const firstCell = await page.locator(".fret-cell").first().innerText();
   if (!/^[A-G]#?$/.test(firstCell.trim())) {
@@ -645,6 +700,7 @@ async function walkPlay(page, label, { wide = false } = {}) {
   }
   await turnTo(page, label, expected);
   await assertTurned(page, label, ".fret-board", expected);
+  await assertRowsHoldTheirCells(page, `${label} frets`, ".fret-row", ".fret-cell");
 
   // The tuning row appears only because a guitar has alternate tunings.
   await page.locator(".play-bar .value-chip").click();
@@ -743,6 +799,7 @@ async function walkPlay(page, label, { wide = false } = {}) {
     throw new Error(`${label}: turning the wind chart reordered the scale`);
   }
   await turnTo(page, label, "horizontal");
+  await assertTapTargets(page, `${label} dizi`, ".hole-card", "horizontal");
 
   await page.locator(".hole-card").first().dispatchEvent("pointerdown");
   await page.waitForSelector(".hole-card.is-down", { timeout: 4000 });

@@ -40,13 +40,24 @@ const anchor = ref<HTMLElement | null>(null);
 const open = computed(() => openSheet.value === props.name);
 
 /**
- * Which way the popover opens. It always opens toward the room it has:
- * a chip near the floor of the page has a sheet's worth of space above
- * it, and a chip in a bar at the top has that space below instead. The
- * decision is made where the chip actually is, so moving a control to
- * another part of the page cannot leave its editor off-screen.
+ * Which way the popover opens, and how tall it may be.
+ *
+ * It opens toward the room it has, measured from the chip's own edge: the
+ * space below it is what is left of the window past its bottom, and the
+ * space above it is everything down to the top. Comparing the two is what
+ * a midpoint test only approximates — a chip just under the halfway line
+ * has less room below it than above, and the midpoint rule gets that
+ * backwards.
+ *
+ * The height is capped to the room it chose. A sheet taller than the side
+ * it opens toward is off-screen however the choice was made, and the
+ * document cannot always scroll far enough to reach it.
  */
 const below = ref(false);
+const room = ref(0);
+
+/** Space between the chip and the edge of the window, minus the gap. */
+const GAP = 10;
 
 function toggle(): void {
   if (open.value) {
@@ -54,7 +65,12 @@ function toggle(): void {
     return;
   }
   const box = anchor.value?.getBoundingClientRect();
-  below.value = box ? box.top < window.innerHeight / 2 : false;
+  if (box) {
+    const below_ = window.innerHeight - box.bottom - GAP * 2;
+    const above = box.top - GAP * 2;
+    below.value = below_ >= above;
+    room.value = Math.max(120, below.value ? below_ : above);
+  }
   openSheet.value = props.name;
 }
 
@@ -111,6 +127,7 @@ onBeforeUnmount(() => {
       v-if="open"
       class="sheet"
       :class="[`is-${align ?? 'start'}`, { 'is-below': below }]"
+      :style="{ '--sheet-room': `${room}px` }"
       role="dialog"
       :aria-label="label"
     >
