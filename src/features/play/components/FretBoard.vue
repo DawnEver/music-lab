@@ -1,6 +1,11 @@
 <script setup lang="ts">
 /**
- * The fretboard, in either orientation.
+ * The neck, in either orientation, fretted or not.
+ *
+ * A violin's cells are semitones up from the open string exactly as a
+ * guitar's are, so the grid is the same grid. What a violin has not got is
+ * frets, and the inlay marks are a guitar's decoration — drawing them on a
+ * stopped string would be the board lying about the instrument.
  *
  * Rows and columns are built as one generic grid and the orientation only
  * decides which axis is which — a transposed matrix, not a second
@@ -17,9 +22,17 @@ import { NOTE_NAMES } from "../../../lib/music-theory.js";
 
 const props = defineProps<{
   preset: TuningPreset;
+  /** Semitones up from the open string, fretted or stopped. */
   frets: number;
   sounding: Set<number>;
   orientation: Orientation;
+  /**
+   * Whether the neck is played without frets. Named for the absence
+   * because an absent boolean prop is `false` in Vue, not `undefined` —
+   * so a prop called `marked` would mean "no marks" on every board that
+   * did not pass it, which is the opposite of the default anyone wants.
+   */
+  fretless?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -71,7 +84,7 @@ const grid = computed<{ headings: { label: string; fret: number | null }[]; line
 });
 
 function inlay(fret: number | null): string {
-  if (fret === null) return "";
+  if (fret === null || props.fretless) return "";
   if (OCTAVE_FRETS.includes(fret)) return "double";
   return MARKER_FRETS.includes(fret) ? "single" : "";
 }

@@ -61,6 +61,20 @@ export interface StringSpec {
   attack?: number;
   /** The body it is strung on. */
   body?: BodyResonance[];
+  /**
+   * Present when the string is bowed rather than plucked.
+   *
+   * A bow is not a pluck that lasts longer. It feeds energy into the
+   * string continuously, so the excitation is never finished and the note
+   * holds for as long as the bow moves — take the bow away and what is
+   * left is a string ringing down, which is what letting go sounds like.
+   */
+  bow?: {
+    /** How hard it presses, 0..1. More pressure, more energy in. */
+    pressure: number;
+    /** How much of that energy is the hair's own noise. */
+    noise: number;
+  };
   gain?: number;
 }
 
@@ -220,8 +234,23 @@ function applyBody(samples: Float32Array, sampleRate: number, body?: BodyResonan
   }
 }
 
-/** Scale to `gain`, and leave nothing below the noise floor to click on. */
-function finish(samples: Float32Array, gain: number): Float32Array {
+/**
+ * Bring a rendered note to its level.
+ *
+ * A pluck is one gesture with one peak, so scaling that peak to `gain` is
+ * the level. A driven string is not: the harder it is driven the peakier
+ * its waveform gets, so peak-normalising it makes a hard bow *quieter*
+ * than a light one — the loudness is in the ratio, and the ratio is the
+ * first thing a peak scale throws away. A driven model is already bounded
+ * by its own saturation, so its gain is applied as it stands.
+ */
+function finish(samples: Float32Array, gain: number, driven = false): Float32Array {
+  if (driven) {
+    for (let index = 0; index < samples.length; index += 1) {
+      samples[index] = clamp(samples[index] * gain, -1, 1);
+    }
+    return samples;
+  }
   let peak = 0;
   for (let index = 0; index < samples.length; index += 1) {
     const value = Math.abs(samples[index]);
@@ -248,11 +277,12 @@ export function renderString(spec: StringSpec, random: RandomSource): Float32Arr
   const out = new Float32Array(total);
 
   // One trip round the loop is one period, so the loop's gain per trip is
-  // what sets how long the note rings.
+  // what sets how long the note rings. A bowed string is not left to ring
+  // at all: it is driven, so the loop only has to be stable.
   const damping = clamp(spec.damping, 0, 0.95);
   const stiffness = clamp(spec.stiffness ?? 0, 0, 0.9);
   const periods = Math.max(spec.ring, 0.01) * frequency;
-  const loopGain = Math.pow(10, -3 / periods);
+  const loopGain = spec.bow ? 0.999 : Math.pow(10, -3 / periods);
 
   const omega = (2 * Math.PI * frequency) / sampleRate;
   const length = Math.max(2.5, sampleRate / frequency - loopDelay(omega, damping, stiffness));
@@ -275,8 +305,14 @@ export function renderString(spec: StringSpec, random: RandomSource): Float32Arr
 
   const pluck = clamp(spec.pluckPosition ?? 0.25, 0.02, 0.98);
   const notch = Math.max(1, Math.round(pluck * length));
-  for (let index = 0; index < size; index += 1) {
-    line[index] = burst[index % burstLength] - burst[(index - notch + burstLength * 2) % burstLength];
+  if (spec.bow) {
+    // Nothing has been plucked, so the string starts still and the bow is
+    // what moves it.
+    line.fill(0);
+  } else {
+    for (let index = 0; index < size; index += 1) {
+      line[index] = burst[index % burstLength] - burst[(index - notch + burstLength * 2) % burstLength];
+    }
   }
 
   // The loop itself. `dull` is the filter state and the allpass history is
@@ -288,6 +324,13 @@ export function renderString(spec: StringSpec, random: RandomSource): Float32Arr
   const apY = new Float32Array(STIFFNESS_SECTIONS);
   let dullState = 0;
   let write = 0;
+
+  // A bow's own noise, low-passed by how much hair is in contact with the
+  // string. Rosin on hair is not white noise; it is the top end of a
+  // scrape, and leaving it white makes the bow sound like tape hiss.
+  const bow = spec.bow;
+  const bowTone = clamp(spec.brightness ?? 0.6, 0, 1) * 0.85;
+  let bowState = 0;
 
   for (let index = 0; index < total; index += 1) {
     let value = readDelay(line, write, length);
@@ -306,18 +349,34 @@ export function renderString(spec: StringSpec, random: RandomSource): Float32Arr
     }
 
     dullState = value * (1 - damping) + dullState * damping;
-    const fed = dullState * loopGain;
+    let fed = dullState * loopGain;
+
+    if (bow) {
+      const scrape = random() * 2 - 1;
+      bowState = bowState * bowTone + scrape * (1 - bowTone);
+      fed += bowState * bow.noise * bow.pressure;
+      // Rosin does not grip harder forever. Friction saturates, and that
+      // saturation is what sets the string's level — not the loop's loss.
+      // Without it a driven loop either runs away or has to be damped so
+      // hard it stops being a string.
+      fed = fed / (1 + Math.abs(fed));
+    }
+
     line[write] = fed;
     write = (write + 1) % size;
 
     // A hammer takes a moment to arrive; a pick does not. Scoring the
     // onset in rather than switching it on is most of the difference
-    // between a piano and a harpsichord.
+    // between a piano and a harpsichord. A bow is slower still — it has to
+    // catch the string before it can drive it.
     out[index] = index < attackSamples ? value * (index / attackSamples) : value;
   }
 
   applyBody(out, sampleRate, spec.body);
-  return finish(out, spec.gain ?? 0.8);
+  // A bow's own gain is set at the string and shaped by the body; scaling
+  // it to its own peak would undo the pressure that produced it.
+  const scale = (spec.gain ?? 0.8) * (spec.bow ? 2.2 : 1);
+  return finish(out, scale, spec.bow !== undefined);
 }
 
 /**

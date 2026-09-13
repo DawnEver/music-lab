@@ -726,6 +726,29 @@ async function walkPlay(page, label, { wide = false } = {}) {
   if (lit < 1) throw new Error(`${label}: pressing a fret should light it`);
   await page.locator(".fret-cell").first().dispatchEvent("pointerup");
 
+  // A fifth surface: a string you stop with a finger. The grid is the same
+  // grid, and the only thing missing is the frets.
+  await page.locator(".play-bar .value-chip").click();
+  await page.waitForSelector('[data-instrument="violin"]', { timeout: 4000 });
+  await page.locator('[data-instrument="violin"]').click();
+  await page.waitForSelector(".fret-board", { timeout: 8000 });
+  await page.keyboard.press("Escape");
+  if ((await page.locator(".fret-cell.is-marked").count()) !== 0) {
+    throw new Error(`${label}: a stopped string has no frets, so no fret marks`);
+  }
+  if ((await page.locator(".fret-cell").count()) === 0) {
+    throw new Error(`${label}: a violin should still draw a neck to stop`);
+  }
+  await assertStageOwnsTheRest(page, `${label} stopped`, ".play-stage");
+  await assertRowsHoldTheirCells(page, `${label} stopped`, ".fret-row", ".fret-cell");
+  await assertNoVOverflow(page, `${label} stopped`);
+  await page.locator(".fret-cell").first().dispatchEvent("pointerdown");
+  await page.waitForSelector(".fret-cell.is-down", { timeout: 4000 });
+  await page.locator(".fret-cell").first().dispatchEvent("pointerup");
+  await page.waitForFunction(() => document.querySelectorAll(".fret-cell.is-down").length === 0, {
+    timeout: 4000
+  });
+
   // Third surface: the kit has no pitch, so it has pads and no tuning row.
   await page.locator(".play-bar .value-chip").click();
   await page.waitForSelector('[data-instrument="drums"]', { timeout: 4000 });

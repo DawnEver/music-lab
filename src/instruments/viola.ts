@@ -4,6 +4,8 @@ import type { InstrumentDefinition } from "./types.js";
 export const viola = {
   id: "viola",
   name: { zh: "中提琴", en: "Viola" },
+  timbre: "bowed",
+  surface: { kind: "stopped", stops: 12 },
   category: "bowed",
   tuning: {
     layout: "list",

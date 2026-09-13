@@ -147,6 +147,25 @@ describe("FretBoard", () => {
     expect(cells[1].find(".fret-note").text()).toBe("F");
   });
 
+  it("draws a stopped neck without a guitar's inlays", () => {
+    const wrapper = mount(FretBoard, {
+      props: {
+        preset: getPreset(getTunedInstrument("violin")!, "standard"),
+        frets: 7,
+        sounding: new Set<number>(),
+        orientation: "horizontal",
+        fretless: true
+      }
+    });
+    expect(wrapper.findAll(".fret-cell.is-marked")).toHaveLength(0);
+    // The grid is still the grid: four strings, seven stops, the nut.
+    expect(wrapper.findAll(".fret-row")).toHaveLength(5);
+    expect(wrapper.findAll(".fret-cell")).toHaveLength(4 * 8);
+    // And every cell still carries the note it sounds: the first string of
+    // a violin is its E5, which is the row on top.
+    expect(wrapper.findAll(".fret-cell")[0].attributes("aria-label")).toBe("E5");
+  });
+
   it("marks the inlay frets on the board, not only in the numbers", () => {
     const wrapper = board("standard", 5);
     const marked = wrapper.findAll(".fret-cell.is-marked");

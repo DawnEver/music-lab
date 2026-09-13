@@ -21,6 +21,8 @@ function makePreset(id: string, name: { zh: string; en: string }, notes: number[
 export const guqin = {
   id: "guqin",
   name: { zh: "古琴", en: "Guqin" },
+  timbre: "nylon",
+  surface: { kind: "stopped", stops: 12 },
   category: "plucked",
   tuning: {
     layout: "list",

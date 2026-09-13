@@ -206,6 +206,57 @@ describe("renderString", () => {
     expect(Array.from(first)).toEqual(Array.from(second));
   });
 
+  /*
+   * A bowed string is not a pluck that lasts longer. The bow keeps feeding
+   * it, so the level settles instead of decaying — which is the whole
+   * difference between a violin and a guitar with a long sustain.
+   */
+  describe("bowing", () => {
+    const bowed = (overrides = {}) =>
+      note({
+        ring: 1,
+        damping: 0.35,
+        stiffness: 0.2,
+        body: [{ hz: 300, q: 2, db: 8 }, { hz: 700, q: 1.5, db: 5 }],
+        bow: { pressure: 0.5, noise: 0.35 },
+        attack: 0.06,
+        seconds: 3,
+        ...overrides
+      }).samples;
+
+    it("holds its level instead of decaying", () => {
+      const samples = bowed();
+      // A plucked string of the same `ring` would be 60dB down by now.
+      expect(fallDb(samples, 0.6, 2.4)).toBeLessThan(6);
+    });
+
+    it("still takes its time to speak", () => {
+      const samples = bowed();
+      const early = rms(samples, 0, 0.02);
+      const settled = rms(samples, 0.4, 0.6);
+      expect(settled).toBeGreaterThan(early * 4);
+    });
+
+    it("gets louder the harder the bow presses", () => {
+      const light = bowed({ bow: { pressure: 0.12, noise: 1 } });
+      const hard = bowed({ bow: { pressure: 0.9, noise: 1 } });
+      expect(rms(hard, 1, 2)).toBeGreaterThan(rms(light, 1, 2) * 2);
+    });
+
+    it("stays inside the buffer, which a driven loop need not", () => {
+      const samples = bowed({ bow: { pressure: 1, noise: 1 }, ring: 30 });
+      let peak = 0;
+      for (const value of samples) peak = Math.max(peak, Math.abs(value));
+      expect(peak).toBeLessThanOrEqual(1.0001);
+      expect(Number.isFinite(peak)).toBe(true);
+    });
+
+    it("plays the pitch it was asked for while it is being driven", () => {
+      const samples = bowed();
+      expect(Math.abs(centsOff(samples, 220))).toBeLessThan(8);
+    });
+  });
+
   it("never leaves the buffer", () => {
     for (const gain of [0.2, 1]) {
       const { samples } = note({ gain });

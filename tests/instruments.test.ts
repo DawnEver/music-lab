@@ -1,16 +1,18 @@
 import { describe, expect, it } from "vitest";
 import {
   allInstruments,
-  getInstrument,
-  getTunedInstrument,
-  tunedInstruments,
-  getPreset,
-  nearestTarget,
-  stringStatus,
   buildTargets,
   deriveRange,
+  getInstrument,
+  getPreset,
+  getTunedInstrument,
   instrumentCategories,
-  instrumentsByCategory
+  instrumentsByCategory,
+  isPlayable,
+  isTuned,
+  nearestTarget,
+  stringStatus,
+  tunedInstruments
 } from "../src/instruments/index.js";
 import { harmonica } from "../src/instruments/harmonica.js";
 import { TIMBRES } from "../src/audio/timbre.js";
@@ -470,6 +472,43 @@ describe("playable winds", () => {
       for (const preset of instrument.tuning!.presets) {
         expect(preset.fingerings?.length, `${instrument.id}/${preset.id}`).toBe(preset.notes.length);
       }
+    }
+  });
+
+  /*
+   * Nine instruments had no way to be played at all: the whole bowed
+   * family, the two Chinese zithers, and nothing else that a finger stops.
+   * They were in the tuner and absent from the play tool, which is how a
+   * player finds out that "every instrument" was not true.
+   */
+  it("plays a string you stop with a finger, not only one with frets", () => {
+    for (const id of [
+      "violin",
+      "viola",
+      "cello",
+      "double-bass",
+      "erhu",
+      "zhonghu",
+      "gaohu",
+      "guzheng",
+      "guqin"
+    ]) {
+      const instrument = getInstrument(id)!;
+      expect(isPlayable(instrument), id).toBe(true);
+      expect(instrument.surface!.kind, id).toBe("stopped");
+      // A stopped string has no frets to mark, and the cells are semitones
+      // up from the open string exactly as a fret's are — so it needs a
+      // tuning to stop along.
+      expect(isTuned(instrument), id).toBe(true);
+    }
+  });
+
+  it("gives a bowed string a voice that holds rather than decays", () => {
+    for (const id of ["violin", "cello", "erhu", "zhonghu"]) {
+      const voice = TIMBRES.find((entry) => entry.id === getInstrument(id)!.timbre)!;
+      expect(voice.model?.kind, id).toBe("string");
+      // `bow` is what makes it driven rather than plucked.
+      expect(voice.model && "bow" in voice.model ? voice.model.bow : null, id).toBeTruthy();
     }
   });
 

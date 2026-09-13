@@ -110,6 +110,13 @@ export interface LayoutVariant {
 export type PlaySurface =
   | { kind: "keys" }
   | { kind: "frets"; frets: number }
+  /**
+   * A string you stop with a finger. The cells are semitones up from the
+   * open string, exactly as a fret's are — what is missing is the frets
+   * themselves. A violin has none, and drawing inlays on it would be
+   * decoration that lies about the instrument.
+   */
+  | { kind: "stopped"; stops: number }
   | { kind: "pads"; pieces: KitPiece[] }
   | { kind: "holes" };
 

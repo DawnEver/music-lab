@@ -4,6 +4,8 @@ import type { InstrumentDefinition } from "./types.js";
 export const gaohu = {
   id: "gaohu",
   name: { zh: "高胡", en: "Gaohu" },
+  timbre: "huqin",
+  surface: { kind: "stopped", stops: 12 },
   category: "bowed",
   tuning: {
     layout: "list",

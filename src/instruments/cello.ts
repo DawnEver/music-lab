@@ -4,6 +4,8 @@ import type { InstrumentDefinition } from "./types.js";
 export const cello = {
   id: "cello",
   name: { zh: "大提琴", en: "Cello" },
+  timbre: "bowed",
+  surface: { kind: "stopped", stops: 12 },
   category: "bowed",
   tuning: {
     layout: "list",

@@ -33,7 +33,9 @@ export type TimbreId =
   | "crash"
   | "ride"
   | "flute"
-  | "reed";
+  | "reed"
+  | "bowed"
+  | "huqin";
 
 export interface Timbre {
   id: TimbreId;
@@ -91,6 +93,66 @@ export interface Timbre {
  * damps what is left) while the organ holds its level until let go.
  */
 export const TIMBRES: Timbre[] = [
+  {
+    // A bowed string: the same loop as a pluck, with the excitation left
+    // on. What makes it read as a violin rather than a sawtooth is the
+    // body — a violin's air resonance near 290Hz and its wood resonance
+    // near 450 are fixed, and a note played anywhere on the instrument is
+    // shaped by them. A filter that transposed with the note would sound
+    // like a synth, however good the string underneath it was.
+    id: "bowed",
+    waveform: "sawtooth",
+    gain: 0.75,
+    attack: 0.07,
+    ring: 1,
+    model: {
+      kind: "string",
+      ring: 1,
+      ringTilt: 0.1,
+      damping: 0.4,
+      dampingTilt: 0.1,
+      stiffness: 0.24,
+      brightness: 0.55,
+      attack: 0.07,
+      bow: { pressure: 0.5, noise: 0.4 },
+      body: [
+        { hz: 290, q: 2.2, db: 9 },
+        { hz: 460, q: 2, db: 6 },
+        { hz: 1100, q: 1.4, db: 4 },
+        { hz: 2600, q: 1.1, db: 3 }
+      ],
+      // A driven string is not scaled to its own peak — that is what makes
+      // bowing harder louder — so its level has to be set here instead.
+      gain: 0.75
+    }
+  },
+  {
+    // The huqin family: a small soundbox with a snakeskin face, so its
+    // formants sit higher and ring harder than a violin's. That nasality
+    // is the instrument, not a fault in it.
+    id: "huqin",
+    waveform: "sawtooth",
+    gain: 0.68,
+    attack: 0.08,
+    ring: 1,
+    model: {
+      kind: "string",
+      ring: 1,
+      ringTilt: 0.1,
+      damping: 0.45,
+      dampingTilt: 0.1,
+      stiffness: 0.2,
+      brightness: 0.6,
+      attack: 0.08,
+      bow: { pressure: 0.45, noise: 0.45 },
+      body: [
+        { hz: 520, q: 2.6, db: 10 },
+        { hz: 1250, q: 2, db: 8 },
+        { hz: 2700, q: 1.5, db: 6 }
+      ],
+      gain: 0.68
+    }
+  },
   {
     // Hammer on string: near-instant attack, a long decay, and a spectrum
     // that dulls as the note dies — the filter envelope is doing that.

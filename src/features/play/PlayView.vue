@@ -55,9 +55,16 @@ const pieces = computed(() => (surface.value.kind === "pads" ? surface.value.pie
 const wind = computed(() =>
   surface.value.kind === "holes" && isTuned(instrument.value) ? instrument.value.tuning.wind : null
 );
-const frets = computed(() =>
-  instrument.value.surface.kind === "frets" ? instrument.value.surface.frets : 0
-);
+/** Semitones up from the open string: frets on one, stops on the other. */
+const frets = computed(() => {
+  const surface = instrument.value.surface;
+  if (surface.kind === "frets") return surface.frets;
+  if (surface.kind === "stopped") return surface.stops;
+  return 0;
+});
+
+/** A stopped string has no frets, so the board draws none of their marks. */
+const fretted = computed(() => instrument.value.surface.kind === "frets");
 
 /** Every surface turns; the two options are the same two for all of them. */
 const ORIENTATIONS: Array<{ id: Orientation; key: "playHorizontal" | "playVertical" }> = [
@@ -79,7 +86,8 @@ function onMedia(event: MediaQueryListEvent | MediaQueryList): void {
 const hint = computed(() => {
   if (isKeys.value) return narrow.value ? t("playKeysHintTouch") : t("playKeysHint");
   if (pieces.value.length) return t("playPadsHint");
-  return wind.value ? t("playHolesHint") : t("playFretsHint");
+  if (wind.value) return t("playHolesHint");
+  return fretted.value ? t("playFretsHint") : t("playStopsHint");
 });
 
 const octaveLabel = computed(() => `C${Math.floor(settings.baseMidi / 12) - 1}`);
@@ -229,6 +237,7 @@ onBeforeUnmount(() => {
       :frets="frets"
       :sounding="sounding"
       :orientation="orientation"
+      :fretless="!fretted"
       @down="(midi: number) => noteOn(midi)"
       @up="noteOff"
     />
