@@ -26,6 +26,20 @@ describe("matching a recording to a model's level", () => {
     expect(0.5 * loud).toBeCloseTo(0.16, 1);
   });
 
+  /*
+   * A bank has holes in it, and the closest note to what was asked for
+   * can be one of them. FluidR3's contrabass has a C4 that is three
+   * seconds of nothing, and taking it would make the double bass a
+   * recording down low and a model at middle C — one instrument changing
+   * voice at a pitch.
+   */
+  it("skips a note the bank cannot play, rather than giving up", () => {
+    const silent = bufferOf(3, () => 0);
+    const good = bufferOf(3, (i) => (i % 2 ? 0.2 : -0.2));
+    expect(loudnessGain(silent)).toBe(0);
+    expect(loudnessGain(good)).toBeGreaterThan(0);
+  });
+
   it("calls silence what it is rather than scaling it up", () => {
     // FluidR3's contrabass has a C4 that is three seconds of nothing: the
     // note is outside the instrument. A gain would make it louder silence;

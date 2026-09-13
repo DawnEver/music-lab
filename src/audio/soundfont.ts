@@ -184,13 +184,40 @@ export async function sampleFor(
     }
   }
 
-  let nearest: number | null = null;
-  for (const candidate of bank.encoded.keys()) {
-    if (nearest === null || Math.abs(candidate - midi) < Math.abs(nearest - midi)) nearest = candidate;
-  }
-  if (nearest === null) return null;
+  return await nearestUsable(context, bank, midi, true);
+}
 
-  return usable(bank.decoded.get(nearest), nearest - midi) ?? (await decode(context, bank, nearest, midi));
+/**
+ * The closest note the bank can actually play.
+ *
+ * Not simply the closest note: a bank has holes in it, and FluidR3's
+ * contrabass has a C4 that is three seconds of silence. Taking that one
+ * and giving up would make the double bass a recording down low and a
+ * model at middle C — one instrument changing voice at a pitch, which is
+ * a worse answer than one note resampled a few semitones further than it
+ * had to be.
+ */
+async function nearestUsable(
+  context: BaseAudioContext,
+  bank: Bank,
+  midi: number,
+  allowDecode: boolean
+): Promise<SampledNote | null> {
+  const candidates = [...bank.encoded.keys()].sort(
+    (a, b) => Math.abs(a - midi) - Math.abs(b - midi)
+  );
+  for (const candidate of candidates) {
+    const cached = bank.decoded.get(candidate);
+    if (cached) {
+      const note = usable(cached, candidate - midi);
+      if (note) return note;
+      continue;
+    }
+    if (!allowDecode) continue;
+    const note = await decode(context, bank, candidate, midi);
+    if (note) return note;
+  }
+  return null;
 }
 
 /** The note, if what came back is a note. */
@@ -253,12 +280,17 @@ export function sampleNow(name: string, midi: number): SampledNote | null {
   const bank = banks.get(name);
   if (!bank || bank.decoded.size === 0) return null;
 
-  let nearest: number | null = null;
+  let best: SampledNote | null = null;
+  let bestDistance = Infinity;
   for (const candidate of bank.decoded.keys()) {
-    if (nearest === null || Math.abs(candidate - midi) < Math.abs(nearest - midi)) nearest = candidate;
+    const distance = Math.abs(candidate - midi);
+    if (distance >= bestDistance) continue;
+    const note = usable(bank.decoded.get(candidate), candidate - midi);
+    if (!note) continue;
+    best = note;
+    bestDistance = distance;
   }
-  if (nearest === null) return null;
-  return usable(bank.decoded.get(nearest), nearest - midi);
+  return best;
 }
 
 /*
