@@ -19,8 +19,10 @@ import {
   preset,
   setInstrument,
   setPreset,
+  setVoiceTier,
   setVolume,
-  settings
+  settings,
+  VOICE_TIERS
 } from "../stores/play.js";
 import { SOUNDFONT_CREDIT } from "../../../audio/soundfont.js";
 
@@ -76,6 +78,23 @@ const presets = computed(() => {
           @click="setPreset(entry.id)"
         >
           {{ entry.name[lang] }}
+        </button>
+      </div>
+    </div>
+
+    <div class="metro-field">
+      <span class="slider-label">{{ t("playVoice") }}</span>
+      <div class="metro-chips">
+        <button
+          v-for="tier in VOICE_TIERS"
+          :key="tier"
+          type="button"
+          class="metro-chip"
+          :class="{ 'is-active': settings.voiceTier === tier }"
+          :data-tier="tier"
+          @click="setVoiceTier(tier)"
+        >
+          {{ t(`playVoice_${tier}`) }}
         </button>
       </div>
     </div>

@@ -3357,9 +3357,15 @@
   width: clamp(calc(var(--kbd-white) * 9mm), 100%, calc(var(--kbd-white) * 23.5mm));
 }
 
-/* Down: the same board on the other axis — the run is the height. */
+/*
+ * Down: the same board on the other axis — the run is the height, and the
+ * cross axis is a key's *length*, which is bounded for the same reason its
+ * width is. A white key is about 150mm from front to back; past that a
+ * key is not longer, it is a different object, so the board stops growing
+ * and centres itself.
+ */
 .kbd-board.is-vertical {
-  width: 100%;
+  width: min(100%, 567px);
   height: clamp(calc(var(--kbd-white) * 9mm), 100%, calc(var(--kbd-white) * 23.5mm));
 }
 
@@ -3435,13 +3441,6 @@
 .kbd-note {
   font-weight: 700;
   opacity: 0.75;
-}
-
-.kbd-hint {
-  margin: 0;
-  color: var(--muted);
-  font-size: 12px;
-  text-align: center;
 }
 
 @media (max-width: 720px) {
@@ -3713,6 +3712,26 @@
 }
 
 /*
+ * The one control a phone's player reaches for to change the shape of the
+ * instrument, at a target a thumb can find. This comes after the rule it
+ * overrides: at equal specificity the last one wins, and a phone rule
+ * placed above its base is a rule that does nothing.
+ */
+@media (max-width: 720px) {
+  .orient-chip {
+    min-height: 34px;
+  }
+
+  /* Three rows of chrome above an instrument is a third of the screen
+     spent on saying what it is. The hint is the one that gives way: it is
+     advice, and it is advice about the thing directly underneath it. */
+  .play-hint {
+    flex: 1 1 90px;
+    font-size: 11px;
+  }
+}
+
+/*
  * The instrument is the page.
  *
  * Not a `.card`: a card insets its content by a padding and rounds its
@@ -3726,7 +3745,6 @@
   display: flex;
   flex-direction: column;
   align-items: stretch;
-  justify-content: stretch;
   min-width: 0;
   min-height: 0;
 }

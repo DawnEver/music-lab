@@ -96,6 +96,8 @@ function readOrientation(value: unknown): Orientation | undefined {
  * The stored preferences, including the single field this used to be.
  * One direction for the whole tool was read as a choice about necks,
  * because a neck was the only thing that had one.
+ *
+ * Retires in v3.0, with the other compatibility reads.
  */
 function readOrientations(value: unknown, legacy: unknown): Partial<Record<SurfaceKind, Orientation>> {
   const out: Partial<Record<SurfaceKind, Orientation>> = {};

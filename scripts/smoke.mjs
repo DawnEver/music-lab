@@ -644,27 +644,30 @@ async function walkPlay(page, label, { wide = false } = {}) {
   }
   await assertNoHOverflow(page, `${label} keyboard`);
 
-  // Three ways to sound the same instrument. Every one of them plays the
-  // instrument in front of the player: a tier is a preference, not a mode,
-  // and a bank that will not load costs the difference between a model and
-  // a recording rather than the note.
+  // Three ways to sound the same instrument, chosen once in the setup
+  // sheet rather than kept on a bar that has to hold an instrument.
+  // Every one of them plays the instrument in front of the player: a tier
+  // is a preference, not a mode, and a bank that will not load costs the
+  // difference between a model and a recording rather than the note.
+  await page.locator(".play-bar .value-chip").click();
   for (const tier of ["synth", "hybrid", "samples"]) {
-    const chip = page.locator(`.play-bar [data-tier="${tier}"]`);
+    const chip = page.locator(`[data-tier="${tier}"]`);
     if ((await chip.count()) !== 1) throw new Error(`${label}: no ${tier} tier chip`);
   }
-  await page.locator('.play-bar [data-tier="synth"]').click();
-  await page.locator(".kbd-key").first().dispatchEvent("pointerdown");
-  await page.waitForSelector(".kbd-key.is-down", { timeout: 4000 });
-  await page.locator(".kbd-key").first().dispatchEvent("pointerup");
-  await page.locator('.play-bar [data-tier="samples"]').click();
-  // The bank arrives in the background, so the note is pressed at once.
+  await page.locator('[data-tier="samples"]').click();
+  // The sheet closes, so the instrument is not played through it — and the
+  // bank arrives in the background, so the note is pressed at once.
+  await page.keyboard.press("Escape");
+  await page.waitForTimeout(150);
   await page.locator(".kbd-key").nth(2).dispatchEvent("pointerdown");
   await page.waitForSelector(".kbd-key.is-down", { timeout: 4000 });
   await page.locator(".kbd-key").nth(2).dispatchEvent("pointerup");
   await page.waitForFunction(() => document.querySelectorAll(".kbd-key.is-down").length === 0, {
     timeout: 4000
   });
-  await page.locator('.play-bar [data-tier="synth"]').click();
+  await page.locator(".play-bar .value-chip").click();
+  await page.locator('[data-tier="synth"]').click();
+  await page.keyboard.press("Escape");
   await assertNoVOverflow(page, `${label} tiers`);
 
   // A keyboard turns too: on the other axis a key's long side is the
