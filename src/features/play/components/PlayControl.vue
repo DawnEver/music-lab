@@ -43,6 +43,16 @@ const groups = computed(() =>
 /** A kit's recordings are its own set; a bank has no percussion at all. */
 const isKit = computed(() => instrument.value.surface.kind === "pads");
 
+/** One of three, so it is a radio group rather than three switches. */
+function onTierKey(event: KeyboardEvent, index: number): void {
+  const step = event.key === "ArrowRight" || event.key === "ArrowDown" ? 1
+    : event.key === "ArrowLeft" || event.key === "ArrowUp" ? -1
+    : 0;
+  if (step === 0) return;
+  event.preventDefault();
+  setVoiceTier(VOICE_TIERS[(index + step + VOICE_TIERS.length) % VOICE_TIERS.length]);
+}
+
 const presets = computed(() => {
   const current = instrument.value;
   return isTuned(current) ? current.tuning.presets : [];
@@ -87,15 +97,19 @@ const presets = computed(() => {
 
     <div class="metro-field">
       <span class="slider-label">{{ t("playVoice") }}</span>
-      <div class="metro-chips">
+      <div class="metro-chips" role="radiogroup" :aria-label="t('playVoice')">
         <button
-          v-for="tier in VOICE_TIERS"
+          v-for="(tier, index) in VOICE_TIERS"
           :key="tier"
           type="button"
+          role="radio"
           class="metro-chip"
           :class="{ 'is-active': settings.voiceTier === tier }"
           :data-tier="tier"
+          :aria-checked="settings.voiceTier === tier"
+          :tabindex="settings.voiceTier === tier ? 0 : -1"
           @click="setVoiceTier(tier)"
+          @keydown="onTierKey($event, index)"
         >
           {{ t(`playVoice_${tier}`) }}
         </button>

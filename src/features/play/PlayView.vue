@@ -88,6 +88,24 @@ const ORIENTATIONS: Array<{ id: Orientation; key: "playHorizontal" | "playVertic
 ];
 
 /**
+ * A one-of-two choice, so that is what it says it is.
+ *
+ * `aria-pressed` on two adjacent buttons describes two switches that
+ * happen to be near each other, and a screen reader reads it that way.
+ * Radios say "exactly one of these", which is the truth — and the arrow
+ * keys are how a radio group is meant to be moved through.
+ */
+function onOrientKey(event: KeyboardEvent, index: number): void {
+  const step = event.key === "ArrowRight" || event.key === "ArrowDown" ? 1
+    : event.key === "ArrowLeft" || event.key === "ArrowUp" ? -1
+    : 0;
+  if (step === 0) return;
+  event.preventDefault();
+  const next = ORIENTATIONS[(index + step + ORIENTATIONS.length) % ORIENTATIONS.length];
+  setOrientation(next.id);
+}
+
+/**
  * A phone has no Z–M row to play, and its keyboard scrolls instead. The
  * advice differs, so the copy has to.
  */
@@ -175,6 +193,12 @@ onBeforeUnmount(() => {
 });
 </script>
 
+<!--
+  Two root nodes, and the layout depends on it: `.dashboard:has(.play-stage)`
+  makes the stage's row the one that stretches, so the bar has to come
+  first and the stage has to be the thing that fills. Adding a third root
+  would give the grid a third row and take the room from the instrument.
+-->
 <template>
   <!-- Above the stage, outside any card: .card clips, and a sheet must not
        be clipped. -->
@@ -183,16 +207,19 @@ onBeforeUnmount(() => {
       <PlayControl />
     </ControlSheet>
 
-    <div class="orient-chips" role="group" :aria-label="t('playOrientation')">
+    <div class="orient-chips" role="radiogroup" :aria-label="t('playOrientation')">
       <button
-        v-for="entry in ORIENTATIONS"
+        v-for="(entry, index) in ORIENTATIONS"
         :key="entry.id"
         type="button"
+        role="radio"
         class="orient-chip"
         :class="{ 'is-active': orientation === entry.id }"
         :data-orientation="entry.id"
-        :aria-pressed="orientation === entry.id"
+        :aria-checked="orientation === entry.id"
+        :tabindex="orientation === entry.id ? 0 : -1"
         @click="setOrientation(entry.id)"
+        @keydown="onOrientKey($event, index)"
       >
         {{ t(entry.key) }}
       </button>
