@@ -22,7 +22,8 @@ import {
   getPlayableInstrument,
   getPreset,
   isTuned,
-  playableInstruments
+  playableInstruments,
+  type PlaySurface
 } from "../../../instruments/index.js";
 import {
   DEFAULT_BASE_MIDI,
@@ -36,16 +37,20 @@ export const DEFAULT_INSTRUMENT = "piano";
 
 export type Orientation = "horizontal" | "vertical";
 
+/** The kinds of surface, which is what a direction is a fact about. */
+export type SurfaceKind = PlaySurface["kind"];
+
 export interface PlaySettings {
   instrumentId: string;
   /**
-   * Which way the instrument runs. Every surface has both: a neck across
-   * or down, keys in a row or a column, a chart read left to right or top
-   * to bottom. A phone cannot hold sixteen frets across, so the first
-   * visit picks by viewport; after that it is the player's choice and
-   * nothing overrides it.
+   * Which way each kind of surface runs, as the player last left it.
+   *
+   * The preference belongs to the surface rather than to the app. A
+   * player who wants their neck down and their keyboard across is asking
+   * for exactly that, and one field cannot hold both — it would make
+   * turning a guitar turn the piano with it.
    */
-  orientation: Orientation;
+  orientations: Partial<Record<SurfaceKind, Orientation>>;
   /** Where the computer keyboard sits, for keyed instruments. */
   baseMidi: number;
   /** Chosen tuning per fretted instrument; the tuner's choice is its own. */
@@ -56,7 +61,7 @@ export interface PlaySettings {
 function defaults(): PlaySettings {
   return {
     instrumentId: DEFAULT_INSTRUMENT,
-    orientation: "horizontal",
+    orientations: {},
     baseMidi: DEFAULT_BASE_MIDI,
     presets: {},
     volume: 0.8
@@ -70,23 +75,43 @@ export const sounding = reactive(new Set<number>());
 /** Pads hit in the last instant — a strike has no release to wait for. */
 export const struck = reactive(new Set<string>());
 
-/** Anything that is not the one word "vertical" is the default. */
-function readOrientation(value: unknown, fallback: Orientation): Orientation {
-  if (value === "vertical") return "vertical";
-  if (value === "horizontal") return "horizontal";
-  return fallback;
+/** Anything that is not one of the two words is not a preference. */
+function readOrientation(value: unknown): Orientation | undefined {
+  return value === "vertical" || value === "horizontal" ? value : undefined;
+}
+
+/**
+ * The stored preferences, including the single field this used to be.
+ * One direction for the whole tool was read as a choice about necks,
+ * because a neck was the only thing that had one.
+ */
+function readOrientations(value: unknown, legacy: unknown): Partial<Record<SurfaceKind, Orientation>> {
+  const out: Partial<Record<SurfaceKind, Orientation>> = {};
+  if (value && typeof value === "object") {
+    for (const [kind, direction] of Object.entries(value as Record<string, unknown>)) {
+      const read = readOrientation(direction);
+      if (read) out[kind as SurfaceKind] = read;
+    }
+  }
+  const older = readOrientation(legacy);
+  if (older && out.frets === undefined) out.frets = older;
+  return out;
 }
 
 const stored = storedJson<PlaySettings>("play", defaults, (raw, base) => {
   if (!raw || typeof raw !== "object") return base;
-  const value = raw as Partial<PlaySettings> & { fretOrientation?: unknown };
+  const value = raw as Partial<PlaySettings> & {
+    fretOrientation?: unknown;
+    orientation?: unknown;
+  };
   const baseMidi = typeof value.baseMidi === "number" ? value.baseMidi : base.baseMidi;
   return {
     // An instrument that no longer exists must not survive as a dead pick.
     instrumentId: getPlayableInstrument(String(value.instrumentId)) ? value.instrumentId! : base.instrumentId,
-    // `fretOrientation` is what the setting was called while only a neck
-    // had one. Read it, then it is gone.
-    orientation: readOrientation(value.orientation ?? value.fretOrientation, base.orientation),
+    // `fretOrientation` and then `orientation` are what this was called
+    // while one field was thought to be enough. Read them, then they are
+    // gone.
+    orientations: readOrientations(value.orientations, value.orientation ?? value.fretOrientation),
     baseMidi: Math.min(MAX_BASE_MIDI, Math.max(MIN_BASE_MIDI, Math.round(baseMidi / 12) * 12)),
     presets: value.presets && typeof value.presets === "object" ? { ...value.presets } : base.presets,
     volume: typeof value.volume === "number" ? Math.min(1, Math.max(0, value.volume)) : base.volume
@@ -96,6 +121,29 @@ const stored = storedJson<PlaySettings>("play", defaults, (raw, base) => {
 export const instrument = computed(
   () => getPlayableInstrument(settings.instrumentId) ?? playableInstruments[0]
 );
+
+/** Whether the window this session opened in is a narrow one. */
+let narrowViewport = false;
+
+/**
+ * Where a surface runs before the player has said.
+ *
+ * Only a neck has a reason to differ, and it is the reason the rule
+ * exists: sixteen frets across 390px are cells too small to hit. A
+ * keyboard has no such constraint — turning it is not a rotation of the
+ * same instrument but a different one — so everything else opens across
+ * rather than inheriting a rule that was never about it.
+ */
+function defaultOrientation(kind: SurfaceKind): Orientation {
+  if (kind !== "frets") return "horizontal";
+  return narrowViewport ? "vertical" : "horizontal";
+}
+
+/** The direction the surface in front of the player runs. */
+export const orientation = computed<Orientation>(() => {
+  const kind = instrument.value.surface.kind;
+  return settings.orientations[kind] ?? defaultOrientation(kind);
+});
 
 /** The tuning a fretted instrument is strung to; null for keyed ones. */
 export const preset = computed(() => {
@@ -115,20 +163,8 @@ function persist(): void {
 export const NARROW_SCREEN_PX = 720;
 
 export function hydratePlay(viewportWidth?: number): void {
-  const wasStored = stored.read();
-  Object.assign(settings, wasStored);
-  // Only a first visit takes the viewport's advice.
-  if (viewportWidth !== undefined && !hasStoredChoice()) {
-    settings.orientation = viewportWidth < NARROW_SCREEN_PX ? "vertical" : "horizontal";
-  }
-}
-
-function hasStoredChoice(): boolean {
-  try {
-    return window.localStorage.getItem("ml.play") !== null;
-  } catch (_) {
-    return false;
-  }
+  Object.assign(settings, stored.read());
+  if (viewportWidth !== undefined) narrowViewport = viewportWidth < NARROW_SCREEN_PX;
 }
 
 /**
@@ -205,8 +241,9 @@ export function setPreset(id: string): void {
 }
 
 export function setOrientation(value: Orientation): void {
-  if (settings.orientation === value) return;
-  settings.orientation = value;
+  const kind = instrument.value.surface.kind;
+  if (orientation.value === value) return;
+  settings.orientations = { ...settings.orientations, [kind]: value };
   // The surface is rearranged under the fingers, so anything down would
   // hang: the key the player is holding is not where they left it.
   allNotesOff();

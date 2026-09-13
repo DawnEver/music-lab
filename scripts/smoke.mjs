@@ -609,10 +609,13 @@ async function walkPlay(page, label, { wide = false } = {}) {
   if (last.x + last.width > board.x + board.width + 1) {
     throw new Error(`${label}: the keyboard runs past its own width`);
   }
-  // The default orientation follows the viewport, so ask the board which
-  // way it is pointing rather than assuming.
-  const expected = wide ? "horizontal" : "vertical";
-  await assertTurned(page, label, ".kbd-board", expected);
+  // Where a surface opens is a fact about the surface. Only a neck has a
+  // reason to differ — sixteen frets across 390px are cells too small to
+  // hit — so a keyboard opens across on a phone just as it does on a
+  // laptop, and the neck is the one that follows the viewport.
+  const keyOrientation = "horizontal";
+  const neckOrientation = wide ? "horizontal" : "vertical";
+  await assertTurned(page, label, ".kbd-board", keyOrientation);
   await assertKeyIsHandSized(page, `${label} keys`);
 
   // Pressing a key lights it, and releasing lets it go.
@@ -643,7 +646,7 @@ async function walkPlay(page, label, { wide = false } = {}) {
 
   // A keyboard turns too: on the other axis a key's long side is the
   // vertical one, and it is still a key the hand can find.
-  const flippedKeys = expected === "horizontal" ? "vertical" : "horizontal";
+  const flippedKeys = keyOrientation === "horizontal" ? "vertical" : "horizontal";
   await turnTo(page, label, flippedKeys);
   await assertTurned(page, label, ".kbd-board", flippedKeys);
   if ((await page.locator(".kbd-key").count()) !== keys) {
@@ -652,7 +655,7 @@ async function walkPlay(page, label, { wide = false } = {}) {
   await assertKeyIsHandSized(page, `${label} keys turned`);
   await assertStageOwnsTheRest(page, `${label} keys turned`, ".play-stage");
   await assertNoVOverflow(page, `${label} keys turned`);
-  await turnTo(page, label, expected);
+  await turnTo(page, label, keyOrientation);
 
   // The instrument decides the surface: switching to a guitar draws a
   // fretboard, and its own tunings come with it.
@@ -672,13 +675,13 @@ async function walkPlay(page, label, { wide = false } = {}) {
   // The neck runs across on a laptop and down on a phone, because sixteen
   // frets across 390px are not hittable. A first visit takes the viewport's
   // advice; after that it is the player's choice.
-  await assertTurned(page, label, ".fret-board", expected);
+  await assertTurned(page, label, ".fret-board", neckOrientation);
   // Across: a heading row plus one row per string. Down: a heading row plus
   // one row per fret, open included.
   const rows = await page.locator(".fret-row").count();
   const expectedRows = wide ? 7 : 17;
   if (rows !== expectedRows) {
-    throw new Error(`${label}: expected ${expectedRows} ${expected} rows, got ${rows}`);
+    throw new Error(`${label}: expected ${expectedRows} ${neckOrientation} rows, got ${rows}`);
   }
   await assertStageFillsWidth(page, `${label} frets`, ".play-stage", 0.99);
   await assertStageOwnsTheRest(page, `${label} frets`, ".play-stage");
@@ -692,14 +695,14 @@ async function walkPlay(page, label, { wide = false } = {}) {
 
   // Turning the neck transposes the same notes rather than losing any.
   const cellsBefore = await page.locator(".fret-cell").count();
-  const flipped = expected === "horizontal" ? "vertical" : "horizontal";
+  const flipped = neckOrientation === "horizontal" ? "vertical" : "horizontal";
   await turnTo(page, label, flipped);
   await assertTurned(page, label, ".fret-board", flipped);
   if ((await page.locator(".fret-cell").count()) !== cellsBefore) {
     throw new Error(`${label}: turning the neck changed how many notes exist`);
   }
-  await turnTo(page, label, expected);
-  await assertTurned(page, label, ".fret-board", expected);
+  await turnTo(page, label, neckOrientation);
+  await assertTurned(page, label, ".fret-board", neckOrientation);
   await assertRowsHoldTheirCells(page, `${label} frets`, ".fret-row", ".fret-cell");
 
   // The tuning row appears only because a guitar has alternate tunings.
@@ -732,6 +735,9 @@ async function walkPlay(page, label, { wide = false } = {}) {
   if ((await page.locator(".fret-board").count()) !== 0) {
     throw new Error(`${label}: a kit should not draw a fretboard`);
   }
+  // A direction belongs to the kind of surface, so the neck we just turned
+  // must not have turned the kit with it.
+  await assertTurned(page, label, ".pad-grid", "horizontal");
   const padCount = await page.locator(".pad").count();
   if (padCount !== 9) throw new Error(`${label}: expected 9 pads, got ${padCount}`);
   await assertStageFillsWidth(page, `${label} pads`, ".play-stage", 0.99);
@@ -776,6 +782,7 @@ async function walkPlay(page, label, { wide = false } = {}) {
   if ((await page.locator(".pad-grid").count()) !== 0) {
     throw new Error(`${label}: a dizi should not draw pads`);
   }
+  await assertTurned(page, label, ".hole-chart", "horizontal");
   const cards = await page.locator(".hole-card").count();
   if (cards !== 14) throw new Error(`${label}: expected two octaves of notes, got ${cards}`);
   const dots = await page.locator(".hole-card").first().locator(".hole-dot").count();

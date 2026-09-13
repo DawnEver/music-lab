@@ -29,6 +29,7 @@ import {
   allNotesOff,
   hydratePlay,
   instrument,
+  orientation,
   noteOff,
   noteOn,
   preset,
@@ -163,9 +164,9 @@ onBeforeUnmount(() => {
         :key="entry.id"
         type="button"
         class="orient-chip"
-        :class="{ 'is-active': settings.orientation === entry.id }"
+        :class="{ 'is-active': orientation === entry.id }"
         :data-orientation="entry.id"
-        :aria-pressed="settings.orientation === entry.id"
+        :aria-pressed="orientation === entry.id"
         @click="setOrientation(entry.id)"
       >
         {{ t(entry.key) }}
@@ -202,7 +203,7 @@ onBeforeUnmount(() => {
       :high-midi="highMidi"
       :base-midi="settings.baseMidi"
       :sounding="sounding"
-      :orientation="settings.orientation"
+      :orientation="orientation"
       @down="(midi: number) => noteOn(midi)"
       @up="noteOff"
     />
@@ -210,7 +211,7 @@ onBeforeUnmount(() => {
       v-else-if="pieces.length"
       :pieces="pieces"
       :struck="struck"
-      :orientation="settings.orientation"
+      :orientation="orientation"
       @hit="strike"
     />
     <HoleChart
@@ -218,7 +219,7 @@ onBeforeUnmount(() => {
       :preset="preset"
       :wind="wind"
       :sounding="sounding"
-      :orientation="settings.orientation"
+      :orientation="orientation"
       @down="(midi: number) => noteOn(midi)"
       @up="noteOff"
     />
@@ -227,7 +228,7 @@ onBeforeUnmount(() => {
       :preset="preset"
       :frets="frets"
       :sounding="sounding"
-      :orientation="settings.orientation"
+      :orientation="orientation"
       @down="(midi: number) => noteOn(midi)"
       @up="noteOff"
     />
