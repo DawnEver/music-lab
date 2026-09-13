@@ -516,6 +516,65 @@ async function assertKeyIsHandSized(page, label) {
 }
 
 /**
+ * Turned down, the keyboard is the same board turned, not the same board
+ * mirrored.
+ *
+ * A piano has a hinge and a free end: the black keys are attached along
+ * one edge, and the end with the note names on it is the one you play
+ * towards. Across, the hinge is the top edge and the free end is the
+ * bottom — so a quarter turn clockwise puts the hinge on the *right*, and
+ * the row of names down the left. The first vertical board put the hinge
+ * on the left instead, which is the mirror of that, and a mirrored
+ * keyboard is the one thing a player's hand cannot correct for: every key
+ * you reach for is one away from the one under your finger, in the
+ * direction that matters.
+ *
+ * Nothing in a unit test can see which side a black key is glued to. This
+ * measures it, in both orientations, from the two edges that carry the
+ * meaning: the hinge, and where the names are.
+ */
+async function assertHingeFacesTheFarEdge(page, label, selector) {
+  const measured = await page.evaluate((sel) => {
+    const board = document.querySelector(sel);
+    if (!board) return null;
+    const black = board.querySelector(".kbd-key.is-black");
+    const white = board.querySelector(".kbd-key:not(.is-black)");
+    const note = board.querySelector(".kbd-note");
+    if (!black || !white) return null;
+    const box = board.getBoundingClientRect();
+    const hinge = black.getBoundingClientRect();
+    const full = white.getBoundingClientRect();
+    const vertical = board.classList.contains("is-vertical");
+    return {
+      vertical,
+      // How far the hinge edge of a black key sits from the board's own.
+      hingeGap: Math.round(vertical ? box.right - hinge.right : hinge.top - box.top),
+      // And how far the names sit from the free end.
+      noteGap: note
+        ? Math.round(vertical ? note.getBoundingClientRect().left - box.left
+                              : full.bottom - note.getBoundingClientRect().bottom)
+        : null
+    };
+  }, selector);
+
+  if (!measured) throw new Error(`${label}: missing keyboard geometry`);
+  const where = measured.vertical ? "vertical" : "horizontal";
+  if (Math.abs(measured.hingeGap) > 1) {
+    const side = measured.hingeGap > 0 ? "the free end" : "past the board";
+    throw new Error(
+      `${label}: on a ${where} board the black keys sit ${measured.hingeGap}px from the hinge ` +
+        `edge, towards ${side} — the hinge is the top when the board runs across and the right when it runs down`
+    );
+  }
+  if (measured.noteGap !== null && Math.abs(measured.noteGap) > 12) {
+    throw new Error(
+      `${label}: the note names sit ${measured.noteGap}px from the free end of a ${where} key, ` +
+        `and a name belongs at the end you play towards`
+    );
+  }
+}
+
+/**
  * A card on a scale must stay a thing a thumb can hit.
  *
  * The phone rules that keep a wind chart's cards at 72px share a selector
@@ -642,6 +701,7 @@ async function walkPlay(page, label, { wide = false } = {}) {
   const neckOrientation = wide ? "horizontal" : "vertical";
   await assertTurned(page, label, ".kbd-board", keyOrientation);
   await assertKeyIsHandSized(page, `${label} keys`);
+  await assertHingeFacesTheFarEdge(page, `${label} keys`, ".kbd-board");
 
   // Pressing a key lights it, and releasing lets it go.
   await page.locator(".kbd-key").first().dispatchEvent("pointerdown");
@@ -704,6 +764,7 @@ async function walkPlay(page, label, { wide = false } = {}) {
     throw new Error(`${label}: turning the keyboard changed how many notes exist`);
   }
   await assertKeyIsHandSized(page, `${label} keys turned`);
+  await assertHingeFacesTheFarEdge(page, `${label} keys turned`, ".kbd-board");
   await assertStageOwnsTheRest(page, `${label} keys turned`, ".play-stage");
   await assertNoVOverflow(page, `${label} keys turned`);
   await turnTo(page, label, keyOrientation);

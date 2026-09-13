@@ -3407,16 +3407,24 @@
   height: 100%;
 }
 
+/*
+ * Down, and mirrored rather than merely rotated about the wrong edge: the
+ * hinge is where the black keys are attached, which is the top edge across
+ * and the *right* edge down. Anchoring to `left` put the hinge on the left
+ * — a keyboard seen from behind, where every key is one away from the one
+ * under the hand. `row-reverse` keeps the letter nearer the hinge and the
+ * name nearer the free end, exactly as stacking them downwards does.
+ */
 .kbd-board.is-vertical .kbd-key {
-  left: 0;
-  padding: 0 8px 0 0;
-  flex-direction: row;
-  border-radius: 0 6px 6px 0;
+  right: 0;
+  padding: 0 0 0 8px;
+  flex-direction: row-reverse;
+  border-radius: 6px 0 0 6px;
 }
 
 .kbd-board.is-vertical .kbd-key.is-black {
   width: 62%;
-  border-radius: 0 5px 5px 0;
+  border-radius: 5px 0 0 5px;
 }
 
 .kbd-board.is-vertical .kbd-key:not(.is-black) {
