@@ -73,6 +73,23 @@ export interface BufferOptions {
   rate?: number;
   release?: number;
   seconds?: number;
+  /**
+   * Seconds to fade in over, for a buffer that is meant to arrive under
+   * something else. A model played beneath a recording's attack has to
+   * come up while that attack is still going on, not start at full volume
+   * and be heard as a second strike.
+   */
+  attack?: number;
+  /**
+   * How far this recording is from a model of the same instrument, in
+   * linear gain. A bank is whatever level somebody encoded it at, so this
+   * is what brings it to the level a model is calibrated to — and it is a
+   * separate number from the velocity rather than folded into it, because
+   * velocity is a fraction of a note and cannot exceed 1. Folding a
+   * correction into a value that is clamped is how a sixteen-decibel
+   * correction becomes none.
+   */
+  gain?: number;
 }
 
 /** A note that is still sounding, waiting for the finger to come off. */
@@ -418,13 +435,22 @@ export function createVoicePlayer(
     },
     playBuffer(buffer: AudioBuffer, time: number, velocity = 1, options: BufferOptions = {}): HeldVoice {
       const at = Math.max(time, context.currentTime);
-      const level = clamp(velocity, 0, 1);
+      // A note cannot be struck harder than all the way, but a recording
+      // can sit either side of the level a model is calibrated to.
+      const level = clamp(velocity, 0, 1) * Math.max(0, options.gain ?? 1);
       const rate = clamp(options.rate ?? 1, 0.25, 4);
       const release = options.release ?? 0.12;
       const endsAt = at + (options.seconds ?? buffer.duration / rate);
 
       const node = context.createGain();
-      node.gain.setValueAtTime(Math.max(level, SILENT), at);
+      // A buffer that fades in is one half of a crossfade, so it starts
+      // from nothing rather than from its own level.
+      if (options.attack !== undefined && options.attack > 0) {
+        node.gain.setValueAtTime(SILENT, at);
+        node.gain.exponentialRampToValueAtTime(Math.max(level, SILENT), at + options.attack);
+      } else {
+        node.gain.setValueAtTime(Math.max(level, SILENT), at);
+      }
       // A recording used as an attack has to get out of the way of what
       // follows it, or the two of them are heard as two notes.
       if (options.seconds !== undefined) {

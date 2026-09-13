@@ -119,8 +119,17 @@ export function createPerformer(options: PerformerOptions): Performer {
     held.delete(midi);
   }
 
-  /** A held note: the model's own samples if it has them, a voice if not. */
-  function start(midi: number, velocity: number): HeldVoice {
+  /**
+   * A held note: the model's own samples if it has them, a voice if not.
+   *
+   * `fadeIn` is for a model played *under* a recording's attack. Both
+   * start at the same instant when the two are layered, so a model that
+   * came up at full level would be a second strike a few milliseconds
+   * after the first — the seam the hybrid tier exists to avoid. Coming up
+   * over the length of that attack puts the handover inside the transient
+   * where the ear cannot find it.
+   */
+  function start(midi: number, velocity: number, fadeIn = 0): HeldVoice {
     if (timbre.model && context) {
       const buffer = renderVoice(
         context,
@@ -129,37 +138,52 @@ export function createPerformer(options: PerformerOptions): Performer {
         midi,
         midiToFrequency(midi, tuning)
       );
-      return player.playBuffer(buffer, now(), velocity, { release: timbre.release });
+      return player.playBuffer(buffer, now(), velocity, {
+        release: timbre.release,
+        attack: fadeIn || undefined
+      });
     }
     const spec = timbreSpecAt(timbre, midiToFrequency(midi, tuning), timbre.ring ?? DEFAULT_RING_SECONDS);
-    return player.hold(spec, now(), velocity);
+    return player.hold(fadeIn ? { ...spec, attack: fadeIn } : spec, now(), velocity);
   }
 
   /**
-   * The recording, when there is one and the tier wants it. Returns the
-   * held voice for `samples` — where it is the whole note — and null for
-   * every other case, having already laid the attack over a model note for
-   * `hybrid`.
+   * The recording, when there is one and the tier wants it.
+   *
+   * `voice` is the whole note, which is what the sampled tier is. `under`
+   * is the other half of a crossfade: the recording has been started as an
+   * attack, and the model has to come up beneath it rather than beside it.
+   * Null is no recording at all — the model plays alone, which is what
+   * every instrument without a bank has.
    */
-  function recorded(midi: number, velocity: number): HeldVoice | null {
+  type Contribution = { voice: HeldVoice } | { under: true } | null;
+
+  function recorded(midi: number, velocity: number): Contribution {
     if (tier === "synth" || !sample) return null;
     const take = options.takeSample?.(sample, midi) ?? null;
     if (!take) return null;
     const rate = Math.pow(2, take.offset / 12);
 
     if (tier === "hybrid") {
-      // Layered over the model rather than instead of it: the recording
-      // says what the instrument sounds like at the instant it is struck,
-      // and the model says what it does afterwards.
-      player.playBuffer(take.buffer, now(), velocity * take.gain, {
+      // The recording says what the instrument sounds like at the instant
+      // it is struck, and the model says what it does afterwards — so the
+      // recording takes the attack and hands the note over inside it.
+      player.playBuffer(take.buffer, now(), velocity, {
         rate,
+        gain: take.gain,
         seconds: ATTACK_SECONDS,
         release: 0.02
       });
-      return null;
+      return { under: true };
     }
 
-    return player.playBuffer(take.buffer, now(), velocity * take.gain, { rate, release: 0.12 });
+    return {
+      voice: player.playBuffer(take.buffer, now(), velocity, {
+        rate,
+        gain: take.gain,
+        release: 0.12
+      })
+    };
   }
 
   return {
@@ -167,8 +191,12 @@ export function createPerformer(options: PerformerOptions): Performer {
       // Retriggering a key that is already down restarts it rather than
       // stacking a second voice on the same pitch.
       stop(midi);
-      const already = recorded(midi, velocity);
-      held.set(midi, already ?? start(midi, velocity));
+      const take = recorded(midi, velocity);
+      if (take && "voice" in take) {
+        held.set(midi, take.voice);
+        return;
+      }
+      held.set(midi, start(midi, velocity, take ? ATTACK_SECONDS : 0));
     },
     strike(pieceId: string, timbreId: string, tone: number, velocity = 0.9, choke?: string) {
       const voice = getTimbre(timbreId);
@@ -177,32 +205,42 @@ export function createPerformer(options: PerformerOptions): Performer {
        * The kit's own recording. A drum has no pitch to resample to, so
        * this is the one path that plays a buffer exactly as recorded.
        */
-      const recordedHit = (): HeldVoice | null => {
+      const recordedHit = (): Contribution => {
         if (tier === "synth") return null;
         const take = options.takePercussion?.(pieceId) ?? null;
         if (!take) return null;
         if (tier === "hybrid") {
-          player.playBuffer(take.buffer, now(), velocity * take.gain, {
+          // The same crossfade a pitched note gets: a stick hitting a drum
+          // is over in the recording's attack, and a model that started
+          // underneath it at full level would be a second hit.
+          player.playBuffer(take.buffer, now(), velocity, {
+            gain: take.gain,
             seconds: ATTACK_SECONDS,
             release: 0.02
           });
-          return null;
+          return { under: true };
         }
-        return player.playBuffer(take.buffer, now(), velocity * take.gain, { release: 0.05 });
+        return {
+          voice: player.playBuffer(take.buffer, now(), velocity, {
+            gain: take.gain,
+            release: 0.05
+          })
+        };
       };
 
       const startHit = (): HeldVoice => {
-        const hitting = recordedHit();
-        if (hitting) return hitting;
+        const hit = recordedHit();
+        if (hit && "voice" in hit) return hit.voice;
+        const fadeIn = hit ? ATTACK_SECONDS : 0;
         if (voice.model && context) {
           const buffer = renderVoice(context, voice.model, `${voice.id}:${tone}`, 60, tone);
-          return player.playBuffer(buffer, now(), velocity, { release: 0.05 });
+          return player.playBuffer(buffer, now(), velocity, {
+            release: 0.05,
+            attack: fadeIn || undefined
+          });
         }
-        return player.hold(
-          timbreSpecAt(voice, tone, voice.ring ?? DEFAULT_RING_SECONDS),
-          now(),
-          velocity
-        );
+        const spec = timbreSpecAt(voice, tone, voice.ring ?? DEFAULT_RING_SECONDS);
+        return player.hold(fadeIn ? { ...spec, attack: fadeIn } : spec, now(), velocity);
       };
 
       if (choke) {

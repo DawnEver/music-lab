@@ -18,7 +18,7 @@ function fakeContext(now = 10) {
     disconnected: boolean;
   }> = [];
   const gains: Array<{ ramps: Ramp[]; value: number; cancels: number[] }> = [];
-  const sources: Array<{ started: number; stopped: number }> = [];
+  const sources: Array<{ started: number; stopped: number; rate: number }> = [];
   const filters: Array<{ type: string; q: number; ramps: Ramp[] }> = [];
 
   const param = (store: Ramp[], cancels: number[] = [], initial = 0) => ({
@@ -86,11 +86,19 @@ function fakeContext(now = 10) {
       };
     },
     createBufferSource() {
-      const entry = { started: -1, stopped: -1 };
+      const entry = { started: -1, stopped: -1, rate: 1 };
       sources.push(entry);
       return {
         ...node(),
         buffer: null,
+        playbackRate: {
+          set value(next: number) {
+            entry.rate = next;
+          },
+          get value() {
+            return entry.rate;
+          }
+        },
         start(time: number) {
           entry.started = time;
         },
@@ -406,5 +414,65 @@ describe("held voices", () => {
     createVoicePlayer(fake.context, fake.context.createGain()).hold(ORGAN, 1, 0.5);
     const envelope = fake.gains[2] as unknown as { ramps: Ramp[] };
     expect(envelope.ramps[1].value).toBeCloseTo(0.4 * 0.5, 6);
+  });
+});
+
+/*
+ * A recording arrives at whatever level somebody encoded it at, and the
+ * bank reports how far that is from a model of the same instrument.
+ *
+ * That correction is a gain and cannot be a velocity. Velocity is how hard
+ * the key was struck, so it is a fraction of a note and 1 is its ceiling
+ * by definition — which is exactly how a sixteen-decibel correction turned
+ * into no correction at all, and how the recorded tier ended up playing
+ * sixteen decibels under the model it was calibrated against.
+ */
+describe("recorded notes", () => {
+  const BUFFER = { duration: 1 } as AudioBuffer;
+
+  it("lifts a quiet recording by its own calibration", () => {
+    const fake = fakeContext(0);
+    createVoicePlayer(fake.context, fake.context.createGain()).playBuffer(BUFFER, 1, 0.5, {
+      seconds: 1,
+      gain: 4
+    });
+    const envelope = fake.gains[2] as unknown as { ramps: Ramp[] };
+    // Louder than one note can be played, which is the point: the
+    // recording is quiet, not the note.
+    expect(envelope.ramps[0].value).toBeCloseTo(2, 6);
+  });
+
+  /*
+   * Half a crossfade. A buffer asked to fade in starts from nothing and
+   * arrives at its level — which is what lets a model come up *under* a
+   * recording's attack instead of beside it.
+   */
+  it("fades a buffer in when it is meant to arrive under something", () => {
+    const fake = fakeContext(0);
+    createVoicePlayer(fake.context, fake.context.createGain()).playBuffer(BUFFER, 1, 0.5, {
+      seconds: 1,
+      attack: 0.12
+    });
+    const envelope = fake.gains[2] as unknown as { ramps: Ramp[] };
+    expect(envelope.ramps[0]).toEqual({ value: 0.0001, time: 1 });
+    expect(envelope.ramps[1]).toEqual({ value: 0.5, time: 1.12 });
+  });
+
+  it("starts a buffer at its level when it is not fading in", () => {
+    const fake = fakeContext(0);
+    createVoicePlayer(fake.context, fake.context.createGain()).playBuffer(BUFFER, 1, 0.5, {
+      seconds: 1
+    });
+    const envelope = fake.gains[2] as unknown as { ramps: Ramp[] };
+    expect(envelope.ramps[0]).toEqual({ value: 0.5, time: 1 });
+  });
+
+  it("still holds velocity itself to a fraction of a note", () => {
+    const fake = fakeContext(0);
+    createVoicePlayer(fake.context, fake.context.createGain()).playBuffer(BUFFER, 1, 2, {
+      seconds: 1
+    });
+    const envelope = fake.gains[2] as unknown as { ramps: Ramp[] };
+    expect(envelope.ramps[0].value).toBeCloseTo(1, 6);
   });
 });

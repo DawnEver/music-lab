@@ -3,11 +3,11 @@ import {
   createPerformer,
   type SampledNote
 } from "../src/features/play/engine/performer.js";
-import type { VoicePlayer, VoiceSpec } from "../src/audio/voice.js";
+import type { BufferOptions, VoicePlayer, VoiceSpec } from "../src/audio/voice.js";
 
 /** A player that records what it was asked for, and how. */
 function fakePlayer() {
-  const notes: Array<{ at: number; velocity: number; options: { rate?: number; seconds?: number } }> = [];
+  const notes: Array<{ at: number; velocity: number; options: BufferOptions }> = [];
   const player: VoicePlayer = {
     play() {},
     hold(spec: VoiceSpec, at: number, velocity = 1) {
@@ -78,15 +78,23 @@ describe("voice tiers", () => {
    * attack sits fifteen decibels under the note it is attacking, which is
    * the same as not being there — and the two tiers end up sounding like
    * two different instruments at two different volumes.
+   *
+   * The calibration travels as a gain of its own and never as part of the
+   * velocity. Velocity is a fraction of a note — how hard the key was
+   * struck — and a player's is clamped to 1 by definition; a recording
+   * that needs lifting by six has to be lifted by six, and folding the
+   * two together is how a sixteen-decibel correction became no correction
+   * at all.
    */
-  it("applies the recording's own calibration", () => {
+  it("applies the recording's own calibration, as a gain", () => {
     const fake = fakePlayer();
     performer(fake.player, {
       tier: "samples",
       sample: "x",
       takeSample: () => fakeSample({ gain: 6 })
     }).noteOn(60, 0.5);
-    expect(fake.notes[0].velocity).toBeCloseTo(3, 6);
+    expect(fake.notes[0].velocity).toBeCloseTo(0.5, 6);
+    expect(fake.notes[0].options.gain).toBeCloseTo(6, 6);
   });
 
   it("lays the recording's attack over the model when the tier is hybrid", () => {
@@ -100,6 +108,27 @@ describe("voice tiers", () => {
     // Short: the two are only the same instrument while the transient is
     // still going on, and the seam is audible the moment it is not.
     expect(withSeconds!.options.seconds!).toBeLessThan(0.2);
+    // And calibrated like the note it is attacking, or the layer that is
+    // supposed to say "this is what the instrument sounds like at the
+    // instant it is struck" says nothing.
+    expect(withSeconds!.options.gain).toBeCloseTo(1, 6);
+
+    /*
+     * The other half of the crossfade. Both start at the same instant, so
+     * a model that came up at full level would be heard as a second strike
+     * a few milliseconds after the recording's — which is what the tier is
+     * for, and what it was doing: the recorded attack sat eight decibels
+     * under the model's own, so the note's attack was the model's.
+     */
+    const model = fake.notes.find((note) => note.options.seconds === undefined);
+    expect(model!.options.attack).toBeCloseTo(withSeconds!.options.seconds!, 6);
+    expect(model!.options.gain).toBeUndefined();
+  });
+
+  it("starts the model at full volume when it is the whole note", () => {
+    const fake = fakePlayer();
+    performer(fake.player, { tier: "synth", sample: "x", takeSample: () => fakeSample() }).noteOn(60);
+    expect(fake.notes[0].options.attack).toBeUndefined();
   });
 
   it("falls back to the model when there is no recording", () => {
@@ -132,7 +161,8 @@ describe("voice tiers", () => {
     });
     unit.strike("snare", "snare", 1900, 0.5);
     expect(fake.notes).toHaveLength(1);
-    expect(fake.notes[0].velocity).toBeCloseTo(1.5, 6);
+    expect(fake.notes[0].velocity).toBeCloseTo(0.5, 6);
+    expect(fake.notes[0].options.gain).toBeCloseTo(3, 6);
     // No pitch to correct, so no playback rate at all.
     expect(fake.notes[0].options.rate).toBeUndefined();
   });
