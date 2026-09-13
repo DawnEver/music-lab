@@ -8,7 +8,7 @@ export const mandolin = {
   id: "mandolin",
   name: { zh: "曼陀林", en: "Mandolin" },
   category: "plucked",
-  timbre: "steel",
+  timbre: "mandolin",
   surface: { kind: "frets", frets: 15 },
   tuning: {
     layout: "list",

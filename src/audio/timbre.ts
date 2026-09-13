@@ -18,13 +18,39 @@ import type { VoiceFilter, VoiceSpec, Waveform } from "./voice.js";
 
 /** Closed set: the dictionary carries a `timbre.<id>` for each. */
 export type TimbreId =
+  // Keys
   | "piano"
   | "epiano"
   | "organ"
-  | "steel"
-  | "nylon"
+  // Plucked, one voice each: a body's size and material is what makes a
+  // banjo a banjo, and sharing a voice between two of them is how eight
+  // instruments end up sounding like two.
+  | "guitar"
+  | "mandolin"
+  | "banjo"
+  | "ukulele"
+  | "pipa"
+  | "ruan"
+  | "liuqin"
+  | "guzheng"
+  | "guqin"
   | "bass"
-  | "singable"
+  // Bowed
+  | "violin"
+  | "viola"
+  | "cello"
+  | "contrabass"
+  | "erhu"
+  | "zhonghu"
+  | "gaohu"
+  // Winds
+  | "dizi"
+  | "xiao"
+  | "saxophone"
+  | "harmonica"
+  // Other
+  | "kalimba"
+  // Percussion
   | "kick"
   | "snare"
   | "hihat"
@@ -32,12 +58,8 @@ export type TimbreId =
   | "tom"
   | "crash"
   | "ride"
-  | "flute"
-  | "reed"
-  | "bowed"
-  | "huqin"
-  | "kalimba"
-  | "harmonica";
+  // The ear trainer's own tone, and only that.
+  | "singable";
 
 export interface Timbre {
   id: TimbreId;
@@ -140,66 +162,6 @@ export const TIMBRES: Timbre[] = [
     }
   },
   {
-    // A bowed string: the same loop as a pluck, with the excitation left
-    // on. What makes it read as a violin rather than a sawtooth is the
-    // body — a violin's air resonance near 290Hz and its wood resonance
-    // near 450 are fixed, and a note played anywhere on the instrument is
-    // shaped by them. A filter that transposed with the note would sound
-    // like a synth, however good the string underneath it was.
-    id: "bowed",
-    waveform: "sawtooth",
-    gain: 0.75,
-    attack: 0.07,
-    ring: 1,
-    model: {
-      kind: "string",
-      ring: 1,
-      ringTilt: 0.1,
-      damping: 0.4,
-      dampingTilt: 0.1,
-      stiffness: 0.24,
-      brightness: 0.55,
-      attack: 0.07,
-      bow: { pressure: 0.5, noise: 0.4 },
-      body: [
-        { hz: 290, q: 2.2, db: 9 },
-        { hz: 460, q: 2, db: 6 },
-        { hz: 1100, q: 1.4, db: 4 },
-        { hz: 2600, q: 1.1, db: 3 }
-      ],
-      // A driven string is not scaled to its own peak — that is what makes
-      // bowing harder louder — so its level has to be set here instead.
-      gain: 0.75
-    }
-  },
-  {
-    // The huqin family: a small soundbox with a snakeskin face, so its
-    // formants sit higher and ring harder than a violin's. That nasality
-    // is the instrument, not a fault in it.
-    id: "huqin",
-    waveform: "sawtooth",
-    gain: 0.68,
-    attack: 0.08,
-    ring: 1,
-    model: {
-      kind: "string",
-      ring: 1,
-      ringTilt: 0.1,
-      damping: 0.45,
-      dampingTilt: 0.1,
-      stiffness: 0.2,
-      brightness: 0.6,
-      attack: 0.08,
-      bow: { pressure: 0.45, noise: 0.45 },
-      body: [
-        { hz: 520, q: 2.6, db: 10 },
-        { hz: 1250, q: 2, db: 8 },
-        { hz: 2700, q: 1.5, db: 6 }
-      ],
-      gain: 0.68
-    }
-  },
-  {
     // Hammer on string: near-instant attack, a long decay, and a spectrum
     // that dulls as the note dies — the filter envelope is doing that.
     id: "piano",
@@ -270,91 +232,6 @@ export const TIMBRES: Timbre[] = [
     release: 0.07,
     ring: 1,
     partials: [0.7, 0.5, 0.6, 0.25, 0.4, 0.2]
-  },
-  {
-    // A steel string: struck hard and bright, with the top of the spectrum
-    // going first. The short attack is the pick, not the string.
-    id: "steel",
-    waveform: "sawtooth",
-    gain: 0.13,
-    attack: 0.003,
-    ring: 3,
-    release: 0.09,
-    partials: [0.42, 0.3, 0.2, 0.12, 0.07, 0.04],
-    filter: { type: "lowpass", harmonic: 7, q: 0.9, envelope: 4 },
-    model: {
-      kind: "string",
-      ring: 3.2,
-      ringTilt: 0.3,
-      damping: 0.4,
-      dampingTilt: 0.18,
-      stiffness: 0.32,
-      pluckPosition: 0.18,
-      brightness: 0.78,
-      body: [
-        { hz: 105, q: 1.3, db: 6 },
-        { hz: 210, q: 1.6, db: 4 },
-        { hz: 2600, q: 0.9, db: 3 }
-      ],
-      gain: 0.8
-    }
-  },
-  {
-    // Nylon and silk: the same gesture with the highs already gone, which
-    // is a lower resting cutoff rather than fewer partials.
-    id: "nylon",
-    waveform: "triangle",
-    gain: 0.3,
-    attack: 0.008,
-    ring: 2.6,
-    release: 0.1,
-    partials: [0.42, 0.18, 0.09, 0.04],
-    filter: { type: "lowpass", harmonic: 4, q: 0.7, envelope: 2.5 },
-    model: {
-      kind: "string",
-      ring: 2.6,
-      ringTilt: 0.28,
-      damping: 0.52,
-      dampingTilt: 0.15,
-      stiffness: 0.22,
-      // Plucked further from the bridge than a pick would: a fingertip
-      // takes the edge off the top before the string ever moves.
-      pluckPosition: 0.3,
-      brightness: 0.52,
-      body: [
-        { hz: 125, q: 1.2, db: 4 },
-        { hz: 420, q: 1.4, db: 3 },
-        { hz: 2000, q: 0.8, db: 1.5 }
-      ],
-      gain: 0.8
-    }
-  },
-  {
-    // A bass string is nearly a fundamental: the partials that survive are
-    // the low ones, and it rings far longer than anything above it.
-    id: "bass",
-    waveform: "sine",
-    gain: 0.4,
-    attack: 0.006,
-    ring: 5,
-    release: 0.14,
-    partials: [0.45, 0.14, 0.05],
-    filter: { type: "lowpass", harmonic: 5, q: 0.8, envelope: 3 },
-    model: {
-      kind: "string",
-      ring: 4.6,
-      ringTilt: 0.22,
-      damping: 0.3,
-      dampingTilt: 0.2,
-      stiffness: 0.36,
-      pluckPosition: 0.22,
-      brightness: 0.62,
-      body: [
-        { hz: 70, q: 1.1, db: 5 },
-        { hz: 155, q: 1.4, db: 3 }
-      ],
-      gain: 0.9
-    }
   },
   {
     // A membrane: one low sine that drops in pitch as it dies. The drop is
@@ -499,18 +376,382 @@ export const TIMBRES: Timbre[] = [
     }
   },
   {
-    // A blown edge: mostly fundamental, held, and audibly breathy. The
-    // noise layer is not decoration — take it away and this is a sine.
-    id: "flute",
+    // A big steel-strung box. Its air resonance near 105Hz is what a strum
+    // has that a banjo has not.
+    id: "guitar",
+    waveform: "sawtooth",
+    gain: 0.8,
+    attack: 0.003,
+    ring: 3.2,
+    model: {
+      kind: "string",
+      ring: 3.2,
+      ringTilt: 0.3,
+      damping: 0.4,
+      dampingTilt: 0.18,
+      stiffness: 0.32,
+      pluckPosition: 0.18,
+      brightness: 0.78,
+      body: [{ hz: 105, q: 1.3, db: 6 }, { hz: 205, q: 1.6, db: 4 }, { hz: 2600, q: 0.9, db: 3 }],
+      gain: 0.8
+    }
+  },
+  {
+    // Half the box of a guitar and paired courses: the same strings, an
+    // octave of body higher, and gone in half the time.
+    id: "mandolin",
+    waveform: "sawtooth",
+    gain: 0.8,
+    attack: 0.003,
+    ring: 2.4,
+    model: {
+      kind: "string",
+      ring: 2.4,
+      ringTilt: 0.26,
+      damping: 0.45,
+      dampingTilt: 0.16,
+      stiffness: 0.3,
+      pluckPosition: 0.15,
+      brightness: 0.85,
+      body: [{ hz: 220, q: 1.5, db: 7 }, { hz: 480, q: 1.7, db: 5 }, { hz: 3200, q: 1, db: 4 }],
+      gain: 0.8
+    }
+  },
+  {
+    // Steel strings over a drumhead on a stick. Almost no box at all, so
+    // what is left is a fast decay and a hard, high resonance.
+    id: "banjo",
+    waveform: "sawtooth",
+    gain: 0.8,
+    attack: 0.003,
+    ring: 1.7,
+    model: {
+      kind: "string",
+      ring: 1.7,
+      ringTilt: 0.22,
+      damping: 0.55,
+      dampingTilt: 0.14,
+      stiffness: 0.28,
+      pluckPosition: 0.12,
+      brightness: 0.9,
+      body: [{ hz: 330, q: 1.8, db: 8 }, { hz: 620, q: 1.6, db: 5 }, { hz: 3800, q: 1, db: 6 }],
+      gain: 0.8
+    }
+  },
+  {
+    // A small nylon-strung box: little air to move, so the body sits high
+    // and the note is gone almost as soon as it arrives.
+    id: "ukulele",
+    waveform: "triangle",
+    gain: 0.8,
+    attack: 0.003,
+    ring: 1.8,
+    model: {
+      kind: "string",
+      ring: 1.8,
+      ringTilt: 0.24,
+      damping: 0.55,
+      dampingTilt: 0.14,
+      stiffness: 0.2,
+      pluckPosition: 0.28,
+      brightness: 0.5,
+      body: [{ hz: 250, q: 1.3, db: 5 }, { hz: 520, q: 1.5, db: 4 }, { hz: 2200, q: 0.9, db: 2 }],
+      gain: 0.8
+    }
+  },
+  {
+    // A pear-shaped box and steel strings, played with the nail: bright,
+    // hard, and gone — which is the whole attack of the instrument.
+    id: "pipa",
+    waveform: "sawtooth",
+    gain: 0.8,
+    attack: 0.003,
+    ring: 2.6,
+    model: {
+      kind: "string",
+      ring: 2.6,
+      ringTilt: 0.3,
+      damping: 0.38,
+      dampingTilt: 0.18,
+      stiffness: 0.34,
+      pluckPosition: 0.14,
+      brightness: 0.82,
+      body: [{ hz: 180, q: 1.4, db: 6 }, { hz: 420, q: 1.6, db: 4 }, { hz: 3000, q: 1, db: 5 }],
+      gain: 0.8
+    }
+  },
+  {
+    // A round body with a wide face: warmer and rounder than the pipa
+    // beside it, and it rings a little longer.
+    id: "ruan",
+    waveform: "triangle",
+    gain: 0.8,
+    attack: 0.003,
+    ring: 2.8,
+    model: {
+      kind: "string",
+      ring: 2.8,
+      ringTilt: 0.28,
+      damping: 0.45,
+      dampingTilt: 0.16,
+      stiffness: 0.24,
+      pluckPosition: 0.26,
+      brightness: 0.55,
+      body: [{ hz: 140, q: 1.2, db: 5 }, { hz: 330, q: 1.4, db: 4 }, { hz: 1800, q: 0.9, db: 2 }],
+      gain: 0.8
+    }
+  },
+  {
+    // The smallest of the plucked family and the highest: a tiny box, so
+    // its resonance is up where the note is.
+    id: "liuqin",
+    waveform: "triangle",
+    gain: 0.8,
+    attack: 0.003,
+    ring: 2.0,
+    model: {
+      kind: "string",
+      ring: 2.0,
+      ringTilt: 0.24,
+      damping: 0.42,
+      dampingTilt: 0.16,
+      stiffness: 0.26,
+      pluckPosition: 0.18,
+      brightness: 0.78,
+      body: [{ hz: 300, q: 1.5, db: 6 }, { hz: 650, q: 1.6, db: 5 }, { hz: 3600, q: 1, db: 4 }],
+      gain: 0.8
+    }
+  },
+  {
+    // Twenty-one steel strings over a long paulownia box. The box is big
+    // enough to have a low voice of its own and the strings long enough to
+    // ring for four seconds.
+    id: "guzheng",
+    waveform: "sawtooth",
+    gain: 0.8,
+    attack: 0.003,
+    ring: 4.0,
+    model: {
+      kind: "string",
+      ring: 4.0,
+      ringTilt: 0.3,
+      damping: 0.32,
+      dampingTilt: 0.2,
+      stiffness: 0.3,
+      pluckPosition: 0.22,
+      brightness: 0.7,
+      body: [{ hz: 95, q: 1.1, db: 7 }, { hz: 190, q: 1.3, db: 5 }, { hz: 1500, q: 0.9, db: 3 }],
+      gain: 0.8
+    }
+  },
+  {
+    // Silk over thick paulownia. Silk is a lossy, heavy string and the wood
+    // is soft: almost no top end, and a note that lasts.
+    id: "guqin",
+    waveform: "triangle",
+    gain: 0.8,
+    attack: 0.003,
+    ring: 3.6,
+    model: {
+      kind: "string",
+      ring: 3.6,
+      ringTilt: 0.32,
+      damping: 0.62,
+      dampingTilt: 0.12,
+      stiffness: 0.18,
+      pluckPosition: 0.32,
+      brightness: 0.35,
+      body: [{ hz: 110, q: 1.1, db: 6 }, { hz: 240, q: 1.3, db: 4 }, { hz: 1200, q: 0.8, db: 2 }],
+      gain: 0.8
+    }
+  },
+  {
+    // A bass string is nearly a fundamental: the partials that survive are
+    // the low ones, and it rings far longer than anything above it.
+    id: "bass",
     waveform: "sine",
-    gain: 0.3,
-    // An open pipe: a flute is open at both ends, so it holds every
-    // harmonic and overblows the octave. Bamboo adds almost nothing of
-    // its own — what you hear is the air and the edge, which is why the
-    // jet is most of this model.
+    gain: 0.9,
+    attack: 0.003,
+    ring: 4.6,
+    model: {
+      kind: "string",
+      ring: 4.6,
+      ringTilt: 0.22,
+      damping: 0.3,
+      dampingTilt: 0.2,
+      stiffness: 0.36,
+      pluckPosition: 0.22,
+      brightness: 0.62,
+      body: [{ hz: 70, q: 1.1, db: 5 }, { hz: 155, q: 1.4, db: 3 }],
+      gain: 0.9
+    }
+  },
+  {
+    // A violin's own resonances: the air in the box near 290Hz and the wood
+    // near 460. They stay put at every pitch, which is most of what makes a
+    // violin a violin rather than a sawtooth with a filter on it.
+    id: "violin",
+    waveform: "sawtooth",
+    gain: 0.34,
+    attack: 0.07,
+    ring: 1,
+    model: {
+      kind: "string",
+      ring: 1,
+      ringTilt: 0.1,
+      damping: 0.4,
+      dampingTilt: 0.1,
+      stiffness: 0.24,
+      brightness: 0.55,
+      attack: 0.07,
+      bow: { pressure: 0.5, noise: 0.4 },
+      body: [{ hz: 290, q: 2.2, db: 9 }, { hz: 460, q: 2, db: 6 }, { hz: 1100, q: 1.4, db: 4 }, { hz: 2600, q: 1.1, db: 3 }],
+      gain: 0.34
+    }
+  },
+  {
+    // The same instrument a fifth lower and a size bigger, so every one of
+    // its resonances is lower too.
+    id: "viola",
+    waveform: "sawtooth",
+    gain: 0.34,
+    attack: 0.07,
+    ring: 1,
+    model: {
+      kind: "string",
+      ring: 1,
+      ringTilt: 0.1,
+      damping: 0.42,
+      dampingTilt: 0.1,
+      stiffness: 0.24,
+      brightness: 0.55,
+      attack: 0.07,
+      bow: { pressure: 0.5, noise: 0.4 },
+      body: [{ hz: 230, q: 2.2, db: 9 }, { hz: 380, q: 2, db: 6 }, { hz: 950, q: 1.4, db: 4 }, { hz: 2200, q: 1.1, db: 3 }],
+      gain: 0.34
+    }
+  },
+  {
+    // Four times the volume of air: the resonances drop an octave and a half,
+    // which is why a cello has a chest and a violin has a point.
+    id: "cello",
+    waveform: "sawtooth",
+    gain: 0.36,
+    attack: 0.07,
+    ring: 1,
+    model: {
+      kind: "string",
+      ring: 1,
+      ringTilt: 0.1,
+      damping: 0.38,
+      dampingTilt: 0.1,
+      stiffness: 0.26,
+      brightness: 0.55,
+      attack: 0.07,
+      bow: { pressure: 0.5, noise: 0.4 },
+      body: [{ hz: 130, q: 2.2, db: 9 }, { hz: 260, q: 2, db: 6 }, { hz: 700, q: 1.4, db: 4 }, { hz: 1800, q: 1.1, db: 3 }],
+      gain: 0.36
+    }
+  },
+  {
+    // The largest box of the family, and the only one tuned in fourths. Its
+    // resonances are below the notes it mostly plays.
+    id: "contrabass",
+    waveform: "sawtooth",
+    gain: 0.38,
+    attack: 0.07,
+    ring: 1,
+    model: {
+      kind: "string",
+      ring: 1,
+      ringTilt: 0.1,
+      damping: 0.36,
+      dampingTilt: 0.1,
+      stiffness: 0.28,
+      brightness: 0.55,
+      attack: 0.07,
+      bow: { pressure: 0.5, noise: 0.4 },
+      body: [{ hz: 90, q: 2.2, db: 9 }, { hz: 180, q: 2, db: 6 }, { hz: 500, q: 1.4, db: 4 }, { hz: 1400, q: 1.1, db: 3 }],
+      gain: 0.38
+    }
+  },
+  {
+    // A small soundbox with a snakeskin face: its formants sit far higher
+    // than a violin's and ring much harder. That nasality is the instrument,
+    // not a fault in it.
+    id: "erhu",
+    waveform: "sawtooth",
+    gain: 0.34,
+    attack: 0.07,
+    ring: 1,
+    model: {
+      kind: "string",
+      ring: 1,
+      ringTilt: 0.1,
+      damping: 0.45,
+      dampingTilt: 0.1,
+      stiffness: 0.2,
+      brightness: 0.55,
+      attack: 0.07,
+      bow: { pressure: 0.5, noise: 0.4 },
+      body: [{ hz: 520, q: 2.2, db: 9 }, { hz: 1250, q: 2, db: 6 }, { hz: 2700, q: 1.4, db: 4 }, { hz: 2700, q: 1.1, db: 3 }],
+      gain: 0.34
+    }
+  },
+  {
+    // The alto of the family: a bigger box, so everything drops.
+    id: "zhonghu",
+    waveform: "sawtooth",
+    gain: 0.34,
+    attack: 0.07,
+    ring: 1,
+    model: {
+      kind: "string",
+      ring: 1,
+      ringTilt: 0.1,
+      damping: 0.44,
+      dampingTilt: 0.1,
+      stiffness: 0.22,
+      brightness: 0.55,
+      attack: 0.07,
+      bow: { pressure: 0.5, noise: 0.4 },
+      body: [{ hz: 400, q: 2.2, db: 9 }, { hz: 1000, q: 2, db: 6 }, { hz: 2200, q: 1.4, db: 4 }, { hz: 2200, q: 1.1, db: 3 }],
+      gain: 0.34
+    }
+  },
+  {
+    // The soprano: a smaller box again, and the brightest of the three.
+    id: "gaohu",
+    waveform: "sawtooth",
+    gain: 0.32,
+    attack: 0.07,
+    ring: 1,
+    model: {
+      kind: "string",
+      ring: 1,
+      ringTilt: 0.1,
+      damping: 0.46,
+      dampingTilt: 0.1,
+      stiffness: 0.18,
+      brightness: 0.55,
+      attack: 0.07,
+      bow: { pressure: 0.5, noise: 0.4 },
+      body: [{ hz: 650, q: 2.2, db: 9 }, { hz: 1500, q: 2, db: 6 }, { hz: 3200, q: 1.4, db: 4 }, { hz: 3200, q: 1.1, db: 3 }],
+      gain: 0.32
+    }
+  },
+  {
+    // A bamboo tube open at both ends and a very small jet: bright, quick to
+    // speak, and with almost no box around it to colour anything. What a
+    // dizi sounds like is the edge and the air.
+    id: "dizi",
+    waveform: "sine",
+    gain: 0.75,
+    attack: 0.05,
+    ring: 1.4,
     model: {
       kind: "wind",
-      attack: 0.055,
+      attack: 0.05,
       stopped: false,
       jet: { pressure: 0.5, noise: 0.4, tone: 0.62, damping: 0.4 },
       breath: 0.1,
@@ -520,25 +761,42 @@ export const TIMBRES: Timbre[] = [
         { hz: 4200, q: 0.9, db: 2 }
       ],
       gain: 0.75
-    },
-    attack: 0.055,
-    decay: 0.06,
-    sustain: 0.86,
-    release: 0.09,
-    ring: 1.4,
-    breath: 0.1,
-    partials: [0.16, 0.06]
+    }
   },
   {
-    // A reed: odd harmonics through a resonant filter, with less air than
-    // a flute because the reed, not the edge, is making the sound.
-    id: "reed",
+    // Longer, wider, and blown across the end: the same family as the dizi
+    // and half the brightness. More of the sound is air that never entered
+    // the tube, which is why a xiao is described as breathy and a dizi is
+    // not, even though both are one tube with holes.
+    id: "xiao",
+    waveform: "sine",
+    gain: 0.75,
+    attack: 0.07,
+    ring: 1.4,
+    model: {
+      kind: "wind",
+      attack: 0.07,
+      stopped: false,
+      jet: { pressure: 0.42, noise: 0.34, tone: 0.74, damping: 0.48 },
+      breath: 0.16,
+      body: [
+        { hz: 620, q: 1.1, db: 3 },
+        { hz: 1600, q: 1, db: 3 },
+        { hz: 3000, q: 0.9, db: 1 }
+      ],
+      gain: 0.75
+    }
+  },
+  {
+    // A conical bore closed at the reed: unlike a clarinet's cylinder it
+    // overblows the octave and holds every harmonic. The reed is a much
+    // rougher jet than a flute's edge — less stream, more turbulence — and
+    // the bell gives it the formants that make it a saxophone.
+    id: "saxophone",
     waveform: "sawtooth",
-    gain: 0.12,
-    // A conical bore, unlike a clarinet's cylinder: closed at the reed but
-    // widening all the way down, so it overblows the octave and holds every
-    // harmonic rather than only the odd ones. The reed itself is a much
-    // rougher jet than a flute's edge — less stream, more turbulence.
+    gain: 0.55,
+    attack: 0.03,
+    ring: 1.2,
     model: {
       kind: "wind",
       attack: 0.03,
@@ -550,21 +808,13 @@ export const TIMBRES: Timbre[] = [
         { hz: 1700, q: 1.5, db: 6 },
         { hz: 3300, q: 1.2, db: 4 }
       ],
-      // A reed drives its tube much harder than an edge does; this is what
-      // brings it back to the level of everything beside it.
       gain: 0.55
-    },
-    attack: 0.03,
-    decay: 0.05,
-    sustain: 0.88,
-    release: 0.08,
-    ring: 1.4,
-    breath: 0.05,
-    partials: [0.5, 0.42, 0.3, 0.2, 0.12],
-    filter: { type: "lowpass", harmonic: 6, q: 1.4, envelope: 2 }
+    }
   },
   {
-    // The ear trainer's tone: a bare sine is hard to hear an interval in.
+    // The ear trainer's tone. It has no model on purpose: an interval is
+    // easier to hear in a bare tone than in a guitar, and this is the one
+    // voice in the app that is not trying to be an instrument.
     id: "singable",
     waveform: "sine",
     gain: 0.32,

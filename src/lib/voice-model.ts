@@ -340,12 +340,16 @@ export function renderString(spec: StringSpec, random: RandomSource): Float32Arr
   const brightness = clamp(spec.brightness ?? 0.6, 0, 1);
   const burstLength = Math.max(2, Math.ceil(length));
   const burst = new Float32Array(burstLength);
+  // A one-pole lowpass across the burst: a pick is almost none of it, a
+  // thumb most of the way down. The coefficient is the *smoothing*, so it
+  // is the complement of the brightness — writing it the other way round
+  // makes every instrument do the opposite of what its data says, which
+  // is silent until something measures the spectrum.
+  const smoothing = (1 - brightness) * 0.95;
   let dull = 0;
   for (let index = 0; index < burstLength; index += 1) {
     const noise = random() * 2 - 1;
-    // A one-pole lowpass across the burst: a thumb is most of the way
-    // down, a pick almost none.
-    dull = dull * brightness + noise * (1 - brightness);
+    dull = dull * smoothing + noise * (1 - smoothing);
     burst[index] = dull;
   }
 

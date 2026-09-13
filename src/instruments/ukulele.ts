@@ -10,7 +10,7 @@ export const ukulele = {
   name: { zh: "尤克里里", en: "Ukulele" },
   category: "plucked",
   sample: "acoustic_guitar_nylon",
-  timbre: "nylon",
+  timbre: "ukulele",
   surface: { kind: "frets", frets: 15 },
   tuning: {
     layout: "list",

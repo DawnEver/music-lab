@@ -5,7 +5,7 @@ export const cello = {
   id: "cello",
   name: { zh: "大提琴", en: "Cello" },
   sample: "cello",
-  timbre: "bowed",
+  timbre: "cello",
   surface: { kind: "stopped", stops: 12 },
   category: "bowed",
   tuning: {

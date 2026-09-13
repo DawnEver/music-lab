@@ -108,6 +108,51 @@ export const CACHE_LIMIT = 64;
 /** How long a blown note is rendered for. Longer than anyone holds one. */
 const WIND_HOLD_SECONDS = 3;
 
+/**
+ * What a note should measure, in the window the ear integrates loudness
+ * over, and the most it may reach at any instant.
+ *
+ * Peak-normalising every voice is what made this necessary. A pluck is a
+ * brief burst with a tall peak and little energy under it; a bowed note is
+ * the opposite. Scale both to the same peak and the sustain comes out
+ * twenty-odd decibels louder — which is exactly what a player hears when
+ * they strum a chord and then blow a flute.
+ *
+ * So loudness is the target and the peak is only a ceiling. A voice whose
+ * transient is too tall to reach the target is left where the ceiling puts
+ * it: loud, which is what a transient is, rather than clipped.
+ */
+const LOUDNESS = 0.16;
+const PEAK_CEILING = 0.92;
+const LOUDNESS_WINDOW = 0.2;
+
+/**
+ * Bring a rendered note to a level a listener calls the same.
+ *
+ * Done here rather than in the model because it is about playback rather
+ * than about physics: the model's own dynamics — blowing harder is louder,
+ * a bass string rings longer — are the model's business, and this only
+ * decides how loud the result is. Measuring the model instead of the
+ * speaker is also what lets a test render two pressures and check that one
+ * is louder than the other.
+ */
+function calibrate(samples: Float32Array, sampleRate: number): void {
+  const window = Math.min(samples.length, Math.max(1, Math.round(LOUDNESS_WINDOW * sampleRate)));
+  let sum = 0;
+  let peak = 0;
+  for (let index = 0; index < samples.length; index += 1) {
+    const value = samples[index];
+    if (index < window) sum += value * value;
+    const size = Math.abs(value);
+    if (size > peak) peak = size;
+  }
+  const rms = Math.sqrt(sum / window);
+  if (peak <= 0 || rms <= 0) return;
+
+  const scale = Math.min(LOUDNESS / rms, PEAK_CEILING / peak);
+  for (let index = 0; index < samples.length; index += 1) samples[index] *= scale;
+}
+
 const cache = new Map<string, AudioBuffer>();
 
 /** How long this model should be rendered for: its own life, capped. */
@@ -177,6 +222,8 @@ export function renderVoice(
   } else {
     samples = renderDrum({ ...model, sampleRate, seconds }, noteRandom(seed));
   }
+
+  calibrate(samples, sampleRate);
 
   const buffer = context.createBuffer(1, samples.length, sampleRate);
   buffer.getChannelData(0).set(samples);

@@ -5,7 +5,7 @@ export const viola = {
   id: "viola",
   name: { zh: "中提琴", en: "Viola" },
   sample: "viola",
-  timbre: "bowed",
+  timbre: "viola",
   surface: { kind: "stopped", stops: 12 },
   category: "bowed",
   tuning: {

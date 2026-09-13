@@ -46,10 +46,20 @@ describe("timbreSpec", () => {
 });
 
 describe("the keyboard family", () => {
-  it("covers every family an instrument here can belong to", () => {
+  it("gives every instrument its own voice", () => {
     const ids = TIMBRES.map((entry) => entry.id);
     for (const id of ["piano", "epiano", "organ"]) expect(ids, "keys").toContain(id);
-    for (const id of ["steel", "nylon", "bass"]) expect(ids, "plucked").toContain(id);
+    // One apiece. Eight instruments sharing two voices is what "the
+    // timbres are wrong" sounds like when a banjo and a guitar are
+    // supposed to be different instruments.
+    for (const id of ["guitar", "mandolin", "banjo", "ukulele", "pipa", "ruan", "liuqin", "guzheng", "guqin", "bass"]) {
+      expect(ids, "plucked").toContain(id);
+    }
+    for (const id of ["violin", "viola", "cello", "contrabass", "erhu", "zhonghu", "gaohu"]) {
+      expect(ids, "bowed").toContain(id);
+    }
+    for (const id of ["dizi", "xiao", "saxophone", "harmonica"]) expect(ids, "winds").toContain(id);
+    for (const id of ["kalimba"]) expect(ids, "other").toContain(id);
     for (const id of ["kick", "snare", "hihat", "tom", "crash", "ride"]) {
       expect(ids, "percussion").toContain(id);
     }

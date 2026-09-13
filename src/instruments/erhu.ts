@@ -5,7 +5,7 @@ export const erhu = {
   id: "erhu",
   name: { zh: "二胡", en: "Erhu" },
   sample: "fiddle",
-  timbre: "huqin",
+  timbre: "erhu",
   surface: { kind: "stopped", stops: 12 },
   category: "bowed",
   tuning: {

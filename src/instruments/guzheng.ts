@@ -24,7 +24,7 @@ export const guzheng = {
   id: "guzheng",
   name: { zh: "古筝", en: "Guzheng" },
   sample: "koto",
-  timbre: "steel",
+  timbre: "guzheng",
   surface: { kind: "stopped", stops: 4 },
   category: "plucked",
   tuning: {

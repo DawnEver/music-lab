@@ -11,7 +11,7 @@ export const xiao = {
   name: { zh: "箫", en: "Xiao" },
   category: "winds",
   sample: "pan_flute",
-  timbre: "flute",
+  timbre: "xiao",
   surface: { kind: "holes" },
   tuning: {
     layout: "fingering",

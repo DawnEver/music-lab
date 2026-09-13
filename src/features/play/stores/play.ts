@@ -36,6 +36,9 @@ import { createPerformer, type Performer, type VoiceTier } from "../engine/perfo
 
 export const DEFAULT_INSTRUMENT = "piano";
 
+/** What the app opens on. A recording is what an instrument sounds like. */
+export const DEFAULT_VOICE_TIER: VoiceTier = "samples";
+
 export type Orientation = "horizontal" | "vertical";
 
 /** The kinds of surface, which is what a direction is a fact about. */
@@ -66,8 +69,14 @@ export interface PlaySettings {
   volume: number;
 }
 
-/** The order they are offered in, from none of the recording to all of it. */
-export const VOICE_TIERS: VoiceTier[] = ["synth", "hybrid", "samples"];
+/**
+ * The order they are offered in: the recording, the recording's attack
+ * over the model, and the model alone. Most of what a listener recognises
+ * an instrument by is in the first quarter second, and a recording is the
+ * only one of the three that gets it exactly right — so it is first, and
+ * it is what the app opens on.
+ */
+export const VOICE_TIERS: VoiceTier[] = ["samples", "hybrid", "synth"];
 
 function defaults(): PlaySettings {
   return {
@@ -75,7 +84,7 @@ function defaults(): PlaySettings {
     orientations: {},
     baseMidi: DEFAULT_BASE_MIDI,
     presets: {},
-    voiceTier: "synth",
+    voiceTier: DEFAULT_VOICE_TIER,
     volume: 0.8
   };
 }

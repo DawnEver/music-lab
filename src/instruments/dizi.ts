@@ -11,7 +11,7 @@ export const dizi = {
   name: { zh: "笛子", en: "Dizi" },
   category: "winds",
   sample: "flute",
-  timbre: "flute",
+  timbre: "dizi",
   surface: { kind: "holes" },
   tuning: {
     layout: "fingering",

@@ -522,6 +522,27 @@ describe("playable winds", () => {
     expect(voiceless.map((instrument) => instrument.id)).toEqual([]);
   });
 
+  /*
+   * The one that would have caught "the timbres are wrong" as a fact
+   * rather than as an opinion.
+   *
+   * Eight instruments shared two voices — four on `steel`, five on
+   * `nylon` — so a banjo and a guitar were the same sound, and the whole
+   * bowed family was one voice played at four pitches. Nothing failed;
+   * the data was simply not describing the instruments it named.
+   */
+  it("does not give two instruments the same voice", () => {
+    const byVoice = new Map<string, string[]>();
+    for (const instrument of allInstruments) {
+      if (!instrument.timbre) continue;
+      byVoice.set(instrument.timbre, [...(byVoice.get(instrument.timbre) ?? []), instrument.id]);
+    }
+    const shared = [...byVoice.entries()]
+      .filter(([, ids]) => ids.length > 1)
+      .map(([voice, ids]) => `${voice}: ${ids.join(", ")}`);
+    expect(shared).toEqual([]);
+  });
+
   it("plays a kalimba and a harmonica, whose layouts are their own", () => {
     const kalimba = getInstrument("kalimba")!;
     expect(isPlayable(kalimba)).toBe(true);
@@ -548,8 +569,12 @@ describe("playable winds", () => {
   it("blows with a breathy, sustaining voice — a wind that decays is a pluck", () => {
     for (const instrument of winds) {
       const voice = TIMBRES.find((entry) => entry.id === instrument.timbre)!;
-      expect(voice.sustain, instrument.id).toBeGreaterThan(0);
-      expect(voice.breath, instrument.id).toBeGreaterThan(0);
+      // The model says it: a jet drives the tube for as long as the air
+      // arrives, and some of that air never enters the tube at all.
+      expect(voice.model?.kind, instrument.id).toBe("wind");
+      const wind = voice.model as { jet?: { pressure?: number }; breath?: number };
+      expect(wind.breath, instrument.id).toBeGreaterThan(0);
+      expect(wind.jet?.pressure, instrument.id).toBeGreaterThan(0);
     }
   });
 });
