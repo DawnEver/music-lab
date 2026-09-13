@@ -9,7 +9,14 @@ import {
   midiForKey,
   shiftBase
 } from "../src/features/play/domain/keymap.js";
-import { isBlackKey, keyboardLayout } from "../src/features/play/domain/layout.js";
+import {
+  MAX_WHITE_MM,
+  MIN_WHITE_MM,
+  clampWhiteMm,
+  isBlackKey,
+  keyboardLayout,
+  whiteRunMm
+} from "../src/features/play/domain/layout.js";
 
 describe("key map", () => {
   it("puts the two rows an octave apart", () => {
@@ -103,5 +110,33 @@ describe("keyboard layout", () => {
       expect(key.offset).toBeGreaterThanOrEqual(0);
       expect(key.offset).toBeLessThanOrEqual(layout.whiteCount);
     }
+  });
+});
+
+/*
+ * A key has a size, and both ends of it come from the hand: 23.5mm is a
+ * real piano's white key and 9mm is a fingertip. They are the app's, not
+ * the player's, which is why they live here rather than in the stylesheet
+ * — the slider, the store and the board's own clamp all have to agree, and
+ * a stylesheet cannot import a number.
+ */
+describe("white key size", () => {
+  it("keeps a width inside the hand", () => {
+    expect(clampWhiteMm(14)).toBe(14);
+    expect(clampWhiteMm(MIN_WHITE_MM - 1)).toBe(MIN_WHITE_MM);
+    expect(clampWhiteMm(MAX_WHITE_MM + 5)).toBe(MAX_WHITE_MM);
+  });
+
+  it("refuses a width that is not a number", () => {
+    // A NaN reaches CSS as `calc(19 * NaN mm)`, which is invalid at
+    // computed-value time: the declaration is dropped and the board
+    // silently collapses to its content width.
+    expect(clampWhiteMm(Number.NaN)).toBe(MIN_WHITE_MM);
+    expect(clampWhiteMm(Number.POSITIVE_INFINITY)).toBe(MAX_WHITE_MM);
+  });
+
+  it("spans the whole keyboard, not one key", () => {
+    // The run is what the board is sized to: `--kbd-fit`.
+    expect(whiteRunMm(19, 12.5)).toBe(237.5);
   });
 });

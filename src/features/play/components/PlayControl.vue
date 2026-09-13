@@ -14,6 +14,7 @@ import {
   isTuned,
   playableInstruments
 } from "../../../instruments/index.js";
+import { MAX_WHITE_MM, MIN_WHITE_MM } from "../domain/layout.js";
 import {
   instrument,
   preset,
@@ -21,10 +22,19 @@ import {
   setPreset,
   setVoiceTier,
   setVolume,
+  setWhiteMm,
   settings,
   VOICE_TIERS
 } from "../stores/play.js";
 import { DRUMKIT_CREDIT, SOUNDFONT_CREDIT } from "../../../audio/soundfont.js";
+
+const props = defineProps<{
+  /**
+   * The width the keyboard chose for itself, in millimetres, or null when
+   * there is nothing on screen to measure — another instrument entirely.
+   */
+  autoWidthMm: number | null;
+}>();
 
 const { t, lang } = useI18n();
 
@@ -42,6 +52,19 @@ const groups = computed(() =>
 
 /** A kit's recordings are its own set; a bank has no percussion at all. */
 const isKit = computed(() => instrument.value.surface.kind === "pads");
+
+/** Only a keyboard has a white key to size, so only a keyboard offers one. */
+const isKeys = computed(() => instrument.value.surface.kind === "keys");
+
+/**
+ * What the slider shows: the player's width, or the one the keyboard
+ * arrived at by itself.
+ *
+ * A slider parked at a number it is not currently using is the ambiguous
+ * control the whole app avoids — so while `自适应` is on it sits at the
+ * real width, and the first drag takes over from there without a jump.
+ */
+const shownMm = computed(() => settings.whiteMm ?? props.autoWidthMm ?? MIN_WHITE_MM);
 
 /** One of three, so it is a radio group rather than three switches. */
 function onTierKey(event: KeyboardEvent, index: number): void {
@@ -112,6 +135,45 @@ const presets = computed(() => {
           @keydown="onTierKey($event, index)"
         >
           {{ t(`playVoice_${tier}`) }}
+        </button>
+      </div>
+    </div>
+
+    <!--
+      A key has a size, and both ends of it come from the hand — a real
+      piano's white key and a fingertip. The room picks somewhere between
+      them, which is right until the player wants a different one; then it
+      is their number and it stops following the window. `自适应` is the way
+      back, and it is a real switch rather than a third width.
+    -->
+    <div v-if="isKeys" class="slider-field">
+      <div class="slider-head">
+        <span class="slider-label">{{ t("playKeyWidth") }}</span>
+        <output class="slider-output" data-key-width>
+          {{ settings.whiteMm === null && props.autoWidthMm === null
+            ? t("playKeyWidthAuto")
+            : `${shownMm.toFixed(1)}mm` }}
+        </output>
+      </div>
+      <v-slider
+        :min="MIN_WHITE_MM"
+        :max="MAX_WHITE_MM"
+        :step="0.5"
+        :model-value="shownMm"
+        hide-details
+        density="compact"
+        @update:model-value="(value: number) => setWhiteMm(value)"
+      />
+      <div class="metro-chips">
+        <button
+          type="button"
+          class="metro-chip"
+          data-key-width-auto
+          :class="{ 'is-active': settings.whiteMm === null }"
+          :aria-pressed="settings.whiteMm === null"
+          @click="setWhiteMm(null)"
+        >
+          {{ t("playKeyWidthAuto") }}
         </button>
       </div>
     </div>

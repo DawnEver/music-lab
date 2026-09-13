@@ -15,7 +15,6 @@ import { computed, reactive, shallowRef } from "vue";
 import { acquireAudio } from "../../../audio/context.js";
 import type { AudioEngineHandle } from "../../../audio/types.js";
 import { createVoicePlayer } from "../../../audio/voice.js";
-import { getTimbre } from "../../../audio/timbre.js";
 import {
   declarePieces,
   percussionNow,
@@ -38,6 +37,7 @@ import {
   MIN_BASE_MIDI,
   shiftBase
 } from "../domain/keymap.js";
+import { clampWhiteMm } from "../domain/layout.js";
 import { createPerformer, type Performer, type VoiceTier } from "../engine/performer.js";
 
 export const DEFAULT_INSTRUMENT = "piano";
@@ -73,6 +73,13 @@ export interface PlaySettings {
    */
   voiceTier: VoiceTier;
   volume: number;
+  /**
+   * How wide one white key is drawn, in millimetres, when the player has
+   * said. `null` is the app's answer: as wide as the room allows, between
+   * a fingertip and a real key. A number is theirs, and it stops following
+   * the window — the point of saying is that the room no longer decides.
+   */
+  whiteMm: number | null;
 }
 
 /**
@@ -91,7 +98,8 @@ function defaults(): PlaySettings {
     baseMidi: DEFAULT_BASE_MIDI,
     presets: {},
     voiceTier: DEFAULT_VOICE_TIER,
-    volume: 0.8
+    volume: 0.8,
+    whiteMm: null
   };
 }
 
@@ -146,7 +154,13 @@ const stored = storedJson<PlaySettings>("play", defaults, (raw, base) => {
     voiceTier: VOICE_TIERS.includes(value.voiceTier as VoiceTier)
       ? (value.voiceTier as VoiceTier)
       : base.voiceTier,
-    volume: typeof value.volume === "number" ? Math.min(1, Math.max(0, value.volume)) : base.volume
+    volume: typeof value.volume === "number" ? Math.min(1, Math.max(0, value.volume)) : base.volume,
+    // A width the player set has to survive; anything else is the app's
+    // answer, including a number that is not one — `NaN` would reach CSS
+    // as an invalid `calc()` and take the board's width with it.
+    whiteMm: typeof value.whiteMm === "number" && Number.isFinite(value.whiteMm)
+      ? clampWhiteMm(value.whiteMm)
+      : base.whiteMm
   };
 });
 
@@ -334,6 +348,18 @@ export function setBaseMidi(value: number): void {
 
 export function shiftOctave(delta: number): void {
   setBaseMidi(shiftBase(settings.baseMidi, delta));
+}
+
+/**
+ * How wide a white key should be, or `null` to let the room decide.
+ *
+ * The keys are rearranged under the fingers, so anything down would hang —
+ * the same reason turning the instrument stops every note.
+ */
+export function setWhiteMm(mm: number | null): void {
+  settings.whiteMm = mm === null ? null : clampWhiteMm(mm);
+  allNotesOff();
+  persist();
 }
 
 export function setVolume(value: number): void {

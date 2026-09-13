@@ -729,6 +729,72 @@ async function walkPlay(page, label, { wide = false } = {}) {
   }
   await assertNoHOverflow(page, `${label} keyboard`);
 
+  /*
+   * The key width the player sets, and the one the keyboard chose.
+   *
+   * The control lives in a sheet that covers the keyboard, so the readout
+   * beside the slider is the entire feedback loop — which makes two things
+   * worth measuring that no unit test can: that the number says what is
+   * actually on screen, and that dragging it changes the screen. A width
+   * that only moves the readout is a slider wired to nothing.
+   */
+  const widthOf = () =>
+    page.evaluate(() => {
+      const board = document.querySelector(".kbd-board");
+      const key = document.querySelector(".kbd-key:not(.is-black)");
+      if (!board || !key) return null;
+      const box = key.getBoundingClientRect();
+      const run = board.classList.contains("is-vertical") ? box.height : box.width;
+      return run / (96 / 25.4);
+    });
+  const drawn = await widthOf();
+  await page.locator('[data-sheet="setup"] .value-chip').click();
+  await page.waitForSelector("[data-key-width]", { timeout: 4000 });
+  const readout = await page.locator("[data-key-width]").innerText();
+  if (!/mm$/.test(readout.trim())) {
+    throw new Error(`${label}: the key width reads "${readout}" with the room deciding`);
+  }
+  const claimed = Number.parseFloat(readout);
+  if (Math.abs(claimed - drawn) > 0.6) {
+    throw new Error(
+      `${label}: the key width says ${claimed}mm while a white key is ${drawn.toFixed(1)}mm on screen`
+    );
+  }
+  // Arrow keys move the slider, and the sheet stays open — its own outside
+  // -pointerdown handler closes it the moment anything looks like a click
+  // somewhere else, and the slider is the control that has to survive that.
+  await page.locator("[data-key-width-auto]").click();
+  // The thumb is what carries the role and the keyboard: the input inside a
+  // Vuetify slider is `tabindex="-1"`, so focusing it moves nothing.
+  const slider = page.locator('.slider-field:has([data-key-width]) [role="slider"]').first();
+  await slider.focus();
+  for (let step = 0; step < 3; step += 1) await page.keyboard.press("ArrowRight");
+  if ((await page.locator("[data-key-width]").count()) === 0) {
+    throw new Error(`${label}: the sheet closed while its slider was being used`);
+  }
+  const wanted = Number.parseFloat(await page.locator("[data-key-width]").innerText());
+  await page.keyboard.press("Escape");
+  await page.waitForTimeout(120);
+  const now = await widthOf();
+  if (Math.abs(now - wanted) > 0.6) {
+    throw new Error(
+      `${label}: the key width says ${wanted}mm and the keyboard drew ${now.toFixed(1)}mm`
+    );
+  }
+  if (Math.abs(now - drawn) < 0.4) {
+    throw new Error(`${label}: dragging the key width changed nothing`);
+  }
+  await assertKeyIsHandSized(page, `${label} keys resized`);
+  await assertNoVOverflow(page, `${label} keys resized`);
+  // And back: 自适应 is the room's answer again, so the width it had.
+  await page.locator('[data-sheet="setup"] .value-chip').click();
+  await page.locator("[data-key-width-auto]").click();
+  await page.keyboard.press("Escape");
+  await page.waitForTimeout(120);
+  if (Math.abs((await widthOf()) - drawn) > 0.6) {
+    throw new Error(`${label}: going back to auto did not restore the keyboard's own width`);
+  }
+
   // Three ways to sound the same instrument, chosen once in the setup
   // sheet rather than kept on a bar that has to hold an instrument.
   // Every one of them plays the instrument in front of the player: a tier

@@ -18,6 +18,7 @@ function keyboard(props: Partial<Record<string, unknown>> = {}) {
       baseMidi: 48,
       sounding: new Set<number>(),
       orientation: "horizontal",
+      whiteMm: null,
       ...props
     }
   });
@@ -436,5 +437,40 @@ describe("HoleChart", () => {
     const midi = getPreset(dizi, dizi.tuning.defaultPresetId).notes[0];
     expect(wrapper.emitted("down")?.[0]).toEqual([midi]);
     expect(wrapper.emitted("up")?.[0]).toEqual([midi]);
+  });
+});
+
+/*
+ * Where a white key's two ends are is the app's business; where it sits
+ * between them is the player's. The board is given the bounds and, when
+ * the player has said, the width — as custom properties, so the numbers
+ * the slider shows and the numbers the layout uses cannot drift apart.
+ */
+describe("PianoKeys width", () => {
+  it("hands the board the hand's own bounds", () => {
+    const style = keyboard().find(".kbd-board").attributes("style") ?? "";
+    expect(style).toContain("--kbd-min: 9mm");
+    expect(style).toContain("--kbd-max: 23.5mm");
+  });
+
+  it("lets the room decide when the player has not said", () => {
+    const style = keyboard().find(".kbd-board").attributes("style") ?? "";
+    expect(style).not.toContain("--kbd-fit");
+  });
+
+  it("sizes the whole run when the player has said", () => {
+    const board = keyboard({ whiteMm: 12.5 }).find(".kbd-board");
+    // Nineteen white keys at 12.5mm, expressed in white-key widths so the
+    // stylesheet keeps reading in the unit the layout is written in.
+    expect(board.attributes("style")).toContain("--kbd-fit: 237.5mm");
+  });
+
+  it("measures the key it is actually drawing", () => {
+    const wrapper = keyboard();
+    // Nineteen white keys over the whole run, so the board is what the
+    // readout divides by — and it is the board the observer watches, not
+    // a key, because a key element is replaced when the span shifts.
+    expect(wrapper.find(".kbd-board").exists()).toBe(true);
+    expect(wrapper.props("whiteMm")).toBeNull();
   });
 });

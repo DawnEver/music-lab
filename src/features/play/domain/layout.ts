@@ -9,6 +9,34 @@
 
 const BLACK_PITCH_CLASSES = new Set([1, 3, 6, 8, 10]);
 
+/**
+ * How wide one white key may be drawn, in millimetres.
+ *
+ * Both ends come from the hand rather than from the window. 23.5mm is the
+ * white key of a real piano — past it a key is not more playable, only
+ * bigger — and 9mm is a fingertip, which is where hitting the right key
+ * stops being likely.
+ *
+ * They live here rather than in the stylesheet because three things have
+ * to agree about them: the slider the player drags, the store that
+ * remembers it, and the clamp the board sizes itself with. A stylesheet
+ * cannot import a number, so the component hands these to CSS as custom
+ * properties — one source, three consumers.
+ */
+export const MIN_WHITE_MM = 9;
+export const MAX_WHITE_MM = 23.5;
+
+/** A width the app is willing to draw, from a width that may be anything. */
+export function clampWhiteMm(mm: number): number {
+  if (!Number.isFinite(mm)) return mm > 0 ? MAX_WHITE_MM : MIN_WHITE_MM;
+  return Math.min(MAX_WHITE_MM, Math.max(MIN_WHITE_MM, mm));
+}
+
+/** How wide the whole run of white keys is, which is what the board is sized to. */
+export function whiteRunMm(whiteCount: number, mm: number): number {
+  return whiteCount * clampWhiteMm(mm);
+}
+
 export interface KeyboardKey {
   midi: number;
   black: boolean;

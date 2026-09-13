@@ -52,6 +52,19 @@ const highMidi = computed(() => settings.baseMidi + span.high);
 
 const surface = computed(() => instrument.value.surface);
 const isKeys = computed(() => surface.value.kind === "keys");
+
+/**
+ * The width the keyboard arrived at on its own, in millimetres.
+ *
+ * The control that sets it lives in a sheet over the instrument, so this
+ * number is the only feedback a player gets while dragging: it is what the
+ * slider sits at while the room is still deciding, and it is why the
+ * control is not simply a slider over a fixed range.
+ */
+const autoWidthMm = ref<number | null>(null);
+function onMeasured(mm: number): void {
+  autoWidthMm.value = mm;
+}
 const pieces = computed(() => (surface.value.kind === "pads" ? surface.value.pieces : []));
 const wind = computed(() =>
   surface.value.kind === "holes" && isTuned(instrument.value) ? instrument.value.tuning.wind : null
@@ -204,7 +217,7 @@ onBeforeUnmount(() => {
        be clipped. -->
   <div class="play-bar">
     <ControlSheet name="setup" :label="t('playSetupTitle')" :value="setupValue">
-      <PlayControl />
+      <PlayControl :auto-width-mm="autoWidthMm" />
     </ControlSheet>
 
     <div class="orient-chips" role="radiogroup" :aria-label="t('playOrientation')">
@@ -256,6 +269,8 @@ onBeforeUnmount(() => {
       :base-midi="settings.baseMidi"
       :sounding="sounding"
       :orientation="orientation"
+      :white-mm="settings.whiteMm"
+      @measured="onMeasured"
       @down="(midi: number) => noteOn(midi)"
       @up="noteOff"
     />

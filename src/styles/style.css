@@ -3344,7 +3344,13 @@
  * one wider — past that the keyboard stops growing and centres itself. A
  * fingertip needs about 9 mm, so below that the keyboard stops shrinking
  * and scrolls instead, which is what the octave buttons are for anyway.
- * Between the two it simply fills the room it has.
+ * Between the two it simply fills the room it has — unless the player has
+ * said how wide a key is, in which case `--kbd-fit` is the run they asked
+ * for and the room stops deciding. The two bounds are still the hand's:
+ * `MIN_WHITE_MM` and `MAX_WHITE_MM` in `play/domain/layout.ts`, handed in
+ * as custom properties because a stylesheet cannot import a number. They
+ * must always arrive — a missing one makes the whole `width` declaration
+ * invalid and the board silently collapses to its content.
  *
  * `margin-inline: auto` rather than `justify-content: center`: a centred
  * flex item that overflows gets its left edge clipped out of reach.
@@ -3360,7 +3366,11 @@
 /* Across: the run is the width, and the keys stand on the board's floor. */
 .kbd-board.is-horizontal {
   height: 100%;
-  width: clamp(calc(var(--kbd-white) * 9mm), 100%, calc(var(--kbd-white) * 23.5mm));
+  width: clamp(
+    calc(var(--kbd-white) * var(--kbd-min)),
+    var(--kbd-fit, 100%),
+    calc(var(--kbd-white) * var(--kbd-max))
+  );
 }
 
 /*
@@ -3372,7 +3382,11 @@
  */
 .kbd-board.is-vertical {
   width: min(100%, 567px);
-  height: clamp(calc(var(--kbd-white) * 9mm), 100%, calc(var(--kbd-white) * 23.5mm));
+  height: clamp(
+    calc(var(--kbd-white) * var(--kbd-min)),
+    var(--kbd-fit, 100%),
+    calc(var(--kbd-white) * var(--kbd-max))
+  );
 }
 
 .kbd-key {
