@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { loudnessGain, midiFromName } from "../src/audio/soundfont.js";
+import {
+  MAX_RESAMPLE_SEMITONES,
+  channelsAgree,
+  louderChannel,
+  loudnessGain,
+  midiFromName,
+  withinReach
+} from "../src/audio/soundfont.js";
 
 /** A buffer of `seconds`, filled by `sample`. */
 function bufferOf(seconds: number, sample: (index: number) => number) {
@@ -96,5 +103,66 @@ describe("soundfont note names", () => {
     expect(new Set(midis).size).toBe(88);
     expect(Math.min(...(midis as number[]))).toBe(21);
     expect(Math.max(...(midis as number[]))).toBe(108);
+  });
+});
+
+/*
+ * How far a recording may be stretched before it stops being a recording
+ * of the instrument.
+ *
+ * The ends of a bank are where this is decided, and the double bass is the
+ * instrument that shows why: its samples stop where the instrument does,
+ * so asking it for a note above that range used to be answered by playing
+ * its highest sample several octaves up — which is not a double bass at
+ * any speed, and with the old rate it was a wrong pitch as well. Three
+ * semitones flat is what the playback-rate clamp makes of a stretch that
+ * wanted four and three quarters.
+ */
+describe("how far a recording may be stretched", () => {
+  it("accepts a bank sampled in minor thirds", () => {
+    expect(withinReach(0)).toBe(true);
+    expect(withinReach(1.5)).toBe(true);
+    expect(withinReach(-3)).toBe(true);
+  });
+
+  it("refuses a stretch that is a different instrument", () => {
+    expect(withinReach(12)).toBe(true);
+    expect(withinReach(15)).toBe(false);
+    expect(withinReach(-27)).toBe(false);
+    expect(MAX_RESAMPLE_SEMITONES).toBe(12);
+  });
+});
+
+/*
+ * A stereo pair that is not two channels of the same signal.
+ *
+ * The grand piano's channels correlate at 0.04 across the bank and are
+ * negative on thirty-six of its eighty-eight notes; the electric piano and
+ * the organ correlate at 1.00. That difference is invisible on headphones
+ * and decisive on a phone, which sums the two channels in one speaker: the
+ * sum of two signals that disagree is a comb, and it takes the fundamental
+ * with it — up to ten decibels of it in the top octave.
+ */
+describe("a bank whose channels disagree", () => {
+  const tone = (n: number, phase = 0) =>
+    Float32Array.from({ length: n }, (_, i) => Math.sin((i / 8) * Math.PI * 2 + phase));
+
+  it("accepts a pair that is one signal stored twice", () => {
+    const signal = tone(512);
+    expect(channelsAgree(signal, signal)).toBe(true);
+    expect(channelsAgree(signal, Float32Array.from(signal, (v) => v))).toBe(true);
+  });
+
+  it("rejects a pair that is a stereo effect", () => {
+    // Inverted, and delayed: the two shapes a widening effect takes.
+    expect(channelsAgree(tone(512), tone(512, Math.PI))).toBe(false);
+    expect(channelsAgree(tone(512), tone(512).slice(0).map((_, i) => Math.sin(((i - 30) / 8) * Math.PI * 2)))).toBe(false);
+  });
+
+  it("keeps the louder of the two", () => {
+    const quiet = tone(512);
+    const loud = Float32Array.from(quiet, (v) => v * 3);
+    expect(louderChannel(quiet, loud)).toBe(1);
+    expect(louderChannel(loud, quiet)).toBe(0);
   });
 });

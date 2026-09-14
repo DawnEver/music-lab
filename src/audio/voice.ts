@@ -457,6 +457,17 @@ export function createVoicePlayer(
         const fadeAt = Math.max(at, endsAt - Math.min(0.08, (endsAt - at) / 4));
         node.gain.setValueAtTime(Math.max(level, SILENT), fadeAt);
         node.gain.exponentialRampToValueAtTime(SILENT, endsAt);
+      } else {
+        /*
+         * A recording that runs to its own end stops there, and a bank's
+         * end is not always silent: a blown note holds its level to the
+         * last sample, so stopping is a step from full level to nothing —
+         * which is a click, at the end of a note that was otherwise fine.
+         * Twenty milliseconds is given up to avoid it.
+         */
+        const fadeAt = Math.max(at, endsAt - Math.min(0.02, (endsAt - at) / 4));
+        node.gain.setValueAtTime(Math.max(level, SILENT), fadeAt);
+        node.gain.exponentialRampToValueAtTime(SILENT, endsAt);
       }
       node.connect(out);
 

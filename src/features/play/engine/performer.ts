@@ -162,7 +162,16 @@ export function createPerformer(options: PerformerOptions): Performer {
     if (tier === "synth" || !sample) return null;
     const take = options.takeSample?.(sample, midi) ?? null;
     if (!take) return null;
-    const rate = Math.pow(2, take.offset / 12);
+    /*
+     * `offset` is where the recording sits *relative to the note asked
+     * for*, so a recording two semitones up has to be played two semitones
+     * slower. The sign is the whole of it: read the other way a note whose
+     * bank entry is missing comes out twice as far from the note as the
+     * bank's nearest entry was, which for a contrabass asked for a C5 is
+     * an octave and a half below it. Nothing reveals this while a bank has
+     * every note, because then the offset is zero and the exponent is one.
+     */
+    const rate = Math.pow(2, -take.offset / 12);
 
     if (tier === "hybrid") {
       // The recording says what the instrument sounds like at the instant

@@ -63,13 +63,41 @@ describe("voice tiers", () => {
     expect(takeSample).not.toHaveBeenCalled();
   });
 
+  /*
+   * A recording of a note *above* the one being played has to be played
+   * *slower*, and getting that backwards is worth an octave and a half.
+   *
+   * It stayed hidden for as long as it did because it cannot be seen where
+   * a bank has every note: the piano's offset is zero for all eighty-eight
+   * of them, so the exponent never mattered. It matters the moment a bank
+   * does not have the note — a contrabass has nothing above its range, and
+   * its nearest usable recording is fifteen semitones down — and there the
+   * sampled tier answered a C5 with a note an octave and a half below it.
+   */
   it("plays the recording alone when the tier is samples", () => {
     const fake = fakePlayer();
     performer(fake.player, { tier: "samples", sample: "x", takeSample: () => fakeSample() }).noteOn(60);
     expect(fake.notes).toHaveLength(1);
-    // Resampled by the two semitones between the recording and the note.
-    expect(fake.notes[0].options.rate).toBeCloseTo(Math.pow(2, 2 / 12), 6);
+    // The recording is two semitones above the note asked for, so it is
+    // slowed by two semitones — not sped up by two.
+    expect(fake.notes[0].options.rate).toBeCloseTo(Math.pow(2, -2 / 12), 6);
     expect(fake.notes[0].options.seconds).toBeUndefined();
+  });
+
+  it("slows a recording that sits above the note, and speeds one below it", () => {
+    const above = fakePlayer();
+    performer(above.player, {
+      tier: "samples", sample: "x", takeSample: () => fakeSample({ offset: 7 })
+    }).noteOn(60);
+    const below = fakePlayer();
+    performer(below.player, {
+      tier: "samples", sample: "x", takeSample: () => fakeSample({ offset: -7 })
+    }).noteOn(60);
+    // A recording seven semitones up comes down at a rate below one, and
+    // one seven semitones down comes up at a rate above it.
+    expect(above.notes[0]!.options.rate).toBeLessThan(1);
+    expect(below.notes[0]!.options.rate).toBeGreaterThan(1);
+    expect(above.notes[0]!.options.rate! * below.notes[0]!.options.rate!).toBeCloseTo(1, 6);
   });
 
   /*

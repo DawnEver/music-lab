@@ -476,3 +476,22 @@ describe("recorded notes", () => {
     expect(envelope.ramps[0].value).toBeCloseTo(1, 6);
   });
 });
+
+/*
+ * A recording ends where the file ends, and a bank's last sample is not
+ * always silence: a blown note holds its level to the end, so stopping
+ * there steps from full level to nothing. That step is a click, and it
+ * arrives at the end of a note that was otherwise fine.
+ */
+describe("recordings that run to their own end", () => {
+  const BUFFER = { duration: 1 } as AudioBuffer;
+
+  it("gives up the last few milliseconds rather than stop mid-wave", () => {
+    const fake = fakeContext(0);
+    createVoicePlayer(fake.context, fake.context.createGain()).playBuffer(BUFFER, 0, 1);
+    const envelope = fake.gains[2] as unknown as { ramps: Ramp[] };
+    const last = envelope.ramps[envelope.ramps.length - 1];
+    expect(last.value).toBeCloseTo(0.0001, 6);
+    expect(last.time).toBeCloseTo(1, 6);
+  });
+});

@@ -106,12 +106,76 @@ export function isLoaded(name: string): boolean {
   return bankOf(name).loaded;
 }
 
-function decodeBase64(context: BaseAudioContext, data: string): Promise<AudioBuffer> {
+/**
+ * Whether a bank's two channels are one signal stored twice.
+ *
+ * The electric piano and the organ banks are: their channels correlate at
+ * 1.00, sample for sample. The grand piano's do not — its two channels
+ * correlate at 0.04 across the bank, and thirty-six of its eighty-eight
+ * notes are *negatively* correlated, which is a stereo image and not two
+ * channels of information.
+ */
+export function channelsAgree(left: Float32Array, right: Float32Array): boolean {
+  let ll = 0;
+  let rr = 0;
+  let lr = 0;
+  for (let index = 0; index < left.length; index += 1) {
+    const a = left[index];
+    const b = right[index];
+    ll += a * a;
+    rr += b * b;
+    lr += a * b;
+  }
+  const norm = Math.sqrt(ll * rr);
+  return norm > 0 && lr / norm > 0.9;
+}
+
+/** Which channel has more in it, for the one that gets kept. */
+export function louderChannel(left: Float32Array, right: Float32Array): 0 | 1 {
+  let ll = 0;
+  let rr = 0;
+  for (let index = 0; index < left.length; index += 1) {
+    ll += left[index] * left[index];
+    rr += right[index] * right[index];
+  }
+  return rr > ll ? 1 : 0;
+}
+
+/**
+ * One channel, when the two are not the same signal.
+ *
+ * A pair that agrees plays as it always did — nothing here touches the
+ * banks that store a mono recording twice. A pair that disagrees is a
+ * stereo effect, and a stereo effect has a cost that is invisible until it
+ * is paid: a phone plays its media through one speaker, so the two
+ * channels are summed *electrically*, and the sum of two signals that
+ * disagree is a comb filter. Measured on the piano's own recordings, that
+ * costs the fundamental five to ten decibels and takes whole harmonics
+ * with it — the octave above C6 loses its fundamental entirely — which is
+ * the difference between a piano and a piano heard through a wall.
+ *
+ * So a divided pair is played as one of its channels rather than as both.
+ * The wider of the two is the one kept, and the level is unaffected
+ * because the bank's calibration is measured on that channel already.
+ */
+export function monoIfDivided(context: BaseAudioContext, buffer: AudioBuffer): AudioBuffer {
+  if (buffer.numberOfChannels < 2) return buffer;
+  const left = buffer.getChannelData(0);
+  const right = buffer.getChannelData(1);
+  if (channelsAgree(left, right)) return buffer;
+
+  const kept = louderChannel(left, right);
+  const mono = context.createBuffer(1, buffer.length, buffer.sampleRate);
+  mono.copyToChannel(buffer.getChannelData(kept), 0);
+  return mono;
+}
+
+async function decodeBase64(context: BaseAudioContext, data: string): Promise<AudioBuffer> {
   const comma = data.indexOf(",");
   const binary = atob(data.slice(comma + 1));
   const bytes = new Uint8Array(binary.length);
   for (let index = 0; index < binary.length; index += 1) bytes[index] = binary.charCodeAt(index);
-  return context.decodeAudioData(bytes.buffer);
+  return monoIfDivided(context, await context.decodeAudioData(bytes.buffer));
 }
 
 /**
@@ -125,7 +189,16 @@ function decodeBase64(context: BaseAudioContext, data: string): Promise<AudioBuf
  */
 export interface SampledNote {
   buffer: AudioBuffer;
-  /** Semitones between what was asked for and what was recorded. */
+  /**
+   * Where the recording sits against the note that was asked for, in
+   * semitones: positive when the recorded note is the higher of the two.
+   *
+   * Signed, and read in one direction only — a recording three semitones
+   * above the note has to be played three semitones slower, so the sign
+   * says which way the playback rate goes. The two ends of a bank are the
+   * only places it is ever non-zero, and they are exactly where getting it
+   * backwards is inaudible until somebody plays the top of the instrument.
+   */
   offset: number;
   /**
    * What the recording has to be multiplied by to sit at the same level
@@ -139,6 +212,24 @@ export interface SampledNote {
    * attack layer nobody hears.
    */
   gain: number;
+}
+
+/**
+ * How far a recording may be stretched before it stops being the
+ * instrument it is a recording of.
+ *
+ * A bank sampled in minor thirds is resampled by at most a semitone and a
+ * half, which is a lie nobody hears. Asking a contrabass for a C6 is not a
+ * resampling at all — it is a different instrument, because the formants
+ * move with the pitch and a double bass becomes a cello, then a violin.
+ * Past an octave the model is the better answer, and it is the answer this
+ * tier already falls back to when a bank has nothing to say.
+ */
+export const MAX_RESAMPLE_SEMITONES = 12;
+
+/** Whether a recording is close enough to the note to stand in for it. */
+export function withinReach(offset: number): boolean {
+  return Math.abs(offset) <= MAX_RESAMPLE_SEMITONES;
 }
 
 /**
@@ -207,6 +298,8 @@ async function nearestUsable(
     (a, b) => Math.abs(a - midi) - Math.abs(b - midi)
   );
   for (const candidate of candidates) {
+    // Sorted by distance, so the first one out of reach ends the search.
+    if (!withinReach(candidate - midi)) break;
     const cached = bank.decoded.get(candidate);
     if (cached) {
       const note = usable(cached, candidate - midi);
@@ -284,7 +377,7 @@ export function sampleNow(name: string, midi: number): SampledNote | null {
   let bestDistance = Infinity;
   for (const candidate of bank.decoded.keys()) {
     const distance = Math.abs(candidate - midi);
-    if (distance >= bestDistance) continue;
+    if (distance >= bestDistance || !withinReach(candidate - midi)) continue;
     const note = usable(bank.decoded.get(candidate), candidate - midi);
     if (!note) continue;
     best = note;
