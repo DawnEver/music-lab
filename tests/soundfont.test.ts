@@ -186,21 +186,17 @@ describe("looping a sustained tail", () => {
     );
 
   it("loops the tail of a note that holds its level", () => {
-    const held = tone(3, 1e9);
-    const loop = loopLength(held.getChannelData(0), 48000, 200);
+    const loop = loopLength(tone(3, 1e9).getChannelData(0), 48000);
     expect(loop).toBeGreaterThan(0.4);
     expect(loop).toBeLessThanOrEqual(0.6);
-    // A whole number of periods, so the seam is the waveform continuing.
-    const periods = (loop * 48000) / (48000 / 200);
-    expect(Math.abs(periods - Math.round(periods))).toBeLessThan(1e-6);
   });
 
   it("refuses to loop a note that is ending", () => {
     // Down 60dB over its three seconds: a piano, not an organ.
-    expect(loopLength(tone(3, 0.4).getChannelData(0), 48000, 200)).toBe(0);
+    expect(loopLength(tone(3, 0.4).getChannelData(0), 48000)).toBe(0);
   });
 
   it("refuses when there is no tail left to loop", () => {
-    expect(loopLength(tone(1, 1e9).getChannelData(0), 48000, 200)).toBe(0);
+    expect(loopLength(tone(1, 1e9).getChannelData(0), 48000)).toBe(0);
   });
 });

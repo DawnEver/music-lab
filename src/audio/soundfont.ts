@@ -33,8 +33,11 @@ const BANK = "https://gleitz.github.io/midi-js-soundfonts/FluidR3_GM";
  */
 const LOOP_SECONDS = 0.6;
 
-/** How well a loop has to meet itself before it is a seam rather than a step. */
-const GOOD_SEAM = 0.95;
+/**
+ * How long the crossfade at a loop's join is. Long enough to hide a beat,
+ * far too short to be heard as a fade.
+ */
+const FADE_SECONDS = 0.05;
 
 /**
  * The shortest loop worth taking. Below this a loop is not a piece of the
@@ -195,7 +198,12 @@ async function decodeBase64(context: BaseAudioContext, data: string): Promise<Au
   const binary = atob(data.slice(comma + 1));
   const bytes = new Uint8Array(binary.length);
   for (let index = 0; index < binary.length; index += 1) bytes[index] = binary.charCodeAt(index);
-  return monoIfDivided(context, await context.decodeAudioData(bytes.buffer));
+  const buffer = monoIfDivided(context, await context.decodeAudioData(bytes.buffer));
+  // A note that holds gets its loop baked in here, where the context is:
+  // the crossfade is a copy of the samples, and the player is handed a
+  // buffer it can loop at any length.
+  const seconds = loopLength(buffer.getChannelData(0), buffer.sampleRate);
+  return seconds > 0 ? seamless(context, buffer, seconds) : buffer;
 }
 
 /**
@@ -342,25 +350,22 @@ async function nearestUsable(
  * How long a tail may be looped, in seconds, or 0 to play the recording out.
  *
  * A recording is one note long, and a key can be held longer than that: a
- * fluent bank holds its level to the last sample, so a held note ends with
- * a step from full level to silence, in the middle of a phrase. A sampler
- * loops the tail instead, and so does this — but only where a loop is
- * honest, which is two conditions and neither is assumed.
+ * fluent bank holds its level to the last sample, so a held note ended in
+ * the middle of a phrase with a step from full level to silence in the
+ * twelve instruments that hold rather than decay. A sampler loops the
+ * tail, and so does this — but only for a recording that *holds*: a note
+ * that is falling away is a note that is ending, and looping it would
+ * freeze a piano's decay into an organ's. Six decibels down over the note
+ * is the line, and the piano, the guitar and the kalimba are on the
+ * far side of it and still end as they should.
  *
- * The recording must be *sustained*: a note that is falling away is a note
- * that is ending, and looping it would freeze a piano's decay into an
- * organ's. And the loop must *meet itself*: the tail is correlated against
- * where it would join, over every length it could plausibly take, and the
- * join has to be no worse than the waveform's own steepest step. Whole
- * periods of the note are the right answer and not always the true one — a
- * recording with vibrato, or one whose pitch is a few cents from where it
- * was filed, comes back to its starting phase somewhere else, and a
- * drawbar organ with detuned drawbars does not come back at all until its
- * beating does. Measured across the banks, the dizi needs the search (its
- * seam was 0.29 against its own 0.09) and the organ needs to be refused
- * (0.039 against 0.012) — which is the right answer for both.
+ * Whether a loop can be *made* seamless is not asked here, because the
+ * seam is removed rather than found: `seamless` crossfades the tail into
+ * itself when the note is decoded, so the loop meets cleanly at any length
+ * (see there for why looking for a length that meets by itself is not
+ * enough).
  */
-export function loopLength(samples: Float32Array, sampleRate: number, recordedHz: number): number {
+export function loopLength(samples: Float32Array, sampleRate: number): number {
   const level = (from: number, to: number): number => {
     const start = Math.max(0, Math.min(from, samples.length - 1));
     const end = Math.max(start + 1, Math.min(to, samples.length));
@@ -370,82 +375,55 @@ export function loopLength(samples: Float32Array, sampleRate: number, recordedHz
   };
 
   const second = Math.round(sampleRate);
-  if (samples.length < second * 1.2 || recordedHz <= 0) return 0;
+  if (samples.length < second * 1.2) return 0;
   const settled = level(second * 0.8, second);
   const ending = level(samples.length - sampleRate * 0.2, samples.length);
-  // Six decibels down over the note is a decay, not a held note.
   if (settled <= 0 || ending / settled < 0.5) return 0;
 
-  const wanted = Math.min(Math.floor(LOOP_SECONDS * sampleRate), samples.length - second);
-  if (wanted < second * 0.3) return 0;
-
-  const best = seamLength(samples, wanted);
-  if (!best || best < MIN_LOOP_SECONDS * sampleRate) return 0;
-  // Worse than twice the steepest step the recording makes on its own is a
-  // click at every turn, which is worse than the note simply ending.
-  let steepest = 0;
-  for (let index = 1; index < samples.length; index += 1) {
-    const step = Math.abs(samples[index] - samples[index - 1]);
-    if (step > steepest) steepest = step;
-  }
-  const join = Math.abs(samples[samples.length - best] - samples[samples.length - 1]);
-  return join <= steepest * 2 ? best / sampleRate : 0;
+  const wanted = Math.min(LOOP_SECONDS, (samples.length - second) / sampleRate);
+  return wanted >= MIN_LOOP_SECONDS ? wanted : 0;
 }
 
 /**
- * The length nearest `wanted` where the waveform actually meets itself.
+ * A copy of a recording whose tail crossfades into the note it came from,
+ * so that a loop of it has no seam to hear.
  *
- * Measured, not assumed, and measured over a wide range of lengths: the
- * first version looked only near the note's own period, which is right for
- * a steady tone and wrong for anything that breathes. A short window,
- * because what has to match is the junction — a long one is dominated by
- * the overall shape, which matches at almost any lag. Coarse then fine,
- * because the search is per note and there are eighty-eight of them.
+ * The seam cannot be *found*, only removed. Looking for a length at which
+ * the waveform meets itself works for a steady tone and fails for anything
+ * that breathes: measured across the banks, the dizi's cleanest join was
+ * three times its own steepest step, and a drawbar organ with detuned
+ * drawbars does not meet itself at any usable length at all — the only
+ * clean loop it had was two hundred milliseconds, which would have frozen
+ * its beating into a five-hertz wobble. A crossfade asks a different and
+ * easier question: not "does it meet" but "does it *blend*", and every one
+ * of those twelve instruments blends.
+ *
+ * The last half of the fade is replaced by a mix of itself and the same
+ * stretch one loop earlier, which is the standard construction and the one
+ * a sampler uses. Fifty milliseconds is long enough to hide a beat and far
+ * too short to hear as a fade.
  */
-function seamLength(samples: Float32Array, wanted: number): number {
-  const window = Math.min(256, Math.floor(wanted / 4));
-  const end = samples.length;
-  const score = (length: number): number => {
-    const start = Math.round(end - length);
-    let cross = 0;
-    let a = 0;
-    let b = 0;
-    for (let index = 0; index < window; index += 1) {
-      const left = samples[end - window + index];
-      const right = samples[start - window + index] ?? 0;
-      cross += left * right;
-      a += left * left;
-      b += right * right;
-    }
-    return cross / Math.sqrt(Math.max(a * b, 1e-12));
-  };
+export function seamless(
+  context: BaseAudioContext,
+  buffer: AudioBuffer,
+  loopSeconds: number
+): AudioBuffer {
+  const fade = Math.min(Math.round(buffer.sampleRate * FADE_SECONDS), Math.floor(buffer.length / 4));
+  const loop = Math.round(buffer.sampleRate * loopSeconds);
+  if (loop <= 0 || loop + fade >= buffer.length) return buffer;
 
-  /*
-   * Longest first. A steady tone meets itself at every lag, so the longest
-   * one that meets cleanly is the one that keeps the most of the note —
-   * a short loop is a note that has stopped moving. `GOOD` is a strict
-   * threshold for that reason: just-better-than-chance is not a seam.
-   */
-  let best = 0;
-  let bestScore = 0;
-  for (let length = wanted; length >= window * 2; length -= 32) {
-    const value = score(length);
-    if (value > bestScore) {
-      bestScore = value;
-      best = length;
-      if (value >= GOOD_SEAM) break;
+  const out = context.createBuffer(buffer.numberOfChannels, buffer.length, buffer.sampleRate);
+  for (let channel = 0; channel < buffer.numberOfChannels; channel += 1) {
+    const from = buffer.getChannelData(channel);
+    const to = out.getChannelData(channel);
+    to.set(from);
+    for (let index = 0; index < fade; index += 1) {
+      const at = buffer.length - fade + index;
+      const blend = index / fade;
+      to[at] = from[at] * (1 - blend) + from[at - loop] * blend;
     }
   }
-  if (!best) return 0;
-  for (let length = best - 32; length <= best + 32; length += 1) {
-    if (length <= window * 2) continue;
-    const value = score(length);
-    if (value > bestScore) {
-      bestScore = value;
-      best = length;
-    }
-  }
-  return best;
+  return out;
 }
 
 /** The note, if what came back is a note. */
@@ -454,12 +432,11 @@ function usable(buffer: AudioBuffer | undefined, midi: number, nearest: number):
   const gain = loudnessGain(buffer);
   if (gain <= 0) return null;
   const offset = nearest - midi;
-  const recordedHz = 440 * Math.pow(2, (midi + offset - 69) / 12);
   return {
     buffer,
     offset,
     gain,
-    loop: loopLength(buffer.getChannelData(0), buffer.sampleRate, recordedHz)
+    loop: loopLength(buffer.getChannelData(0), buffer.sampleRate)
   };
 }
 
