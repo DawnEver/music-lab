@@ -62,6 +62,12 @@ export interface SampledNote {
   buffer: AudioBuffer;
   offset: number;
   gain: number;
+  /**
+   * Seconds of the tail that may be looped while the key is held, or 0 for
+   * a recording that is played once and ends. A wind instrument does not
+   * stop because a file did.
+   */
+  loop: number;
 }
 
 export type VoiceTier = "synth" | "hybrid" | "samples";
@@ -190,7 +196,10 @@ export function createPerformer(options: PerformerOptions): Performer {
       voice: player.playBuffer(take.buffer, now(), velocity, {
         rate,
         gain: take.gain,
-        release: 0.12
+        release: 0.12,
+        // A key held longer than the recording is a note that has to keep
+        // going: a wind instrument does not stop because a file did.
+        loop: take.loop
       })
     };
   }

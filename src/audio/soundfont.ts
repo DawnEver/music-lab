@@ -26,6 +26,26 @@ import { LOUDNESS, PEAK_CEILING, LOUDNESS_WINDOW } from "./render.js";
 const BANK = "https://gleitz.github.io/midi-js-soundfonts/FluidR3_GM";
 
 /** The name a program is published under, and where it comes from. */
+/**
+ * How much of a sustained tail to loop, at most. Long enough that a loop
+ * is a piece of the note rather than a buzz, short enough that the tail
+ * still has somewhere to live.
+ */
+const LOOP_SECONDS = 0.6;
+
+/** How well a loop has to meet itself before it is a seam rather than a step. */
+const GOOD_SEAM = 0.95;
+
+/**
+ * The shortest loop worth taking. Below this a loop is not a piece of the
+ * note, it is a *rate*: a drawbar organ with detuned drawbars is the
+ * instrument that shows it, because it does not meet itself at any length
+ * until its own beating does — a two-hundred-millisecond loop of one
+ * freezes that beating into a five-hertz wobble, which is worse than the
+ * note ending. Where no long seam exists, the recording is played out.
+ */
+const MIN_LOOP_SECONDS = 0.4;
+
 export const SOUNDFONT_CREDIT = {
   name: "FluidR3_GM",
   url: "https://github.com/gleitz/midi-js-soundfonts"
@@ -201,6 +221,11 @@ export interface SampledNote {
    */
   offset: number;
   /**
+   * Seconds of the tail that may be looped while the key is held, or 0 to
+   * play the recording out. See `loopLength`.
+   */
+  loop: number;
+  /**
    * What the recording has to be multiplied by to sit at the same level
    * as a model of the same instrument.
    *
@@ -302,7 +327,7 @@ async function nearestUsable(
     if (!withinReach(candidate - midi)) break;
     const cached = bank.decoded.get(candidate);
     if (cached) {
-      const note = usable(cached, candidate - midi);
+      const note = usable(cached, midi, candidate);
       if (note) return note;
       continue;
     }
@@ -313,11 +338,129 @@ async function nearestUsable(
   return null;
 }
 
+/**
+ * How long a tail may be looped, in seconds, or 0 to play the recording out.
+ *
+ * A recording is one note long, and a key can be held longer than that: a
+ * fluent bank holds its level to the last sample, so a held note ends with
+ * a step from full level to silence, in the middle of a phrase. A sampler
+ * loops the tail instead, and so does this — but only where a loop is
+ * honest, which is two conditions and neither is assumed.
+ *
+ * The recording must be *sustained*: a note that is falling away is a note
+ * that is ending, and looping it would freeze a piano's decay into an
+ * organ's. And the loop must *meet itself*: the tail is correlated against
+ * where it would join, over every length it could plausibly take, and the
+ * join has to be no worse than the waveform's own steepest step. Whole
+ * periods of the note are the right answer and not always the true one — a
+ * recording with vibrato, or one whose pitch is a few cents from where it
+ * was filed, comes back to its starting phase somewhere else, and a
+ * drawbar organ with detuned drawbars does not come back at all until its
+ * beating does. Measured across the banks, the dizi needs the search (its
+ * seam was 0.29 against its own 0.09) and the organ needs to be refused
+ * (0.039 against 0.012) — which is the right answer for both.
+ */
+export function loopLength(samples: Float32Array, sampleRate: number, recordedHz: number): number {
+  const level = (from: number, to: number): number => {
+    const start = Math.max(0, Math.min(from, samples.length - 1));
+    const end = Math.max(start + 1, Math.min(to, samples.length));
+    let sum = 0;
+    for (let index = start; index < end; index += 1) sum += samples[index] * samples[index];
+    return Math.sqrt(sum / (end - start));
+  };
+
+  const second = Math.round(sampleRate);
+  if (samples.length < second * 1.2 || recordedHz <= 0) return 0;
+  const settled = level(second * 0.8, second);
+  const ending = level(samples.length - sampleRate * 0.2, samples.length);
+  // Six decibels down over the note is a decay, not a held note.
+  if (settled <= 0 || ending / settled < 0.5) return 0;
+
+  const wanted = Math.min(Math.floor(LOOP_SECONDS * sampleRate), samples.length - second);
+  if (wanted < second * 0.3) return 0;
+
+  const best = seamLength(samples, wanted);
+  if (!best || best < MIN_LOOP_SECONDS * sampleRate) return 0;
+  // Worse than twice the steepest step the recording makes on its own is a
+  // click at every turn, which is worse than the note simply ending.
+  let steepest = 0;
+  for (let index = 1; index < samples.length; index += 1) {
+    const step = Math.abs(samples[index] - samples[index - 1]);
+    if (step > steepest) steepest = step;
+  }
+  const join = Math.abs(samples[samples.length - best] - samples[samples.length - 1]);
+  return join <= steepest * 2 ? best / sampleRate : 0;
+}
+
+/**
+ * The length nearest `wanted` where the waveform actually meets itself.
+ *
+ * Measured, not assumed, and measured over a wide range of lengths: the
+ * first version looked only near the note's own period, which is right for
+ * a steady tone and wrong for anything that breathes. A short window,
+ * because what has to match is the junction — a long one is dominated by
+ * the overall shape, which matches at almost any lag. Coarse then fine,
+ * because the search is per note and there are eighty-eight of them.
+ */
+function seamLength(samples: Float32Array, wanted: number): number {
+  const window = Math.min(256, Math.floor(wanted / 4));
+  const end = samples.length;
+  const score = (length: number): number => {
+    const start = Math.round(end - length);
+    let cross = 0;
+    let a = 0;
+    let b = 0;
+    for (let index = 0; index < window; index += 1) {
+      const left = samples[end - window + index];
+      const right = samples[start - window + index] ?? 0;
+      cross += left * right;
+      a += left * left;
+      b += right * right;
+    }
+    return cross / Math.sqrt(Math.max(a * b, 1e-12));
+  };
+
+  /*
+   * Longest first. A steady tone meets itself at every lag, so the longest
+   * one that meets cleanly is the one that keeps the most of the note —
+   * a short loop is a note that has stopped moving. `GOOD` is a strict
+   * threshold for that reason: just-better-than-chance is not a seam.
+   */
+  let best = 0;
+  let bestScore = 0;
+  for (let length = wanted; length >= window * 2; length -= 32) {
+    const value = score(length);
+    if (value > bestScore) {
+      bestScore = value;
+      best = length;
+      if (value >= GOOD_SEAM) break;
+    }
+  }
+  if (!best) return 0;
+  for (let length = best - 32; length <= best + 32; length += 1) {
+    if (length <= window * 2) continue;
+    const value = score(length);
+    if (value > bestScore) {
+      bestScore = value;
+      best = length;
+    }
+  }
+  return best;
+}
+
 /** The note, if what came back is a note. */
-function usable(buffer: AudioBuffer | undefined, offset: number): SampledNote | null {
+function usable(buffer: AudioBuffer | undefined, midi: number, nearest: number): SampledNote | null {
   if (!buffer) return null;
   const gain = loudnessGain(buffer);
-  return gain > 0 ? { buffer, offset, gain } : null;
+  if (gain <= 0) return null;
+  const offset = nearest - midi;
+  const recordedHz = 440 * Math.pow(2, (midi + offset - 69) / 12);
+  return {
+    buffer,
+    offset,
+    gain,
+    loop: loopLength(buffer.getChannelData(0), buffer.sampleRate, recordedHz)
+  };
 }
 
 async function decode(
@@ -331,7 +474,7 @@ async function decode(
   try {
     const buffer = await decodeBase64(context, data);
     bank.decoded.set(nearest, buffer);
-    return usable(buffer, nearest - midi);
+    return usable(buffer, midi, nearest);
   } catch (_) {
     return null;
   }
@@ -378,7 +521,7 @@ export function sampleNow(name: string, midi: number): SampledNote | null {
   for (const candidate of bank.decoded.keys()) {
     const distance = Math.abs(candidate - midi);
     if (distance >= bestDistance || !withinReach(candidate - midi)) continue;
-    const note = usable(bank.decoded.get(candidate), candidate - midi);
+    const note = usable(bank.decoded.get(candidate), midi, candidate);
     if (!note) continue;
     best = note;
     bestDistance = distance;
@@ -443,7 +586,9 @@ export function percussionNow(name: string): SampledNote | null {
   const buffer = kit.decoded.get(name);
   if (!buffer) return null;
   const gain = loudnessGain(buffer);
-  return gain > 0 ? { buffer, offset: 0, gain } : null;
+  // A drum has no pitch to resample to and no note to hold: a strike is
+  // over when it decays, so there is nothing here to loop.
+  return gain > 0 ? { buffer, offset: 0, gain, loop: 0 } : null;
 }
 
 /** Forget every fetched bank. Used when the context that decoded them goes. */

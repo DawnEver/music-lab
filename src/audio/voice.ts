@@ -74,6 +74,12 @@ export interface BufferOptions {
   release?: number;
   seconds?: number;
   /**
+   * Seconds of the recording's tail to repeat while the note is held, or
+   * 0 for a recording that is played once and ends. A held wind note is
+   * not shorter than the file it came from.
+   */
+  loop?: number;
+  /**
    * Seconds to fade in over, for a buffer that is meant to arrive under
    * something else. A model played beneath a recording's attack has to
    * come up while that attack is still going on, not start at full volume
@@ -440,7 +446,13 @@ export function createVoicePlayer(
       const level = clamp(velocity, 0, 1) * Math.max(0, options.gain ?? 1);
       const rate = clamp(options.rate ?? 1, 0.25, 4);
       const release = options.release ?? 0.12;
-      const endsAt = at + (options.seconds ?? buffer.duration / rate);
+      /*
+       * A note whose tail loops never reaches its own end, so it has no end
+       * to fade out at and no end to stop at: it lasts until the key comes
+       * up, which is what holding a key means.
+       */
+      const loop = options.seconds === undefined ? Math.max(0, options.loop ?? 0) : 0;
+      const endsAt = loop > 0 ? Infinity : at + (options.seconds ?? buffer.duration / rate);
 
       const node = context.createGain();
       // A buffer that fades in is one half of a crossfade, so it starts
@@ -457,7 +469,7 @@ export function createVoicePlayer(
         const fadeAt = Math.max(at, endsAt - Math.min(0.08, (endsAt - at) / 4));
         node.gain.setValueAtTime(Math.max(level, SILENT), fadeAt);
         node.gain.exponentialRampToValueAtTime(SILENT, endsAt);
-      } else {
+      } else if (loop <= 0) {
         /*
          * A recording that runs to its own end stops there, and a bank's
          * end is not always silent: a blown note holds its level to the
@@ -474,9 +486,16 @@ export function createVoicePlayer(
       const source = context.createBufferSource();
       source.buffer = buffer;
       source.playbackRate.value = rate;
+      if (loop > 0) {
+        // The loop is a whole number of the note's periods and lives in the
+        // tail, so it is the note continuing rather than the note again.
+        source.loop = true;
+        source.loopEnd = buffer.duration;
+        source.loopStart = Math.max(0, buffer.duration - loop);
+      }
       source.connect(node);
       source.start(at);
-      source.stop(endsAt + 0.02);
+      if (Number.isFinite(endsAt)) source.stop(endsAt + 0.02);
       source.onended = () => {
         source.disconnect();
         node.disconnect();

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   MAX_RESAMPLE_SEMITONES,
   channelsAgree,
+  loopLength,
   louderChannel,
   loudnessGain,
   midiFromName,
@@ -164,5 +165,42 @@ describe("a bank whose channels disagree", () => {
     const loud = Float32Array.from(quiet, (v) => v * 3);
     expect(louderChannel(quiet, loud)).toBe(1);
     expect(louderChannel(loud, quiet)).toBe(0);
+  });
+});
+
+/*
+ * A key can be held longer than a recording is long.
+ *
+ * A bank holds its level to its last sample — a blown note does not fade,
+ * it stops when the player stops — so a held wind note used to end in the
+ * middle of a phrase with a step from full level to silence. A sampler
+ * loops the tail; so does this, but only where a loop is honest: the
+ * recording has to be one that holds rather than one that is ending, and
+ * the loop has to be a whole number of the note's own periods, or every
+ * turn of it steps to a different phase of the waveform.
+ */
+describe("looping a sustained tail", () => {
+  const tone = (seconds: number, decay: number, hz = 200) =>
+    bufferOf(seconds, (index) =>
+      Math.exp(-index / (48000 * decay)) * Math.sin((2 * Math.PI * hz * index) / 48000)
+    );
+
+  it("loops the tail of a note that holds its level", () => {
+    const held = tone(3, 1e9);
+    const loop = loopLength(held.getChannelData(0), 48000, 200);
+    expect(loop).toBeGreaterThan(0.4);
+    expect(loop).toBeLessThanOrEqual(0.6);
+    // A whole number of periods, so the seam is the waveform continuing.
+    const periods = (loop * 48000) / (48000 / 200);
+    expect(Math.abs(periods - Math.round(periods))).toBeLessThan(1e-6);
+  });
+
+  it("refuses to loop a note that is ending", () => {
+    // Down 60dB over its three seconds: a piano, not an organ.
+    expect(loopLength(tone(3, 0.4).getChannelData(0), 48000, 200)).toBe(0);
+  });
+
+  it("refuses when there is no tail left to loop", () => {
+    expect(loopLength(tone(1, 1e9).getChannelData(0), 48000, 200)).toBe(0);
   });
 });

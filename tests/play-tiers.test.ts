@@ -27,7 +27,7 @@ function fakePlayer() {
 
 /** A recording of one note, standing in for a bank that was never fetched. */
 function fakeSample(overrides: Partial<SampledNote> = {}): SampledNote {
-  return { buffer: { duration: 2 } as AudioBuffer, offset: 2, gain: 1, ...overrides };
+  return { buffer: { duration: 2 } as AudioBuffer, offset: 2, gain: 1, loop: 0, ...overrides };
 }
 
 function performer(
@@ -157,6 +157,27 @@ describe("voice tiers", () => {
     const fake = fakePlayer();
     performer(fake.player, { tier: "synth", sample: "x", takeSample: () => fakeSample() }).noteOn(60);
     expect(fake.notes[0].options.attack).toBeUndefined();
+  });
+
+  /*
+   * A key held longer than the recording. A bank holds its level to the
+   * last sample, so without this a held wind note is a note that stops
+   * mid-phrase — and with it the tail repeats until the finger comes off.
+   */
+  it("loops a sustained tail while the key is held", () => {
+    const fake = fakePlayer();
+    performer(fake.player, {
+      tier: "samples", sample: "x", takeSample: () => fakeSample({ loop: 0.5 })
+    }).noteOn(60);
+    expect(fake.notes[0].options.loop).toBeCloseTo(0.5, 6);
+  });
+
+  it("does not loop a recording that ends by itself", () => {
+    const fake = fakePlayer();
+    performer(fake.player, {
+      tier: "samples", sample: "x", takeSample: () => fakeSample({ loop: 0 })
+    }).noteOn(60);
+    expect(fake.notes[0].options.loop).toBe(0);
   });
 
   it("falls back to the model when there is no recording", () => {
