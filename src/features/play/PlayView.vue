@@ -25,6 +25,7 @@ import HoleChart from "./components/HoleChart.vue";
 import NoteCells from "./components/NoteCells.vue";
 import PlayControl from "./components/PlayControl.vue";
 import { keymapSpan, midiForKey } from "./domain/keymap.js";
+import { ringStep } from "./domain/radio.js";
 import { isTuned } from "../../instruments/index.js";
 import {
   allNotesOff,
@@ -36,11 +37,13 @@ import {
   preset,
   releasePlay,
   setOrientation,
+  setVoiceTier,
   settings,
   shiftOctave,
   strike,
   struck,
   sounding,
+  VOICE_TIERS,
   type Orientation
 } from "./stores/play.js";
 
@@ -109,13 +112,18 @@ const ORIENTATIONS: Array<{ id: Orientation; key: "playHorizontal" | "playVertic
  * keys are how a radio group is meant to be moved through.
  */
 function onOrientKey(event: KeyboardEvent, index: number): void {
-  const step = event.key === "ArrowRight" || event.key === "ArrowDown" ? 1
-    : event.key === "ArrowLeft" || event.key === "ArrowUp" ? -1
-    : 0;
-  if (step === 0) return;
+  const next = ringStep(event.key, index, ORIENTATIONS.length);
+  if (next === null) return;
   event.preventDefault();
-  const next = ORIENTATIONS[(index + step + ORIENTATIONS.length) % ORIENTATIONS.length];
-  setOrientation(next.id);
+  setOrientation(ORIENTATIONS[next].id);
+}
+
+/** The same, for the three ways of sounding the instrument. */
+function onTierKey(event: KeyboardEvent, index: number): void {
+  const next = ringStep(event.key, index, VOICE_TIERS.length);
+  if (next === null) return;
+  event.preventDefault();
+  setVoiceTier(VOICE_TIERS[next]);
 }
 
 /**
@@ -149,6 +157,11 @@ function onKeydown(event: KeyboardEvent): void {
   const target = event.target as HTMLElement | null;
   if (target && /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName)) return;
   if (event.metaKey || event.ctrlKey || event.altKey) return;
+  // A chip that has already claimed this arrow has moved its own group,
+  // and this listener is on the window, so it would move the octave too:
+  // a focused chip and a shift of both octaves is one arrow doing two
+  // things. Anything that has been handled is not this handler's.
+  if (event.defaultPrevented) return;
 
   if (event.code === "ArrowLeft" || event.code === "ArrowRight") {
     if (!isKeys.value) return;
@@ -220,13 +233,13 @@ onBeforeUnmount(() => {
       <PlayControl :auto-width-mm="autoWidthMm" />
     </ControlSheet>
 
-    <div class="orient-chips" role="radiogroup" :aria-label="t('playOrientation')">
+    <div class="seg-chips" role="radiogroup" :aria-label="t('playOrientation')">
       <button
         v-for="(entry, index) in ORIENTATIONS"
         :key="entry.id"
         type="button"
         role="radio"
-        class="orient-chip"
+        class="seg-chip"
         :class="{ 'is-active': orientation === entry.id }"
         :data-orientation="entry.id"
         :aria-checked="orientation === entry.id"
@@ -235,6 +248,32 @@ onBeforeUnmount(() => {
         @keydown="onOrientKey($event, index)"
       >
         {{ t(entry.key) }}
+      </button>
+    </div>
+
+    <!--
+      How the instrument is made, beside the two other things that are
+      chosen before playing rather than during it. It is not a voice menu:
+      all three play the instrument the picker names, and what changes is
+      whether that instrument is a model, a recording, or the recording's
+      attack over the model. Choosing a different sound is choosing a
+      different instrument.
+    -->
+    <div class="seg-chips" role="radiogroup" :aria-label="t('playVoice')">
+      <button
+        v-for="(tier, index) in VOICE_TIERS"
+        :key="tier"
+        type="button"
+        role="radio"
+        class="seg-chip"
+        :class="{ 'is-active': settings.voiceTier === tier }"
+        :data-tier="tier"
+        :aria-checked="settings.voiceTier === tier"
+        :tabindex="settings.voiceTier === tier ? 0 : -1"
+        @click="setVoiceTier(tier)"
+        @keydown="onTierKey($event, index)"
+      >
+        {{ t(`playVoice_${tier}`) }}
       </button>
     </div>
 
@@ -247,7 +286,9 @@ onBeforeUnmount(() => {
       >
         −
       </button>
-      <span class="kbd-octave-value">{{ t("playOctave") }} {{ octaveLabel }}</span>
+      <span class="kbd-octave-value">
+        <span class="kbd-octave-word">{{ t("playOctave") }}</span> {{ octaveLabel }}
+      </span>
       <button
         type="button"
         class="kbd-octave-btn"

@@ -459,7 +459,9 @@ async function assertBarAboveStage(page, label) {
     return {
       bar: Math.round(bar.getBoundingClientRect().bottom),
       stage: Math.round(stage.getBoundingClientRect().top),
-      chips: document.querySelectorAll(".play-bar .value-chip").length
+      // Named by its sheet, so a second control added to the bar cannot
+      // silently take over the nine clicks below that open this one.
+      chips: document.querySelectorAll('.play-bar [data-sheet="setup"] .value-chip').length
     };
   });
   if (!order) throw new Error(`${label}: the play tool has no bar`);
@@ -468,6 +470,46 @@ async function assertBarAboveStage(page, label) {
   }
   if (order.bar > order.stage + 2) {
     throw new Error(`${label}: the picker sits ${order.bar - order.stage}px below the instrument`);
+  }
+}
+
+/**
+ * The bar is chrome, and chrome is space taken from the instrument.
+ *
+ * Its groups wrap, which is the point — but three rows of controls above a
+ * keyboard on a 667px phone is a third of the screen spent saying what the
+ * thing is and none of it spent playing it. Two rows is the budget on a
+ * phone and one on a laptop, and it is measured rather than eyeballed
+ * because adding one more chip is exactly how a bar quietly becomes three.
+ */
+async function assertBarRows(page, label, max) {
+  const rows = await page.evaluate(() => {
+    const bar = document.querySelector(".play-bar");
+    if (!bar) return null;
+    /*
+     * Counted by stacking, not by comparing tops: the bar centres its
+     * children vertically, so five items on one row have five different
+     * tops and a set of them is five. A row starts when an item begins
+     * below everything already placed in the row above it.
+     */
+    const boxes = [...bar.children]
+      .map((el) => el.getBoundingClientRect())
+      .sort((a, b) => a.top - b.top);
+    let count = 0;
+    let bottom = -Infinity;
+    for (const box of boxes) {
+      if (box.top >= bottom - 1) {
+        count += 1;
+        bottom = box.bottom;
+      } else {
+        bottom = Math.max(bottom, box.bottom);
+      }
+    }
+    return count;
+  });
+  if (rows === null) throw new Error(`${label}: the play tool has no bar`);
+  if (rows > max) {
+    throw new Error(`${label}: the play bar wrapped into ${rows} rows, and ${max} is the budget`);
   }
 }
 
@@ -675,6 +717,7 @@ async function walkPlay(page, label, { wide = false } = {}) {
   const keys = await page.locator(".kbd-key").count();
   if (keys !== 32) throw new Error(`${label}: expected 32 keys, got ${keys}`);
   await assertBarAboveStage(page, label);
+  await assertBarRows(page, label, wide ? 1 : 2);
   await assertNothingFallsOff(page, label);
   await assertStageFillsWidth(page, `${label} keys`, ".play-stage", 0.99);
   await assertStageOwnsTheRest(page, `${label} keys`, ".play-stage");
@@ -795,20 +838,22 @@ async function walkPlay(page, label, { wide = false } = {}) {
     throw new Error(`${label}: going back to auto did not restore the keyboard's own width`);
   }
 
-  // Three ways to sound the same instrument, chosen once in the setup
-  // sheet rather than kept on a bar that has to hold an instrument.
-  // Every one of them plays the instrument in front of the player: a tier
-  // is a preference, not a mode, and a bank that will not load costs the
-  // difference between a model and a recording rather than the note.
-  await page.locator(".play-bar .value-chip").click();
+  /*
+   * Three ways to sound the same instrument, on the bar beside the
+   * direction it runs: both are choices about the thing in front of the
+   * player rather than about the page, and neither is reached for while
+   * playing. Every one of them plays the instrument the picker names — a
+   * tier is a preference, not a mode, and a bank that will not load costs
+   * the difference between a model and a recording rather than the note.
+   */
   for (const tier of ["synth", "hybrid", "samples"]) {
-    const chip = page.locator(`[data-tier="${tier}"]`);
-    if ((await chip.count()) !== 1) throw new Error(`${label}: no ${tier} tier chip`);
+    const chip = page.locator(`.play-bar [data-tier="${tier}"]`);
+    if ((await chip.count()) !== 1) throw new Error(`${label}: no ${tier} tier chip on the bar`);
   }
-  await page.locator('[data-tier="samples"]').click();
-  // The sheet closes, so the instrument is not played through it — and the
-  // bank arrives in the background, so the note is pressed at once.
-  await page.keyboard.press("Escape");
+  if ((await page.locator('[data-sheet="setup"] [data-tier]').count()) !== 0) {
+    throw new Error(`${label}: the tier chips are in the sheet as well as on the bar`);
+  }
+  await page.locator('.play-bar [data-tier="samples"]').click();
   await page.waitForTimeout(150);
   await page.locator(".kbd-key").nth(2).dispatchEvent("pointerdown");
   await page.waitForSelector(".kbd-key.is-down", { timeout: 4000 });
@@ -816,10 +861,26 @@ async function walkPlay(page, label, { wide = false } = {}) {
   await page.waitForFunction(() => document.querySelectorAll(".kbd-key.is-down").length === 0, {
     timeout: 4000
   });
-  await page.locator(".play-bar .value-chip").click();
-  await page.locator('[data-tier="synth"]').click();
-  await page.keyboard.press("Escape");
+  await page.locator('.play-bar [data-tier="synth"]').click();
   await assertNoVOverflow(page, `${label} tiers`);
+
+  /*
+   * The licence credit belongs to the recordings, so it is said while one
+   * of them can be heard and not while a model is playing. It stays in the
+   * setup sheet — the sheet is where a bank is chosen and where a bank is
+   * named — which is why this opens one to look.
+   */
+  await page.locator('.play-bar [data-tier="samples"]').click();
+  await page.locator('[data-sheet="setup"] .value-chip').click();
+  await page.waitForSelector(".tier-credit", { timeout: 4000 });
+  await page.keyboard.press("Escape");
+  await page.locator('.play-bar [data-tier="synth"]').click();
+  await page.locator('[data-sheet="setup"] .value-chip').click();
+  await page.waitForSelector("[data-key-width]", { timeout: 4000 });
+  if ((await page.locator(".tier-credit").count()) !== 0) {
+    throw new Error(`${label}: the credit for the recordings shows while the model plays`);
+  }
+  await page.keyboard.press("Escape");
 
   // A keyboard turns too: on the other axis a key's long side is the
   // vertical one, and it is still a key the hand can find.
@@ -837,7 +898,7 @@ async function walkPlay(page, label, { wide = false } = {}) {
 
   // The instrument decides the surface: switching to a guitar draws a
   // fretboard, and its own tunings come with it.
-  await page.locator(".play-bar .value-chip").click();
+  await page.locator('[data-sheet="setup"] .value-chip').click();
   await page.waitForSelector('[data-instrument="guitar"]', { timeout: 4000 });
   await page.locator('[data-instrument="guitar"]').click();
   await page.waitForSelector(".fret-board", { timeout: 8000 });
@@ -884,7 +945,7 @@ async function walkPlay(page, label, { wide = false } = {}) {
   await assertRowsHoldTheirCells(page, `${label} frets`, ".fret-row", ".fret-cell");
 
   // The tuning row appears only because a guitar has alternate tunings.
-  await page.locator(".play-bar .value-chip").click();
+  await page.locator('[data-sheet="setup"] .value-chip').click();
   const tunings = await page.locator("[data-preset]").count();
   if (tunings < 2) throw new Error(`${label}: expected the guitar's tunings, got ${tunings}`);
   // Standard tuning bottoms out on E2, so a D2 anywhere on the board is
@@ -906,7 +967,7 @@ async function walkPlay(page, label, { wide = false } = {}) {
 
   // A fifth surface: a string you stop with a finger. The grid is the same
   // grid, and the only thing missing is the frets.
-  await page.locator(".play-bar .value-chip").click();
+  await page.locator('[data-sheet="setup"] .value-chip').click();
   await page.waitForSelector('[data-instrument="violin"]', { timeout: 4000 });
   await page.locator('[data-instrument="violin"]').click();
   await page.waitForSelector(".fret-board", { timeout: 8000 });
@@ -930,7 +991,7 @@ async function walkPlay(page, label, { wide = false } = {}) {
 
   // A sixth: instruments whose notes are cells. A kalimba is a row of
   // tines in mounted order, a harmonica two rows of ten reeds.
-  await page.locator(".play-bar .value-chip").click();
+  await page.locator('[data-sheet="setup"] .value-chip').click();
   await page.waitForSelector('[data-instrument="kalimba"]', { timeout: 4000 });
   await page.locator('[data-instrument="kalimba"]').click();
   await page.waitForSelector(".note-cells", { timeout: 8000 });
@@ -945,7 +1006,7 @@ async function walkPlay(page, label, { wide = false } = {}) {
   await page.waitForSelector(".note-cell.is-down", { timeout: 4000 });
   await page.locator(".note-cell").first().dispatchEvent("pointerup");
 
-  await page.locator(".play-bar .value-chip").click();
+  await page.locator('[data-sheet="setup"] .value-chip').click();
   await page.waitForSelector('[data-instrument="harmonica"]', { timeout: 4000 });
   await page.locator('[data-instrument="harmonica"]').click();
   await page.waitForSelector(".note-cells.is-reeds", { timeout: 8000 });
@@ -965,7 +1026,7 @@ async function walkPlay(page, label, { wide = false } = {}) {
   });
 
   // Third surface: the kit has no pitch, so it has pads and no tuning row.
-  await page.locator(".play-bar .value-chip").click();
+  await page.locator('[data-sheet="setup"] .value-chip').click();
   await page.waitForSelector('[data-instrument="drums"]', { timeout: 4000 });
   await page.locator('[data-instrument="drums"]').click();
   await page.waitForSelector(".pad-grid", { timeout: 8000 });
@@ -1012,7 +1073,7 @@ async function walkPlay(page, label, { wide = false } = {}) {
 
   // Fourth surface: a wind is played through the same chart the tuner
   // draws, and it is held rather than struck.
-  await page.locator(".play-bar .value-chip").click();
+  await page.locator('[data-sheet="setup"] .value-chip').click();
   await page.waitForSelector('[data-instrument="dizi"]', { timeout: 4000 });
   await page.locator('[data-instrument="dizi"]').click();
   await page.waitForSelector(".hole-chart", { timeout: 8000 });

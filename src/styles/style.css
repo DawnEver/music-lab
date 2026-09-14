@@ -3699,11 +3699,11 @@
 }
 
 /*
- * Every surface turns, so the control belongs to the tool and not to one
- * of its shapes: two options, both visible, no state-in-a-label.
+ * A one-of-N choice, every option visible, no state-in-a-label. Two groups
+ * on the bar wear it — the direction the instrument runs, and how it is
+ * sounded — so it is named for what it is rather than for one of them.
  */
-.orient-chips,
-.tier-chips {
+.seg-chips {
   display: flex;
   flex: 0 0 auto;
   gap: 4px;
@@ -3713,7 +3713,7 @@
   background: var(--glass);
 }
 
-.orient-chip {
+.seg-chip {
   min-height: 30px;
   padding: 0 14px;
   border: 0;
@@ -3727,24 +3727,59 @@
   transition: background 0.12s ease, color 0.12s ease;
 }
 
-.orient-chip:hover {
+.seg-chip:hover {
   color: var(--text);
 }
 
-.orient-chip.is-active {
+.seg-chip.is-active {
   color: var(--text);
   background: color-mix(in srgb, var(--accent) 24%, transparent);
 }
 
 /*
- * The one control a phone's player reaches for to change the shape of the
+ * The controls a phone's player reaches for to change the shape of the
  * instrument, at a target a thumb can find. This comes after the rule it
  * overrides: at equal specificity the last one wins, and a phone rule
  * placed above its base is a rule that does nothing.
+ *
+ * The padding and the type are tighter than a desktop's because there are
+ * four groups on this bar now and 375px holds two rows of them at most.
+ * The height is not: 34px is the smallest thing a thumb hits reliably, and
+ * a control that is hard to press is worse than one that wraps.
  */
 @media (max-width: 720px) {
-  .orient-chip {
+  .seg-chip {
     min-height: 34px;
+    padding: 0 8px;
+    font-size: 10px;
+  }
+
+  /*
+   * The bar holds four groups and 375px, which is two rows of them and no
+   * more. What gives way is the words a control does not need: "Instrument"
+   * beside "Piano" says what a chip that opens Instrument says, and
+   * "Octave" between − and + says what two buttons with those names in
+   * their labels say. Both are 66px and 50px, and it is those 116px that
+   * decide whether the bar is two rows or three.
+   */
+  .play-bar .value-chip-label,
+  .kbd-octave-word {
+    display: none;
+  }
+
+  /* What is left is the note, which needs room for "C-1" and no more. The
+     96px on a laptop is there so the label does not jump as the octave
+     changes; three characters do not jump. */
+  .kbd-octave-value {
+    min-width: 34px;
+  }
+
+  /* The advice rides with the controls instead of after them: written last
+     it would be pushed onto a row of its own by everything in front of it,
+     and a third row of chrome above an instrument is a third of the screen
+     spent not playing it. */
+  .play-hint {
+    order: -1;
   }
 
   /* Three rows of chrome above an instrument is a third of the screen

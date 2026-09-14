@@ -1,6 +1,11 @@
 <script setup lang="ts">
 /**
- * Setup: which instrument, how it is strung, how loud.
+ * Setup: which instrument, how it is strung, how wide a key is, how loud.
+ *
+ * What is set once and then played — as opposed to what is reached for
+ * while playing, which lives on the bar above the stage. The direction the
+ * instrument runs and how it is sounded are both on that bar; how a neck
+ * is tuned, how wide a key is and how loud the whole thing plays are here.
  *
  * Chips rather than a dropdown, for two reasons: every option stays
  * visible, and a menu overlay teleports out of the sheet — so clicking one
@@ -20,11 +25,9 @@ import {
   preset,
   setInstrument,
   setPreset,
-  setVoiceTier,
   setVolume,
   setWhiteMm,
-  settings,
-  VOICE_TIERS
+  settings
 } from "../stores/play.js";
 import { DRUMKIT_CREDIT, SOUNDFONT_CREDIT } from "../../../audio/soundfont.js";
 
@@ -66,16 +69,6 @@ const isKeys = computed(() => instrument.value.surface.kind === "keys");
  */
 const shownMm = computed(() => settings.whiteMm ?? props.autoWidthMm ?? MIN_WHITE_MM);
 
-/** One of three, so it is a radio group rather than three switches. */
-function onTierKey(event: KeyboardEvent, index: number): void {
-  const step = event.key === "ArrowRight" || event.key === "ArrowDown" ? 1
-    : event.key === "ArrowLeft" || event.key === "ArrowUp" ? -1
-    : 0;
-  if (step === 0) return;
-  event.preventDefault();
-  setVoiceTier(VOICE_TIERS[(index + step + VOICE_TIERS.length) % VOICE_TIERS.length]);
-}
-
 const presets = computed(() => {
   const current = instrument.value;
   return isTuned(current) ? current.tuning.presets : [];
@@ -114,27 +107,6 @@ const presets = computed(() => {
           @click="setPreset(entry.id)"
         >
           {{ entry.name[lang] }}
-        </button>
-      </div>
-    </div>
-
-    <div class="metro-field">
-      <span class="slider-label">{{ t("playVoice") }}</span>
-      <div class="metro-chips" role="radiogroup" :aria-label="t('playVoice')">
-        <button
-          v-for="(tier, index) in VOICE_TIERS"
-          :key="tier"
-          type="button"
-          role="radio"
-          class="metro-chip"
-          :class="{ 'is-active': settings.voiceTier === tier }"
-          :data-tier="tier"
-          :aria-checked="settings.voiceTier === tier"
-          :tabindex="settings.voiceTier === tier ? 0 : -1"
-          @click="setVoiceTier(tier)"
-          @keydown="onTierKey($event, index)"
-        >
-          {{ t(`playVoice_${tier}`) }}
         </button>
       </div>
     </div>

@@ -17,6 +17,7 @@ import {
   keyboardLayout,
   whiteRunMm
 } from "../src/features/play/domain/layout.js";
+import { ringStep } from "../src/features/play/domain/radio.js";
 
 describe("key map", () => {
   it("puts the two rows an octave apart", () => {
@@ -138,5 +139,30 @@ describe("white key size", () => {
   it("spans the whole keyboard, not one key", () => {
     // The run is what the board is sized to: `--kbd-fit`.
     expect(whiteRunMm(19, 12.5)).toBe(237.5);
+  });
+});
+
+/*
+ * The arrows move through a one-of-N group, and play has two of them: the
+ * direction the instrument runs, and how it is sounded. Same key, same
+ * rule, so the rule is one function.
+ */
+describe("radio group keys", () => {
+  it("moves one place and wraps", () => {
+    expect(ringStep("ArrowRight", 0, 3)).toBe(1);
+    expect(ringStep("ArrowRight", 2, 3)).toBe(0);
+    expect(ringStep("ArrowLeft", 0, 3)).toBe(2);
+    expect(ringStep("ArrowLeft", 2, 3)).toBe(1);
+  });
+
+  it("treats up and down as back and forward", () => {
+    expect(ringStep("ArrowDown", 0, 2)).toBe(1);
+    expect(ringStep("ArrowUp", 1, 2)).toBe(0);
+  });
+
+  it("leaves every other key to whoever else wants it", () => {
+    expect(ringStep("Tab", 0, 3)).toBeNull();
+    expect(ringStep("Enter", 1, 3)).toBeNull();
+    expect(ringStep("ArrowRight", 0, 0)).toBeNull();
   });
 });
