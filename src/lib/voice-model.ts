@@ -182,6 +182,36 @@ const WIND_DRIVE = 5.5;
 /** What a `breath` of 1 is worth against the note itself. */
 const WIND_BREATH = 0.35;
 
+/**
+ * How hard a bow grips, and how fast that grip lets go.
+ *
+ * `BOW_DRIVE` is how many times the string's own loss the bow can feed
+ * while the string is still quiet, and it is what makes a note *speak*:
+ * a bow that only just pays for the losses takes seconds to arrive, which
+ * is a crescendo rather than a note. `BOW_LEVEL` is the amplitude a full
+ * press is worth, so half a press is worth half of it — the press range,
+ * in the only currency a player has. `BOW_SHARPNESS` is how hard the
+ * friction curve closes above that level: low enough to be spent where the
+ * string is still silent, and high enough to hold it once it is not. The
+ * scrape is the rosin: enough to start the note and no more, because a
+ * scrape loud enough to be heard under the note has become the note.
+ */
+const BOW_DRIVE = 1000;
+const BOW_SHARPNESS = 6;
+const BOW_LEVEL = 0.35;
+/**
+ * The follower the friction curve reads: quick to catch a crest, slow to
+ * let it go, so what it holds is the string's *peak* and not its average.
+ * The friction curve binds the amplitude the waveform reaches, and an
+ * average would let a peaky waveform through several times louder than the
+ * level it was asked for.
+ */
+const BOW_ATTACK = 0.2;
+const BOW_RELEASE = 0.9995;
+const BOW_SCRAPE = 0.0005;
+/** A hard ceiling on what a round trip may carry, as a fence and not a law. */
+const MAX_LOOP = 4;
+
 function clamp(value: number, low: number, high: number): number {
   return Math.min(high, Math.max(low, value));
 }
@@ -383,12 +413,42 @@ export function renderString(spec: StringSpec, random: RandomSource): Float32Arr
   let dullState = 0;
   let write = 0;
 
-  // A bow's own noise, low-passed by how much hair is in contact with the
-  // string. Rosin on hair is not white noise; it is the top end of a
-  // scrape, and leaving it white makes the bow sound like tape hiss.
+  /*
+   * The bow, which is friction and not a noise source.
+   *
+   * Rosin grips a string that is moving slowly and lets go of one that is
+   * moving fast, so the bow puts energy *into the direction the string is
+   * already going* — and less of it the further the string has already
+   * travelled. That is what a bowed note is: the string's own modes, grown
+   * until the friction that feeds them equals the loss that drains them.
+   * The scrape is here to start the note, not to be the note.
+   *
+   * Modelled as an extra gain on the loop's own signal that falls away
+   * with the square of its amplitude (`gripAtRest` over `1 + amplitude²`),
+   * which is the friction curve above and, not by accident, a loop that
+   * cannot run away: gain above one while the string is quiet, exactly one
+   * at the level it settles to. What this replaced was a saturating
+   * attenuator *inside* the loop, and an attenuator inside a resonator
+   * does not set a level, it kills the resonance — measured, 2.6% of that
+   * note was on its own harmonic series where a plucked string of the same
+   * code is 22%, so what a player heard was the bow, run through a filter.
+   */
   const bow = spec.bow;
   const bowTone = clamp(spec.brightness ?? 0.6, 0, 1) * 0.85;
   let bowState = 0;
+  /*
+   * The bow, expressed as a multiple of what the string loses on its own.
+   * That is the only scale it can honestly have: a bow is heard against
+   * the note's own decay, and writing it as a bare number means guessing
+   * which of the two currencies it is in — which is how this model spent a
+   * round with a bow that was either inaudible or over-driving, depending
+   * on an exponent nobody could check.
+   */
+  const gripAtRest = bow ? (1 - loopGain) * bow.pressure * BOW_DRIVE : 0;
+  /** The amplitude this press is worth: a light bow lets go early. */
+  const bowLevel = bow ? bow.pressure * BOW_LEVEL : 1;
+  /** The string's own amplitude, followed over a few tens of milliseconds. */
+  let level = 0;
 
   for (let index = 0; index < total; index += 1) {
     let value = readDelay(line, write, length);
@@ -410,14 +470,45 @@ export function renderString(spec: StringSpec, random: RandomSource): Float32Arr
     let fed = dullState * loopGain;
 
     if (bow) {
+      /*
+       * Energy in, in the direction the string is already going, and less
+       * of it the faster the string is going.
+       *
+       * Read as the note's *level* rather than as the sample in front of
+       * us, and that is the whole difference between a bow and a fuzz box:
+       * a friction curve read sample by sample reshapes every cycle of the
+       * waveform, and the same curve read as a level changes the loop's
+       * gain without touching the waveform at all — so what circulates
+       * stays the string's own, which is what makes it a note.
+       */
+      const size = Math.abs(value);
+      level =
+        size > level
+          ? level + (size - level) * BOW_ATTACK
+          : level * BOW_RELEASE;
+      /*
+       * The grip, as a steep curve around the level this press is worth.
+       * Steep because the two ends of it are differently important: far
+       * below the level, the bow must drive the string hard enough to
+       * speak in fifty milliseconds rather than in three seconds — a bowed
+       * note that crescendos through its own length is not a note — and
+       * just above it, the grip must fall away fast enough to hold the
+       * string there. A gentle curve does neither: it is spent at the
+       * amplitude where the string is still inaudible.
+       */
+      fed += value * (gripAtRest / (1 + (level / bowLevel) ** BOW_SHARPNESS));
+
+      // Rosin on hair is not white noise; it is the top end of a scrape.
+      // Quiet: this starts the note, and a scrape loud enough to be heard
+      // under it is a scrape that has become the note.
       const scrape = random() * 2 - 1;
       bowState = bowState * bowTone + scrape * (1 - bowTone);
-      fed += bowState * bow.noise * bow.pressure;
-      // Rosin does not grip harder forever. Friction saturates, and that
-      // saturation is what sets the string's level — not the loop's loss.
-      // Without it a driven loop either runs away or has to be damped so
-      // hard it stops being a string.
-      fed = fed / (1 + Math.abs(fed));
+      fed += bowState * bow.noise * BOW_SCRAPE;
+
+      // A loop that grew without bound would leave the buffer; the grip is
+      // one at the level it settles to, and this is only the fence around
+      // the first few trips, which are above one.
+      fed = clamp(fed, -MAX_LOOP, MAX_LOOP);
     }
 
     line[write] = fed;

@@ -56,6 +56,56 @@ function fallDb(samples: Float32Array, from: number, to: number): number {
   return 20 * Math.log10(early / late);
 }
 
+
+/**
+ * How much of a note is the note.
+ *
+ * Two measures, because either alone can be fooled by the other's failures.
+ * The first is the share of the energy sitting on the note's own harmonic
+ * series: an instrument's sound is its modes, and everything else is the
+ * mechanism that excited them. The second is how well the waveform repeats
+ * at its own period — a tone repeats, and noise does not.
+ */
+function harmonicShare(samples: Float32Array, hz: number, from = 0.6, to = 1.2): number {
+  const start = Math.min(at(from), samples.length);
+  const end = Math.min(at(to), samples.length);
+  let total = 0;
+  for (let index = start; index < end; index += 1) total += samples[index] * samples[index];
+  total /= Math.max(1, end - start);
+
+  let harmonic = 0;
+  for (let multiple = 1; multiple <= 20; multiple += 1) {
+    const frequency = hz * multiple;
+    if (frequency > SAMPLE_RATE / 2 - 500) break;
+    harmonic += 2 * magnitudeAt(samples, frequency, from, to) ** 2;
+  }
+  return harmonic / Math.max(total, 1e-12);
+}
+
+/** How well the waveform matches itself one period later, 0..1. */
+function selfSimilarity(samples: Float32Array, hz: number, from = 0.6): number {
+  const start = Math.min(at(from), samples.length - 16384);
+  const period = SAMPLE_RATE / hz;
+  const length = 8192;
+  let best = -1;
+  for (let lag = period * 0.97; lag <= period * 1.03; lag += 0.02) {
+    const whole = Math.floor(lag);
+    const fraction = lag - whole;
+    let cross = 0;
+    let left = 0;
+    let right = 0;
+    for (let index = 0; index < length; index += 1) {
+      const a = samples[start + index];
+      const b = samples[start + index + whole] * (1 - fraction) + samples[start + index + whole + 1] * fraction;
+      cross += a * b;
+      left += a * a;
+      right += b * b;
+    }
+    best = Math.max(best, cross / Math.sqrt(Math.max(left * right, 1e-12)));
+  }
+  return best;
+}
+
 /** Magnitude of the spectrum at one frequency, by a direct DFT bin. */
 function magnitudeAt(samples: Float32Array, hz: number, from = 0.1, to = 0.4): number {
   const start = Math.min(at(from), samples.length);
@@ -287,6 +337,24 @@ describe("renderString", () => {
     it("plays the pitch it was asked for while it is being driven", () => {
       const samples = bowed();
       expect(Math.abs(centsOff(samples, 220))).toBeLessThan(8);
+    });
+
+    /*
+     * And it is the *string* that is heard, not the bow.
+     *
+     * This is the difference between an instrument and a hiss, and it is
+     * not a matter of taste: a bowed string's sound is its own modes, which
+     * the bow excites, so its energy sits on the harmonic series and its
+     * waveform repeats at its own period. Measured on this model before it
+     * was reworked, 2.6% of the note was on the harmonic series and the
+     * waveform matched itself at 0.78 — where a plucked string of the same
+     * code is 22% and 1.00. What was left was the bow's own noise, run
+     * through a resonator.
+     */
+    it("is a tone, not the sound of the bow", () => {
+      const samples = bowed();
+      expect(harmonicShare(samples, 220)).toBeGreaterThan(0.12);
+      expect(selfSimilarity(samples, 220)).toBeGreaterThan(0.9);
     });
   });
 
