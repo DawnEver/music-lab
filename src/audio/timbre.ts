@@ -151,7 +151,7 @@ export const TIMBRES: Timbre[] = [
       kind: "wind",
       attack: 0.02,
       stopped: true,
-      jet: { pressure: 0.58, noise: 0.35, tone: 0.5, damping: 0.42 },
+      jet: { pressure: 0.58, noise: 0.35, tone: 0.5, damping: 0.3 },
       breath: 0.05,
       body: [
         { hz: 700, q: 1.4, db: 6 },
@@ -753,7 +753,7 @@ export const TIMBRES: Timbre[] = [
       kind: "wind",
       attack: 0.05,
       stopped: false,
-      jet: { pressure: 0.5, noise: 0.4, tone: 0.62, damping: 0.4 },
+      jet: { pressure: 0.5, noise: 0.4, tone: 0.62, damping: 0.3 },
       breath: 0.1,
       body: [
         { hz: 900, q: 1.1, db: 3 },
@@ -782,7 +782,7 @@ export const TIMBRES: Timbre[] = [
       // the app's own pitch detector can no longer find the note in it —
       // which is a tuner that cannot hear a xiao. What makes it a xiao
       // rather than a dizi is the lower, darker tube below, not the hiss.
-      jet: { pressure: 0.5, noise: 0.4, tone: 0.66, damping: 0.46 },
+      jet: { pressure: 0.5, noise: 0.4, tone: 0.66, damping: 0.4 },
       breath: 0.1,
       body: [
         { hz: 620, q: 1.1, db: 3 },
@@ -806,7 +806,7 @@ export const TIMBRES: Timbre[] = [
       kind: "wind",
       attack: 0.03,
       stopped: false,
-      jet: { pressure: 0.62, noise: 0.5, tone: 0.35, damping: 0.45 },
+      jet: { pressure: 0.62, noise: 0.5, tone: 0.35, damping: 0.2 },
       breath: 0.05,
       body: [
         { hz: 800, q: 1.6, db: 8 },

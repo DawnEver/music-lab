@@ -177,10 +177,31 @@ const STIFFNESS_SECTIONS = 4;
  * so its output is far quieter than a plucked string's for the same
  * nominal gain. This brings it back up.
  */
-const WIND_DRIVE = 5.5;
+const WIND_OUTPUT = 5.5;
 
 /** What a `breath` of 1 is worth against the note itself. */
 const WIND_BREATH = 0.35;
+
+/** How much of the tube's loss its own loop gives up per trip. */
+const WIND_LOOP = 0.999;
+
+/**
+ * How hard the jet drives, and how the press becomes a dynamic range.
+ *
+ * The same three numbers the bow has, for the same reason and with the
+ * same meaning: `WIND_JET` is how many times the tube's own loss the
+ * airstream can feed while the tube is still quiet, `WIND_LEVEL` is the
+ * amplitude a full breath is worth, and `WIND_SHARPNESS` is how hard the
+ * curve closes above it. A wind is slower to speak than a bowed string —
+ * the air has to catch — and its loop is damped harder, so the numbers are
+ * not the bow's.
+ */
+const WIND_JET = 900;
+const WIND_SHARPNESS = 6;
+const WIND_LEVEL = 0.3;
+const WIND_ATTACK = 0.2;
+const WIND_RELEASE = 0.9995;
+const WIND_SCRAPE = 0.01;
 
 /**
  * How hard a bow grips, and how fast that grip lets go.
@@ -722,6 +743,27 @@ export function renderWind(spec: WindSpec, random: RandomSource): Float32Array {
   const reflection = open ? 1 : -1;
   const attackSamples = Math.max(1, Math.round(spec.attack * sampleRate));
 
+  /*
+   * The jet drives the tube, which is the whole of what a wind instrument
+   * is: the airstream is deflected by the air it finds already moving in
+   * the tube, so it puts energy *into that motion* and the tube's own
+   * resonances are what grow. The turbulence is the seed and the colour.
+   *
+   * What this replaced was a saturating attenuator inside the loop —
+   * `fed / (1 + |fed|)` — and an attenuator inside a resonator does not
+   * set a level, it kills the resonance. Measured, 7 to 11% of a wind's
+   * energy was on its own harmonic series, where a plucked string of the
+   * same code is 22% and a bowed one is over 100%: what a player heard was
+   * the jet, through a tube-shaped filter. It is the same defect the bow
+   * had, in the other driven model, and it explains the other half of the
+   * bench's worst numbers — a dizi three to four times brighter than the
+   * recording it stands in for, because a hiss has no harmonics to speak
+   * of and the centroid of a hiss is high.
+   */
+  const gripAtRest = (1 - WIND_LOOP) * pressure * WIND_JET;
+  const windLevel = pressure * WIND_LEVEL;
+  let level = 0;
+
   let write = 0;
   let offset = 0;
   let lp = 0;
@@ -734,8 +776,21 @@ export function renderWind(spec: WindSpec, random: RandomSource): Float32Array {
     jetState = jetState * tone + scrape * (1 - tone);
 
     lp = lp * damp + value * (1 - damp);
-    let fed = lp * reflection * 0.999 + jetState * pressure * jetNoise * 0.35;
-    fed = fed / (1 + Math.abs(fed));
+    let fed = lp * reflection * WIND_LOOP;
+
+    // Energy in, in the direction the air is already going, and less of it
+    // the faster it is going — friction's curve, read as the note's level
+    // rather than as the sample in front of us, or it reshapes the wave.
+    const magnitude = Math.abs(value);
+    level =
+      magnitude > level
+        ? level + (magnitude - level) * WIND_ATTACK
+        : level * WIND_RELEASE;
+    fed += value * reflection * (gripAtRest / (1 + (level / windLevel) ** WIND_SHARPNESS));
+
+    // The turbulence: enough to start the note, and the colour of a reed.
+    fed += jetState * pressure * jetNoise * WIND_SCRAPE;
+    fed = clamp(fed, -MAX_LOOP, MAX_LOOP);
     line[write] = fed;
     write = (write + 1) % size;
 
@@ -779,5 +834,5 @@ export function renderWind(spec: WindSpec, random: RandomSource): Float32Array {
   // Like the bow: a driven model keeps its own level, because the harder
   // it is blown the louder it must be. The constant is what it takes to
   // bring a heavily damped loop up to the level the plucked models reach.
-  return finish(out, (spec.gain ?? 0.8) * WIND_DRIVE, true);
+  return finish(out, (spec.gain ?? 0.8) * WIND_OUTPUT, true);
 }
